@@ -1,4 +1,4 @@
-# ⚡ Jev for Google Antigravity
+# Jev for Google Antigravity
 
 [![System One](https://img.shields.io/badge/Architecture-System%20One%20Semantic%20Control-blue.svg)](https://docs.typesafe.ai)
 [![Google Antigravity](https://img.shields.io/badge/Harness-Google%20Antigravity%202.0-orange.svg)](https://github.com/google/antigravity)
@@ -10,7 +10,7 @@
 
 ---
 
-## 🎯 What is This?
+## Overview
 
 Modern coding agent harnesses like **Google Antigravity** empower generative foundation models (Gemini, Claude, GPT) with direct local tools: executing shell commands, mutating files, and running long-horizon workflows. 
 
@@ -30,7 +30,7 @@ This repository connects Jev directly into Antigravity's native lifecycle hooks.
 
 ---
 
-## 📸 Live Production Proof
+## Live Production Proof
 
 Both hooks are actively deployed across multi-workspace environments on Windows, Linux, and macOS.
 
@@ -53,11 +53,11 @@ Instead of advertising 30+ domain skills in the prompt on every turn, Jev evalua
 ```
 
 Every activated skill displays a transparent in-chat badge:
-> 🧩 **Activated Skill**: `app-security`
+> **Activated Skill**: `app-security`
 
 ---
 
-## 🏛️ Architecture & Control Flow
+## Architecture & Control Flow
 
 ```mermaid
 flowchart TD
@@ -90,7 +90,7 @@ flowchart TD
 
 ---
 
-## 🚀 Quick Start (60 Seconds)
+## Quick Start (60 Seconds)
 
 ### 1. Clone & Configure Secrets
 
@@ -155,7 +155,7 @@ Restart Antigravity or press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $
 
 ---
 
-## 🛠️ Implemented Lifecycle Hooks
+## Implemented Lifecycle Hooks
 
 ### 1. `PreToolUse`: Safety Gate ([`jev_safety_gate.py`](file:///d:/01_GIT/Jev/.agents/hooks/jev_safety_gate.py))
 * **Matcher**: `run_command|write_to_file|replace_file_content`
@@ -185,7 +185,7 @@ cmd /c echo {"toolCall":{"name":"run_command","args":{"CommandLine":"cmd /c rmdi
     {
       "injectSteps": [
         {
-          "ephemeralMessage": "<activated_skill name='...'>\n> 🧩 **Activated Skill**: `...`\n\n...\n</activated_skill>"
+          "ephemeralMessage": "<activated_skill name='...'>\n> **Activated Skill**: `...`\n\n...\n</activated_skill>"
         }
       ]
     }
@@ -205,38 +205,38 @@ cmd /c python -c "import subprocess, json; p = subprocess.Popen(['python', r'%US
 
 ---
 
-## 📚 Master Proposals & Architecture Directory
+## Master Proposals & Architecture Directory
 
 The [`proposals/`](file:///d:/01_GIT/Jev/proposals) directory houses 22 detailed technical specifications and architectural blueprints:
 
 | # | Proposal Document | Status | Description & Core Value |
 | :-: | :--- | :---: | :--- |
-| **01** | **[Verbatim Context Compactor](file:///d:/01_GIT/Jev/proposals/01_PROPOSAL_A_VERBATIM_CONTEXT_COMPACTOR.md)** | ✅ **Implemented** | Replaces lossy summaries with surgical tool pruning while keeping code & discourse 100% verbatim. |
-| **02** | **[Dynamic Skill Dispatcher](file:///d:/01_GIT/Jev/proposals/02_PROPOSAL_B_DYNAMIC_SKILL_DISPATCHER.md)** | ✅ **Implemented** | Two-stage progressive disclosure cutting wrong skill loads by >50% and eliminating prompt bloat. |
-| **03** | **[Knowledge Item Matcher](file:///d:/01_GIT/Jev/proposals/03_PROPOSAL_C_KNOWLEDGE_ITEM_MATCHER.md)** | 📐 *Blueprint* | Pre-flight semantic scanner mounting repository memory artifacts before code investigation begins. |
-| **04** | **[Safety & Tool Router](file:///d:/01_GIT/Jev/proposals/04_PROPOSAL_D_SAFETY_AND_TOOL_ROUTER.md)** | ✅ **Implemented** | Real-time blast-radius scoring and deterministic `force_ask` modal interception for destructive tools. |
-| **05** | **[Additional Industry Patterns](file:///d:/01_GIT/Jev/proposals/05_ADDITIONAL_USE_CASES_AND_INDUSTRY_PATTERNS.md)** | 📚 *Catalog* | Reference catalog mapping 10 enterprise domains to System One non-autoregressive decision patterns. |
-| **06** | **[Intelligent Model Routing](file:///d:/01_GIT/Jev/proposals/06_USE_CASE_MODEL_ROUTING.md)** | 📐 *Blueprint* | 70ms task difficulty scoring to tier requests between fast (Flash/Haiku) and reasoning (Pro/Opus) models. |
-| **07** | **[Output & Citation Verification](file:///d:/01_GIT/Jev/proposals/07_USE_CASE_OUTPUT_AND_CITATION_VERIFICATION.md)** | 📐 *Blueprint* | Pre-execution verification of generated API signatures against library ASTs and documentation. |
-| **08** | **[Semantic Code Linting](file:///d:/01_GIT/Jev/proposals/08_USE_CASE_SEMANTIC_CODE_LINTING.md)** | 📐 *Blueprint* | Automated CI/CD PR diff checking against architectural guidelines and design principles. |
-| **09** | **[SDE Cascades](file:///d:/01_GIT/Jev/proposals/09_USE_CASE_STRUCTURED_DATA_EXTRACTION_CASCADE.md)** | 📐 *Blueprint* | Regex extraction + Jev Choice for schema-guaranteed, hallucination-free structured data extraction. |
-| **10** | **[RAG Re-Ranking & Filtering](file:///d:/01_GIT/Jev/proposals/10_USE_CASE_RAG_RERANKING_AND_FILTERING.md)** | 📐 *Blueprint* | Parallel vector chunk re-ranking pruning 85% of distractor passages before reaching the LLM context. |
-| **11** | **[Line-by-Line Semantic Search](file:///d:/01_GIT/Jev/proposals/11_USE_CASE_LINE_BY_LINE_SEMANTIC_SEARCH.md)** | 📐 *Blueprint* | Scoring hundreds of line IDs in parallel to locate exact clauses in massive files without full reads. |
-| **12** | **[Real-Time Security Guardrails](file:///d:/01_GIT/Jev/proposals/12_USE_CASE_REALTIME_GUARDRAILS.md)** | ✅ **Implemented** | Sub-100ms scans on inbound prompts and outbound git commits for prompt injections and secret leaks. |
-| **13** | **[Autonomous UI Navigation](file:///d:/01_GIT/Jev/proposals/13_USE_CASE_AUTONOMOUS_UI_NAVIGATION.md)** | 📐 *Blueprint* | Real-time DOM element selection for browser automation agents replacing multi-second LLM delays. |
-| **14** | **[Knowledge Graph Alignment](file:///d:/01_GIT/Jev/proposals/14_USE_CASE_KNOWLEDGE_GRAPH_ENTITY_ALIGNMENT.md)** | 📐 *Blueprint* | High-throughput entity deduplication and contradiction resolution across disparate enterprise databases. |
-| **15** | **[Predictive ML Feature Extraction](file:///d:/01_GIT/Jev/proposals/15_USE_CASE_PREDICTIVE_ML_FEATURE_EXTRACTION.md)** | 📐 *Blueprint* | Converts unstructured text signals into continuous calibrated numeric features for XGBoost/CatBoost. |
-| **16** | **[Shapeshift Dynamic UI](file:///d:/01_GIT/Jev/proposals/16_INSPIRATION_SHAPESHIFT_DYNAMIC_UI.md)** | 💡 *Case Study* | Case study of an input morphing into 8+ UI cards via 14 parallel Jev questions in 118ms. |
-| **17** | **[Pydantic AI Integration](file:///d:/01_GIT/Jev/proposals/17_FRAMEWORK_PYDANTIC_AI_TYPESAFE_INTEGRATION.md)** | 📐 *Blueprint* | Architectural adapter integrating TypeSafe as a first-class `TypeSafeModel` in Pydantic AI. |
-| **18** | **[Architectural Treatise: System One](file:///d:/01_GIT/Jev/proposals/18_ARCHITECTURAL_TREATISE_SYSTEM_ONE_ANTIGRAVITY.md)** | 📜 *Master Spec* | Comprehensive treatise defining the formal division of labor between System 1 and System 2. |
-| **19** | **[Official Agent Skill Port](file:///d:/01_GIT/Jev/proposals/19_PROPOSAL_OFFICIAL_AGENT_SKILL_PORT_AND_DISPATCH.md)** | ✅ **Implemented** | Vendors the official `typesafe-ai` agent skill with live documentation navigation via `llms.txt`. |
-| **20** | **[Jev 1.13 Jaggedness Mitigation](file:///d:/01_GIT/Jev/proposals/20_PROPOSAL_JEV_1_13_JAGGEDNESS_MITIGATION_AND_ANTI_ARITHMETIC_LINTING.md)** | ✅ **Implemented** | Runtime guardrails and linters preventing known `jev-1.13` failure modes (arithmetic, date math). |
-| **21** | **[Speculative Fan-Out & Arbitration](file:///d:/01_GIT/Jev/proposals/21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md)** | 📐 *Blueprint* | Evaluates 10–15 speculative questions in a single 110ms batch at the start of a turn to pre-fetch context. |
-| **22** | **[OpenRouter Setup Guide](file:///d:/01_GIT/Jev/proposals/22_GUIDE_OPENROUTER_JEV_SETUP.md)** | ✅ **Implemented** | Step-by-step configuration guide for using `typesafe/jev-latest` on OpenRouter with single-key billing. |
+| **01** | **[Verbatim Context Compactor](file:///d:/01_GIT/Jev/proposals/01_PROPOSAL_A_VERBATIM_CONTEXT_COMPACTOR.md)** | **Implemented** | Replaces lossy summaries with surgical tool pruning while keeping code & discourse 100% verbatim. |
+| **02** | **[Dynamic Skill Dispatcher](file:///d:/01_GIT/Jev/proposals/02_PROPOSAL_B_DYNAMIC_SKILL_DISPATCHER.md)** | **Implemented** | Two-stage progressive disclosure cutting wrong skill loads by >50% and eliminating prompt bloat. |
+| **03** | **[Knowledge Item Matcher](file:///d:/01_GIT/Jev/proposals/03_PROPOSAL_C_KNOWLEDGE_ITEM_MATCHER.md)** | *Blueprint* | Pre-flight semantic scanner mounting repository memory artifacts before code investigation begins. |
+| **04** | **[Safety & Tool Router](file:///d:/01_GIT/Jev/proposals/04_PROPOSAL_D_SAFETY_AND_TOOL_ROUTER.md)** | **Implemented** | Real-time blast-radius scoring and deterministic `force_ask` modal interception for destructive tools. |
+| **05** | **[Additional Industry Patterns](file:///d:/01_GIT/Jev/proposals/05_ADDITIONAL_USE_CASES_AND_INDUSTRY_PATTERNS.md)** | *Catalog* | Reference catalog mapping 10 enterprise domains to System One non-autoregressive decision patterns. |
+| **06** | **[Intelligent Model Routing](file:///d:/01_GIT/Jev/proposals/06_USE_CASE_MODEL_ROUTING.md)** | *Blueprint* | 70ms task difficulty scoring to tier requests between fast (Flash/Haiku) and reasoning (Pro/Opus) models. |
+| **07** | **[Output & Citation Verification](file:///d:/01_GIT/Jev/proposals/07_USE_CASE_OUTPUT_AND_CITATION_VERIFICATION.md)** | *Blueprint* | Pre-execution verification of generated API signatures against library ASTs and documentation. |
+| **08** | **[Semantic Code Linting](file:///d:/01_GIT/Jev/proposals/08_USE_CASE_SEMANTIC_CODE_LINTING.md)** | *Blueprint* | Automated CI/CD PR diff checking against architectural guidelines and design principles. |
+| **09** | **[SDE Cascades](file:///d:/01_GIT/Jev/proposals/09_USE_CASE_STRUCTURED_DATA_EXTRACTION_CASCADE.md)** | *Blueprint* | Regex extraction + Jev Choice for schema-guaranteed, hallucination-free structured data extraction. |
+| **10** | **[RAG Re-Ranking & Filtering](file:///d:/01_GIT/Jev/proposals/10_USE_CASE_RAG_RERANKING_AND_FILTERING.md)** | *Blueprint* | Parallel vector chunk re-ranking pruning 85% of distractor passages before reaching the LLM context. |
+| **11** | **[Line-by-Line Semantic Search](file:///d:/01_GIT/Jev/proposals/11_USE_CASE_LINE_BY_LINE_SEMANTIC_SEARCH.md)** | *Blueprint* | Scoring hundreds of line IDs in parallel to locate exact clauses in massive files without full reads. |
+| **12** | **[Real-Time Security Guardrails](file:///d:/01_GIT/Jev/proposals/12_USE_CASE_REALTIME_GUARDRAILS.md)** | **Implemented** | Sub-100ms scans on inbound prompts and outbound git commits for prompt injections and secret leaks. |
+| **13** | **[Autonomous UI Navigation](file:///d:/01_GIT/Jev/proposals/13_USE_CASE_AUTONOMOUS_UI_NAVIGATION.md)** | *Blueprint* | Real-time DOM element selection for browser automation agents replacing multi-second LLM delays. |
+| **14** | **[Knowledge Graph Alignment](file:///d:/01_GIT/Jev/proposals/14_USE_CASE_KNOWLEDGE_GRAPH_ENTITY_ALIGNMENT.md)** | *Blueprint* | High-throughput entity deduplication and contradiction resolution across disparate enterprise databases. |
+| **15** | **[Predictive ML Feature Extraction](file:///d:/01_GIT/Jev/proposals/15_USE_CASE_PREDICTIVE_ML_FEATURE_EXTRACTION.md)** | *Blueprint* | Converts unstructured text signals into continuous calibrated numeric features for XGBoost/CatBoost. |
+| **16** | **[Shapeshift Dynamic UI](file:///d:/01_GIT/Jev/proposals/16_INSPIRATION_SHAPESHIFT_DYNAMIC_UI.md)** | *Case Study* | Case study of an input morphing into 8+ UI cards via 14 parallel Jev questions in 118ms. |
+| **17** | **[Pydantic AI Integration](file:///d:/01_GIT/Jev/proposals/17_FRAMEWORK_PYDANTIC_AI_TYPESAFE_INTEGRATION.md)** | *Blueprint* | Architectural adapter integrating TypeSafe as a first-class `TypeSafeModel` in Pydantic AI. |
+| **18** | **[Architectural Treatise: System One](file:///d:/01_GIT/Jev/proposals/18_ARCHITECTURAL_TREATISE_SYSTEM_ONE_ANTIGRAVITY.md)** | *Master Spec* | Comprehensive treatise defining the formal division of labor between System 1 and System 2. |
+| **19** | **[Official Agent Skill Port](file:///d:/01_GIT/Jev/proposals/19_PROPOSAL_OFFICIAL_AGENT_SKILL_PORT_AND_DISPATCH.md)** | **Implemented** | Vendors the official `typesafe-ai` agent skill with live documentation navigation via `llms.txt`. |
+| **20** | **[Jev 1.13 Jaggedness Mitigation](file:///d:/01_GIT/Jev/proposals/20_PROPOSAL_JEV_1_13_JAGGEDNESS_MITIGATION_AND_ANTI_ARITHMETIC_LINTING.md)** | **Implemented** | Runtime guardrails and linters preventing known `jev-1.13` failure modes (arithmetic, date math). |
+| **21** | **[Speculative Fan-Out & Arbitration](file:///d:/01_GIT/Jev/proposals/21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md)** | *Blueprint* | Evaluates 10–15 speculative questions in a single 110ms batch at the start of a turn to pre-fetch context. |
+| **22** | **[OpenRouter Setup Guide](file:///d:/01_GIT/Jev/proposals/22_GUIDE_OPENROUTER_JEV_SETUP.md)** | **Implemented** | Step-by-step configuration guide for using `typesafe/jev-latest` on OpenRouter with single-key billing. |
 
 ---
 
-## 🛡️ Defensive Engineering & Failure Policy
+## Defensive Engineering & Failure Policy
 
 1. **Zero External Dependencies**: All hooks use standard library Python (`urllib`, `json`, `pathlib`, `os`, `sys`). No virtual environment activation or `pip install` required.
 2. **Strict 3.5s Timeout**: HTTP requests to Jev are hard-capped at 3.5 seconds. If the network stalls, the hook exits cleanly with `{"decision": "allow"}` without blocking Antigravity.
@@ -248,7 +248,7 @@ The [`proposals/`](file:///d:/01_GIT/Jev/proposals) directory houses 22 detailed
 
 ---
 
-## 📄 License & Attribution
+## License & Attribution
 
 * Released under the [MIT License](file:///d:/01_GIT/Jev/LICENSE).
 * **Jev** is a proprietary System One foundation model developed by **TypeSafe AI** ([docs.typesafe.ai](https://docs.typesafe.ai)).

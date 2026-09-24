@@ -157,9 +157,9 @@ def main():
                     pass
 
                 badge_notice = (
-                    f"> 🧩 **Activated Skill**: `{selected}`\n\n"
+                    f"> **Activated Skill**: `{selected}`\n\n"
                     f"[INSTRUCTION FOR AGENT: The Jev Dynamic Router selected and activated '{selected}' for this turn. "
-                    f"Start your response with the badge `> 🧩 **Activated Skill**: {selected}` so the developer is informed.]\n\n"
+                    f"Start your response with the badge `> **Activated Skill**: {selected}` so the developer is informed.]\n\n"
                 )
 
                 output = {
