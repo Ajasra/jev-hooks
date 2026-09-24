@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
 PreToolUse Hook: Jev Command Execution Safety Gate for Antigravity.
-Evaluates proposed shell commands and file mutations against an ordered blast-radius rubric.
-Exits with code 1 if high-impact or destructive operations are detected, halting execution
-and prompting the developer for confirmation.
+
+Decision pipeline (in order):
+  1. Critical Shield  — hard patterns (rm -rf, git reset --hard, etc.) always force_ask
+  2. Decision DB      — permanent ('always') or session-scoped pre-approved rules → allow/deny
+  3. Jev Scoring      — Jev blast-radius & destructive-prob scoring for everything else
+  4. DB Write-back    — when user chooses 'save for session' or 'save always' in the modal,
+                        the gate persists the rule so future calls skip Jev entirely.
 """
 
 import sys
@@ -23,6 +27,31 @@ except ImportError:
     MODEL = os.environ.get("JEV_MODEL", "jev-latest")
     BASE_HEADERS = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
 
+try:
+    from safety_db import (
+        check_decision,
+        is_critical,
+        save_decision,
+        log_decision,
+        clean_command_string,
+    )
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+
+
+def _log(msg: str):
+    try:
+        env_loader.log_debug("safety_gate", msg)
+    except Exception:
+        pass
+
+
+def _decision_output(decision: str, reason: str, **extra) -> dict:
+    out = {"decision": decision, "reason": reason}
+    out.update(extra)
+    return out
+
 
 def main():
     try:
@@ -32,26 +61,48 @@ def main():
         sys.exit(0)
 
     tool_call_obj = tool_call.get("toolCall", {})
-    tool_name = tool_call_obj.get("name") or tool_call.get("tool_name", "")
-    args = tool_call_obj.get("args") or tool_call.get("args", {})
-    command = args.get("CommandLine", "") or args.get("command", "") or json.dumps(args)
+    tool_name     = tool_call_obj.get("name") or tool_call.get("tool_name", "")
+    args          = tool_call_obj.get("args") or tool_call.get("args", {})
+    command       = args.get("CommandLine", "") or args.get("command", "") or json.dumps(args)
+    conversation_id = tool_call.get("conversationId", "")
+    workspace_path  = (tool_call.get("workspacePaths") or [""])[0]
 
-    # If no tool name could be resolved, allow execution
+    # If no tool name, allow
     if not tool_name:
-        print(json.dumps({"decision": "allow"}))
+        print(json.dumps(_decision_output("allow", "")))
         sys.exit(0)
 
-    # 1. Deterministic Hard-Rule Check: On Windows, enforce 'cmd /c'
-    if tool_name == "run_command" and sys.platform == "win32":
-        if not command.strip().startswith("cmd /c") and not command.strip().startswith("cmd.exe /c"):
-            # Auto-wrap or force user confirmation
-            sys.stderr.write("Rule Violation: Windows commands must be prefixed with 'cmd /c'.\n")
+    # ── 1. CRITICAL SHIELD (deterministic, cannot be bypassed) ──────────────────
+    if DB_AVAILABLE:
+        critical, crit_reason = is_critical(tool_name, command)
+        if critical:
+            reason = (
+                f"[Jev Safety Gate] ⛔ Critical operation — always requires confirmation: {crit_reason}. "
+                f"Tool: {tool_name}"
+            )
+            _log(f"CRITICAL SHIELD: {crit_reason} | Tool: {tool_name} | Args: {command[:80]}")
+            log_decision(conversation_id, tool_name, command, 4.0, 1.0,
+                         "force_ask", "critical_shield", crit_reason)
+            print(json.dumps(_decision_output("force_ask", reason)))
+            sys.exit(0)
 
+    # ── 2. DECISION DB FAST-PATH ────────────────────────────────────────────────
+    if DB_AVAILABLE:
+        db_decision, db_reason = check_decision(
+            tool_name, command, conversation_id, workspace_path
+        )
+        if db_decision in ("allow", "deny"):
+            _log(f"DB-HIT({db_decision}): {db_reason} | Tool: {tool_name} | Args: {command[:80]}")
+            log_decision(conversation_id, tool_name, command, 0, 0,
+                         db_decision, "decision_db", db_reason)
+            print(json.dumps(_decision_output(db_decision, db_reason)))
+            sys.exit(0)
+
+    # ── 3. JEV SCORING ──────────────────────────────────────────────────────────
     if not API_KEY:
-        print(json.dumps({"decision": "allow"}))
+        print(json.dumps(_decision_output("allow", "")))
         sys.exit(0)
 
-    # 2. Jev Blast Radius & Irreversibility Scoring
     payload = {
         "model": MODEL,
         "state": f"Tool: {tool_name}\nCommand/Args: {command}",
@@ -86,50 +137,60 @@ def main():
         with urllib.request.urlopen(req, timeout=3.5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
 
-        answers = data.get("answers", {})
-        blast_score = answers.get("blast_radius", {}).get("score", 0)
+        answers        = data.get("answers", {})
+        blast_score    = answers.get("blast_radius", {}).get("score", 0)
         is_destructive = answers.get("is_destructive", {}).get("noul", 0.0)
-        latency_ms = (time.time() - start_time) * 1000
+        latency_ms     = (time.time() - start_time) * 1000
 
-        # Halt execution if score >= 2 or is_destructive >= 0.7
+        # ── 4. ESCALATE or ALLOW ─────────────────────────────────────────────
         if blast_score >= 2 or is_destructive >= 0.7:
+            clean_cmd = clean_command_string(command) if DB_AVAILABLE else command
+
             reason = (
-                f"[Jev Safety Gate] Intercepted high-impact action: blast_radius={blast_score}, "
-                f"destructive_prob={is_destructive:.2f}. Requires developer confirmation."
+                f"[Jev Safety Gate] Intercepted high-impact action — "
+                f"blast_radius={blast_score:.2f}, destructive_prob={is_destructive:.2f}.\n\n"
+                f"Tool: `{tool_name}`\n"
+                f"Command: `{clean_cmd[:120]}`\n\n"
+                f"Choose how to proceed:"
             )
-            try:
-                env_loader.log_debug(
-                    "safety_gate",
-                    f"INTERCEPTED: blast_radius={blast_score}, destructive_prob={is_destructive:.2f} ({latency_ms:.0f}ms) | Tool: {tool_name} | Args: {command[:70]}"
-                )
-            except Exception:
-                pass
-            # Output force_ask decision to Antigravity runtime
+            _log(
+                f"INTERCEPTED: blast_radius={blast_score:.2f}, destructive_prob={is_destructive:.2f} "
+                f"({latency_ms:.0f}ms) | Tool: {tool_name} | Args: {command[:80]}"
+            )
+            log_decision(conversation_id, tool_name, command, blast_score, is_destructive,
+                         "force_ask", "jev", reason[:200])
+
+            # Emit force_ask with structured permissionOverrides carrying the metadata
+            # so the runtime can offer "Save for session" / "Save always" choices.
             print(json.dumps({
                 "decision": "force_ask",
-                "reason": reason
+                "reason": reason,
+                # permissionOverrides names encode the available save-back actions
+                # that the AGY runtime surfaces as buttons in the confirmation modal.
+                "permissionOverrides": [
+                    f"command({clean_cmd})",                         # once — just this call
+                    f"session:command({clean_cmd})",                 # save for this session
+                    f"always:command({clean_cmd})",                  # save permanently
+                ]
             }))
             sys.exit(0)
 
-        # Safe operation
-        try:
-            env_loader.log_debug(
-                "safety_gate",
-                f"ALLOWED: blast_radius={blast_score}, destructive_prob={is_destructive:.2f} ({latency_ms:.0f}ms) | Tool: {tool_name} | Args: {command[:70]}"
-            )
-        except Exception:
-            pass
-        print(json.dumps({"decision": "allow"}))
+        # Safe: allow
+        _log(
+            f"ALLOWED: blast_radius={blast_score:.2f}, destructive_prob={is_destructive:.2f} "
+            f"({latency_ms:.0f}ms) | Tool: {tool_name} | Args: {command[:80]}"
+        )
+        log_decision(conversation_id, tool_name, command, blast_score, is_destructive,
+                     "allow", "jev", "")
+        print(json.dumps(_decision_output("allow", "")))
         sys.exit(0)
 
     except Exception as e:
-        # On error/timeout, fail-safe: allow command to proceed
-        try:
-            env_loader.log_debug("safety_gate", f"ERROR/TIMEOUT: {e} | Tool: {tool_name}")
-        except Exception:
-            pass
-        print(json.dumps({"decision": "allow"}))
+        # On error/timeout, fail-open
+        _log(f"ERROR/TIMEOUT: {e} | Tool: {tool_name}")
+        print(json.dumps(_decision_output("allow", "")))
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
