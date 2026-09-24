@@ -40,20 +40,35 @@ def get_client_config():
     - Direct TypeSafe AI API (https://api.typesafe.ai/v1/systemone)
     - OpenRouter API (https://openrouter.ai/api/v1/systemone with typesafe/jev-latest)
     """
-    api_key = os.environ.get("TYPESAFE_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
-    is_openrouter = bool(not os.environ.get("TYPESAFE_API_KEY") and os.environ.get("OPENROUTER_API_KEY"))
+    typesafe_key = os.environ.get("TYPESAFE_API_KEY", "").strip()
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
 
-    default_endpoint = (
-        "https://openrouter.ai/api/v1/systemone" if is_openrouter
-        else "https://api.typesafe.ai/v1/systemone"
-    )
-    default_model = (
-        "typesafe/jev-latest" if is_openrouter
-        else "jev-latest"
-    )
+    # Detect OpenRouter key prefix (sk-or-v1-) even if set as TYPESAFE_API_KEY
+    is_openrouter = False
+    if openrouter_key:
+        is_openrouter = True
+        api_key = openrouter_key
+    elif typesafe_key.startswith("sk-or-v1-"):
+        is_openrouter = True
+        api_key = typesafe_key
+    else:
+        api_key = typesafe_key
 
-    endpoint = os.environ.get("TYPESAFE_ENDPOINT", default_endpoint)
-    model = os.environ.get("JEV_MODEL", default_model)
+    # Determine default endpoint and model
+    if is_openrouter:
+        default_endpoint = "https://openrouter.ai/api/v1/systemone"
+        default_model = "typesafe/jev-latest"
+    else:
+        default_endpoint = "https://api.typesafe.ai/v1/systemone"
+        default_model = "jev-latest"
+
+    endpoint = os.environ.get("TYPESAFE_ENDPOINT", "").strip()
+    if not endpoint or (is_openrouter and "api.typesafe.ai" in endpoint):
+        endpoint = default_endpoint
+
+    model = os.environ.get("JEV_MODEL", "").strip()
+    if not model or (is_openrouter and model == "jev-latest"):
+        model = default_model
 
     headers = {
         "Content-Type": "application/json",
@@ -65,3 +80,4 @@ def get_client_config():
         headers["X-Title"] = "Antigravity Jev Integration"
 
     return api_key, endpoint, model, headers
+
