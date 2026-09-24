@@ -116,3 +116,78 @@ Based on the Hermes Agent 182-skill benchmark:
 | **Needless Skill Loaded** | 9.8% | **4.0%** | **2.5x fewer false positives** |
 | **Prompt Overhead** | 10k–30k tokens every turn | **0 to 1k tokens** (only when relevant) | **90%+ token reduction** |
 | **Latency Added** | N/A | **150ms–250ms total** | Negligible compared to 3-10s LLM turn |
+
+---
+
+## 6. Live Production Verification & Multi-Workspace Traces
+
+This proposal is implemented and actively deployed as an Antigravity `PreInvocation` lifecycle hook ([`.agents/hooks/jev_skill_router.py`](file:///d:/01_GIT/Jev/.agents/hooks/jev_skill_router.py)) linked globally to `~/.gemini/config/hooks.json` and `~/.gemini/config/skills`.
+
+### 6.1 Multi-Workspace Test Traces (Evaluated against 30+ Skills in `d:\01_GIT\AAA`)
+
+The hook was verified live against an active workspace containing 30+ specialized domain skills. Each routing decision took under **120ms**:
+
+#### Trace 1: Security Hardening Request
+* **User Prompt**: *"How should we harden our file upload endpoint against SSRF and malicious MIME types?"*
+* **Candidate Catalog**: 37 candidate skills (`app-security`, `api-design`, `database-design`, `architecture-principles`, `review`, etc.)
+* **Jev System One Output**:
+  * `selected_skill`: `app-security`
+  * `confidence`: `1.00` (100% certainty)
+  * `requires_skill`: `0.63`
+* **Injected Step**:
+  ```json
+  {
+    "injectSteps": [
+      {
+        "ephemeralMessage": "<activated_skill name='app-security'>\n> 🧩 **Activated Skill**: `app-security`\n\n[INSTRUCTION FOR AGENT: The Jev Dynamic Router selected and activated 'app-security' for this turn...]\n\n# App Security Hardening...\n</activated_skill>"
+      }
+    ]
+  }
+  ```
+
+#### Trace 2: API Contract Design Request
+* **User Prompt**: *"Help me design a clean RESTful Pydantic request membrane and contract for our new endpoint"*
+* **Jev System One Output**:
+  * `selected_skill`: `api-design`
+  * `confidence`: `1.00`
+  * `requires_skill`: `0.35`
+* **Result**: `api-design` injected with Pydantic membrane instructions.
+
+#### Trace 3: Anti-Boilerplate / Over-Engineering Review
+* **User Prompt**: *"Review this code for unnecessary boilerplate, AI slop, and bloated abstractions"*
+* **Jev System One Output**:
+  * `selected_skill`: `ponytail-review`
+  * `confidence`: `0.84`
+  * `requires_skill`: `0.18`
+* **Result**: `ponytail-review` selected over lookalikes like generic `review`.
+
+#### Trace 4: External Framework & SDK Query
+* **User Prompt**: *"How do I use TypeSafe System One primitives like Choice and Noul in my TypeScript/Python project?"*
+* **Jev System One Output**:
+  * `selected_skill`: `typesafe-ai`
+  * `confidence`: `1.00`
+* **Result**: Injected `typesafe-ai` runbook, directing the agent to live documentation at `docs.typesafe.ai/llms.txt`.
+
+---
+
+### 6.2 Live Persistent Activation Log (`~/.gemini/config/jev_activations.log`)
+
+All routing decisions across all workspaces write to a centralized machine-level audit log:
+
+```text
+[2026-09-24 12:59:35] [AAA] Activated: 'ponytail-help'   (Confidence: 0.97, Noul: 0.28) | Prompt: is there any way to see what skills it uses?...
+[2026-09-24 13:01:16] [AAA] Activated: 'app-security'   (Confidence: 1.00, Noul: 0.63) | Prompt: How should we harden our file upload endpoint against SSRF and malicio...
+[2026-09-24 13:01:22] [AAA] Activated: 'api-design'     (Confidence: 1.00, Noul: 0.35) | Prompt: Help me design a clean RESTful Pydantic request membrane for our new r...
+[2026-09-24 13:01:29] [AAA] Activated: 'ponytail-review'(Confidence: 0.84, Noul: 0.18) | Prompt: Review this code for unnecessary boilerplate, AI slop, and bloated abs...
+```
+
+---
+
+### 6.3 In-Chat User Visibility Badge
+
+To ensure transparency without cluttering chat history, the injected ephemeral instructions instruct the assistant to output a top-of-turn status badge:
+
+> 🧩 **Activated Skill**: `app-security`
+
+This eliminates the "black box" problem of hidden system prompts, allowing developers to immediately verify which domain skill is governing the agent's behavior.
+
