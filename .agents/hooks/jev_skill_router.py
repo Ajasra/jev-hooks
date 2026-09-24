@@ -11,6 +11,13 @@ import json
 import urllib.request
 from pathlib import Path
 
+# Load .agents/.env or .env if present
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    import env_loader
+except ImportError:
+    pass
+
 TYPESAFE_API_KEY = os.environ.get("TYPESAFE_API_KEY", "")
 TYPESAFE_ENDPOINT = os.environ.get("TYPESAFE_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
 JEV_MODEL = os.environ.get("JEV_MODEL", "jev-latest")
