@@ -55,6 +55,25 @@ def main():
         sys.exit(0)
 
     user_prompt = context.get("prompt", "")
+    if not user_prompt and "transcriptPath" in context:
+        try:
+            t_path = Path(context["transcriptPath"])
+            if t_path.exists():
+                for line in reversed(t_path.read_text(encoding="utf-8", errors="ignore").splitlines()):
+                    if line.strip():
+                        try:
+                            step = json.loads(line)
+                            if step.get("type") == "USER_INPUT" or step.get("source") == "USER_EXPLICIT":
+                                content = step.get("content", "")
+                                if "<USER_REQUEST>" in content:
+                                    content = content.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
+                                user_prompt = content
+                                break
+                        except Exception:
+                            continue
+        except Exception:
+            pass
+
     skills = load_skill_catalog()
     if not skills or not user_prompt:
         sys.exit(0)
@@ -84,7 +103,7 @@ def main():
             headers=BASE_HEADERS,
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=0.8) as resp:
+        with urllib.request.urlopen(req, timeout=3.5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             
         answers = data.get("answers", {})
@@ -100,8 +119,7 @@ def main():
                 output = {
                     "injectSteps": [
                         {
-                            "type": "ephemeralMessage",
-                            "content": f"<activated_skill name='{selected}'>\n{full_body}\n</activated_skill>"
+                            "ephemeralMessage": f"<activated_skill name='{selected}'>\n{full_body}\n</activated_skill>"
                         }
                     ]
                 }

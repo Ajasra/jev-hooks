@@ -31,17 +31,24 @@ def main():
     except Exception:
         sys.exit(0)
 
-    tool_name = tool_call.get("tool_name", "")
-    args = tool_call.get("args", {})
+    tool_call_obj = tool_call.get("toolCall", {})
+    tool_name = tool_call_obj.get("name") or tool_call.get("tool_name", "")
+    args = tool_call_obj.get("args") or tool_call.get("args", {})
     command = args.get("CommandLine", "") or args.get("command", "") or json.dumps(args)
+
+    # If no tool name could be resolved, allow execution
+    if not tool_name:
+        print(json.dumps({"decision": "allow"}))
+        sys.exit(0)
 
     # 1. Deterministic Hard-Rule Check: On Windows, enforce 'cmd /c'
     if tool_name == "run_command" and sys.platform == "win32":
         if not command.strip().startswith("cmd /c") and not command.strip().startswith("cmd.exe /c"):
-            # Auto-wrap or warn
+            # Auto-wrap or force user confirmation
             sys.stderr.write("Rule Violation: Windows commands must be prefixed with 'cmd /c'.\n")
 
     if not API_KEY:
+        print(json.dumps({"decision": "allow"}))
         sys.exit(0)
 
     # 2. Jev Blast Radius & Irreversibility Scoring
@@ -73,7 +80,7 @@ def main():
             headers=BASE_HEADERS,
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=0.8) as resp:
+        with urllib.request.urlopen(req, timeout=3.5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
 
         answers = data.get("answers", {})
@@ -82,18 +89,25 @@ def main():
 
         # Halt execution if score >= 2 or is_destructive >= 0.7
         if blast_score >= 2 or is_destructive >= 0.7:
-            sys.stderr.write(
-                f"[Jev Safety Gate] Intercepted high-impact action: blast_radius={blast_score}, destructive_prob={is_destructive:.2f}.\n"
-                "Halting for developer confirmation.\n"
+            reason = (
+                f"[Jev Safety Gate] Intercepted high-impact action: blast_radius={blast_score}, "
+                f"destructive_prob={is_destructive:.2f}. Requires developer confirmation."
             )
-            # Exit code 1 signals Antigravity to pause and request user confirmation
-            sys.exit(1)
+            # Output force_ask decision to Antigravity runtime
+            print(json.dumps({
+                "decision": "force_ask",
+                "reason": reason
+            }))
+            sys.exit(0)
 
-    except Exception:
-        # On error/timeout, fail-safe: allow command to proceed
+        # Safe operation
+        print(json.dumps({"decision": "allow"}))
         sys.exit(0)
 
-    sys.exit(0)
+    except Exception as e:
+        # On error/timeout, fail-safe: allow command to proceed
+        print(json.dumps({"decision": "allow"}))
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
