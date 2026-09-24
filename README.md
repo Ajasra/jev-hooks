@@ -190,8 +190,105 @@ The [proposals/](file:///d:/01_GIT/Jev/proposals) directory contains complete re
 | **[19_PROPOSAL_OFFICIAL_AGENT_SKILL_PORT_AND_DISPATCH.md](file:///d:/01_GIT/Jev/proposals/19_PROPOSAL_OFFICIAL_AGENT_SKILL_PORT_AND_DISPATCH.md)** | Integration of official `typesafe-ai` skill into Antigravity with live docs index. |
 | **[20_PROPOSAL_JEV_1_13_JAGGEDNESS_MITIGATION_AND_ANTI_ARITHMETIC_LINTING.md](file:///d:/01_GIT/Jev/proposals/20_PROPOSAL_JEV_1_13_JAGGEDNESS_MITIGATION_AND_ANTI_ARITHMETIC_LINTING.md)** | Runtime guardrails and linters preventing known `jev-1.13` failure modes. |
 | **[21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md](file:///d:/01_GIT/Jev/proposals/21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md)** | Speculative fan-out prefetching and dual-axis confidence arbitration matrix. |
+| **[22_GUIDE_OPENROUTER_JEV_SETUP.md](file:///d:/01_GIT/Jev/proposals/22_GUIDE_OPENROUTER_JEV_SETUP.md)** | Guide to using Jev via OpenRouter (`typesafe/jev-1.13`) with single-key billing. |
 
 ---
+
+## Testing & Verification Suite
+
+You can test each Jev component directly in your terminal right now. All hooks run on standard Windows PowerShell / CMD with zero external pip dependencies.
+
+### 1. Test Live API Connectivity (`test_jev.py`)
+Run the included verification script to confirm your API key and connection to OpenRouter:
+```cmd
+cmd /c python test_jev.py
+```
+**Expected Output**:
+```text
+[*] API Key detected: sk-or-v1-077...a8a9
+[*] Endpoint: https://openrouter.ai/api/v1/systemone
+[*] Model: typesafe/jev-1.13
+[+] HTTP Status: 200
+[+] Response JSON:
+{
+  "model": "typesafe/jev-1.13-20260917",
+  "answers": {
+    "is_safe": {
+      "type": "noul",
+      "noul": 0.89
+    }
+  },
+  "usage": {
+    "cost": 0.0000116
+  },
+  "provider": "TypeSafe"
+}
+```
+
+---
+
+### 2. Test Safety Gate (`jev_safety_gate.py`)
+
+#### A. Destructive Operation (Intercepted & Halted):
+```cmd
+cmd /c python -c "import subprocess, json; p = subprocess.Popen(['python', '.agents/hooks/jev_safety_gate.py'], stdin=subprocess.PIPE, stderr=subprocess.PIPE, text=True); _, err = p.communicate(json.dumps({'tool_name': 'run_command', 'args': {'CommandLine': 'cmd /c rmdir /s /q C:\\Windows'}})); print('Exit code:', p.returncode); print('Stderr:', err)"
+```
+- **Exit Code**: `1` (Halt execution, prompt user for confirmation)
+- **Stderr**: `[Jev Safety Gate] Intercepted high-impact action: blast_radius=3, destructive_prob=0.94. Halting for developer confirmation.`
+
+#### B. Safe Operation (Transparent Passthrough):
+```cmd
+cmd /c python -c "import subprocess, json; p = subprocess.Popen(['python', '.agents/hooks/jev_safety_gate.py'], stdin=subprocess.PIPE, stderr=subprocess.PIPE, text=True); _, err = p.communicate(json.dumps({'tool_name': 'run_command', 'args': {'CommandLine': 'cmd /c git status'}})); print('Exit code:', p.returncode); print('Stderr:', err)"
+```
+- **Exit Code**: `0` (Execution proceeds immediately without interruption)
+
+---
+
+### 3. Test Dynamic Skill Selection (`jev_skill_router.py`)
+
+#### A. Prompt Requiring Specialized Skill:
+```cmd
+cmd /c python -c "import subprocess, json; p = subprocess.Popen(['python', '.agents/hooks/jev_skill_router.py'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True); out, _ = p.communicate(json.dumps({'prompt': 'How do I use TypeSafe Jev System One primitives in Python?'})); print('Injected Step:', out[:120])"
+```
+- **Output**: Ephemeral message injected hydrating the `typesafe-ai` skill into context:
+  `{"injectSteps": [{"type": "ephemeralMessage", "content": "<activated_skill name='typesafe-ai'>..."}]}`
+
+#### B. General Programming Prompt:
+```cmd
+cmd /c python -c "import subprocess, json; p = subprocess.Popen(['python', '.agents/hooks/jev_skill_router.py'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True); out, _ = p.communicate(json.dumps({'prompt': 'What is the capital of France?'})); print('Output:', out.strip() or 'EMPTY (No tokens wasted)')"
+```
+- **Output**: `EMPTY (No tokens wasted)` — Zero context overhead.
+
+---
+
+### 4. Test Stream Log Pruning (`jev_output_pruner.py`)
+Simulate a terminal test run emitting over 2,500 characters of passing test logs:
+```cmd
+cmd /c python -c "import subprocess, json; p = subprocess.Popen(['python', '.agents/hooks/jev_output_pruner.py'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True); raw = 'test_ok: passed\n' * 150; out, _ = p.communicate(json.dumps({'stdout': raw, 'exit_code': 0})); print(json.loads(out)['stdout'])"
+```
+- **Output**: Real-time log condensation removing repetitive lines while preserving structural receipts:
+  `[... Jev Stream Pruner: Execution succeeded cleanly. 2,058 non-failing log characters omitted ...]`
+
+---
+
+## Installation & Deployment Modes
+
+### Mode 1: Workspace Installation (Local to this Repo)
+This repository is already fully configured for Antigravity:
+- Hook definitions: [`.agents/hooks.json`](file:///d:/01_GIT/Jev/.agents/hooks.json)
+- Hook scripts: [`.agents/hooks/`](file:///d:/01_GIT/Jev/.agents/hooks)
+- API configuration: [`.agents/.env`](file:///d:/01_GIT/Jev/.agents/.env)
+
+Whenever you open `d:\01_GIT\Jev` in Antigravity, all hooks execute automatically.
+
+### Mode 2: Global Installation (Across All Projects)
+To enforce Jev System One safety, skill routing, and compaction across **all** your workspaces on your machine, copy the configuration to your global Antigravity customization folder:
+```cmd
+cmd /c xcopy /E /I .agents\hooks C:\Users\user\.gemini\config\hooks
+cmd /c copy .agents\hooks.json C:\Users\user\.gemini\config\hooks.json
+cmd /c copy .agents\.env C:\Users\user\.gemini\config\.env
+```
+
 
 ## Defensive Engineering & Failure Policy
 
