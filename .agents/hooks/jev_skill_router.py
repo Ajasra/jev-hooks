@@ -23,24 +23,44 @@ except ImportError:
     BASE_HEADERS = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
 
 
-def load_skill_catalog():
-    """Discovers all SKILL.md files in workspace and global directories."""
+def load_skill_catalog(workspace_paths=None):
+    """Discovers all SKILL.md files in workspace, global directories, and plugins."""
     skills = []
-    roots = [
-        Path(".agents/skills"),
-        Path(os.path.expanduser("~/.gemini/config/skills"))
-    ]
-    for root in roots:
-        if root.exists():
-            for skill_dir in root.iterdir():
-                skill_md = skill_dir / "SKILL.md"
-                if skill_md.is_file():
-                    content = skill_md.read_text(encoding="utf-8", errors="ignore")
+    seen = set()
+
+    skill_files = []
+    # 1. Local workspace skills from CWD and reported workspace paths
+    roots = [Path.cwd()]
+    if workspace_paths:
+        for wp in workspace_paths:
+            p = Path(wp)
+            if p.exists() and p not in roots:
+                roots.append(p)
+
+    for r in roots:
+        skill_files.extend((r / ".agents" / "skills").glob("*/SKILL.md"))
+        skill_files.extend((r / ".agents" / "plugins").glob("*/skills/*/SKILL.md"))
+
+    # 2. Global user skills & plugins
+    global_cfg = Path(os.path.expanduser("~/.gemini/config"))
+    skill_files.extend((global_cfg / "skills").glob("*/SKILL.md"))
+    skill_files.extend((global_cfg / "plugins").glob("*/skills/*/SKILL.md"))
+
+    for skill_md in skill_files:
+        try:
+            resolved = skill_md.resolve()
+            if resolved.is_file():
+                name = resolved.parent.name
+                if name not in seen:
+                    seen.add(name)
+                    content = resolved.read_text(encoding="utf-8", errors="ignore")
                     skills.append({
-                        "name": skill_dir.name,
-                        "path": str(skill_md),
+                        "name": name,
+                        "path": str(resolved),
                         "snippet": content[:500]
                     })
+        except Exception:
+            continue
     return skills
 
 def main():
@@ -53,6 +73,9 @@ def main():
         context = json.loads(raw_input) if raw_input.strip() else {}
     except Exception:
         sys.exit(0)
+
+    workspace_paths = context.get("workspacePaths", [])
+    skills = load_skill_catalog(workspace_paths)
 
     user_prompt = context.get("prompt", "")
     if not user_prompt and "transcriptPath" in context:
@@ -110,8 +133,8 @@ def main():
         requires_skill = answers.get("requires_skill", {}).get("noul", 0.0)
         selected = answers.get("selected_skill", {}).get("choice")
         confidence = answers.get("selected_skill", {}).get("confidence", 0.0)
-
-        if requires_skill >= 0.65 and confidence >= 0.70 and selected:
+        should_activate = selected and (confidence >= 0.80 or (confidence >= 0.65 and requires_skill >= 0.40))
+        if should_activate:
             # Inject ephemeral skill instructions into context
             target = next((s for s in skills if s["name"] == selected), None)
             if target:
