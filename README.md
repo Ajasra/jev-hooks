@@ -285,15 +285,16 @@ Whenever you open `d:\01_GIT\Jev` in Antigravity, all hooks execute automaticall
 Instead of copying files, you can link them directly to your global Antigravity configuration directory (`C:\Users\user\.gemini\config`). Any edits, prompt adjustments, or threshold changes in this repo will take effect across **all** your workspaces immediately:
 
 ```cmd
-:: Create directory junction for hooks (works across drives without admin privileges)
+:: Create directory junctions for hooks and skills (works across drives without admin privileges)
 cmd /c mklink /J "C:\Users\user\.gemini\config\hooks" "d:\01_GIT\Jev\.agents\hooks"
+cmd /c mklink /J "C:\Users\user\.gemini\config\skills" "d:\01_GIT\Jev\.agents\skills"
 
 :: Create symbolic links for hooks.json and .env
 cmd /c mklink "C:\Users\user\.gemini\config\hooks.json" "d:\01_GIT\Jev\.agents\hooks.json"
 cmd /c mklink "C:\Users\user\.gemini\config\.env" "d:\01_GIT\Jev\.agents\.env"
 ```
 
-*(Note: These symlinks are already configured on your machine and verified active across all workspaces).*
+*(Note: These symlinks and junctions are already configured on your machine and verified active across all workspaces).*
 
 
 
