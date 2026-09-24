@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "PreInvocation": [
+    {
+      "command": "cmd /c python .agents/hooks/jev_skill_router.py"
+    }
+  ],
+  "PreToolUse": [
+    {
+      "matcher": "run_command|write_to_file|replace_file_content",
+      "command": "cmd /c python .agents/hooks/jev_safety_gate.py"
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "run_command|grep_search|view_file",
+      "command": "cmd /c python .agents/hooks/jev_output_pruner.py"
+    }
+  ]
+}
