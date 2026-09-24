@@ -91,3 +91,40 @@ If `noul > 0.85`, set `IsDaemon = true`, avoiding the frequent pitfall where the
 1. **Safety with Zero Latency Penalty**: Evaluation takes 50–70ms, completely imperceptible to the user compared to the multiple seconds taken by agent reasoning.
 2. **Deterministic Rule Enforcement**: Enforces environment constraints (like Windows shell handling) reliably, catching accidental slips before shell errors occur.
 3. **Confidence-Gated Escalation**: User interruption occurs only when genuine danger or ambiguity exists, keeping non-destructive autonomous tasks running smoothly.
+
+---
+
+## 5. Live Production Verification (Antigravity Runtime)
+
+This proposal is implemented and actively deployed as an Antigravity `PreToolUse` lifecycle hook (`.agents/hooks/jev_safety_gate.py` linked globally to `~/.gemini/config/hooks.json`).
+
+### Real-World Intercept Trace
+
+In a separate workspace (`d:\01_GIT\AAA`), a user requested:
+> *"can you delete benchmarks/tests folder?"*
+
+The agent proposed the following destructive tool call:
+```cmd
+cmd /c rmdir /s /q benchmarks\tests
+```
+
+Before the command reached the Windows shell, the `PreToolUse` hook intercepted the call and dispatched it to Jev:
+- **Jev Evaluation**:
+  - `blast_radius`: `3` (*"High-risk operation: recursive deletions, credential access, or system environment changes"*)
+  - `destructive_prob`: `0.95`
+- **Hook Response**:
+  ```json
+  {
+    "decision": "force_ask",
+    "reason": "[Jev Safety Gate] Intercepted high-impact action: blast_radius=3, destructive_prob=0.95. Requires developer confirmation."
+  }
+  ```
+
+### Rendered User Experience in Antigravity IDE
+
+Antigravity halted execution and presented an interactive confirmation modal with options to allow, remember for conversation, or cancel:
+
+![Jev Safety Gate Intercept Modal](./assets/jev_safety_gate_intercept_modal.png)
+
+This demonstrates the core architectural value: **autonomous agent speed on routine tasks, with sub-100ms deterministic safety barriers against irreversible mutations.**
+
