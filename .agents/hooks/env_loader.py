@@ -16,6 +16,7 @@ def load_env():
         Path(".env"),
         Path(__file__).resolve().parent.parent / ".env",
         Path(__file__).resolve().parent / ".env",
+        Path(os.path.expanduser("~/.gemini/config/.env")),
     ]
     for p in candidates:
         if p.exists() and p.is_file():
@@ -27,9 +28,9 @@ def load_env():
                         k, v = k.strip(), v.strip().strip("'\"")
                         if k and k not in os.environ:
                             os.environ[k] = v
-                break
             except Exception:
                 pass
+
 
 # Run on import
 load_env()
