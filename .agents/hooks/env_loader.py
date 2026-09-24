@@ -57,7 +57,7 @@ def get_client_config():
     # Determine default endpoint and model
     if is_openrouter:
         default_endpoint = "https://openrouter.ai/api/v1/systemone"
-        default_model = "typesafe/jev-latest"
+        default_model = "typesafe/jev-1.13"
     else:
         default_endpoint = "https://api.typesafe.ai/v1/systemone"
         default_model = "jev-latest"
@@ -67,8 +67,9 @@ def get_client_config():
         endpoint = default_endpoint
 
     model = os.environ.get("JEV_MODEL", "").strip()
-    if not model or (is_openrouter and model == "jev-latest"):
+    if not model or (is_openrouter and model in ("jev-latest", "typesafe/jev-latest")):
         model = default_model
+
 
     headers = {
         "Content-Type": "application/json",
