@@ -139,10 +139,33 @@ def main():
             target = next((s for s in skills if s["name"] == selected), None)
             if target:
                 full_body = Path(target["path"]).read_text(encoding="utf-8", errors="ignore")
+
+                # Log activation to ~/.gemini/config/jev_activations.log
+                try:
+                    log_file = Path(os.path.expanduser("~/.gemini/config/jev_activations.log"))
+                    import datetime
+                    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    cwd_name = Path.cwd().name
+                    log_line = (
+                        f"[{ts}] [{cwd_name}] Activated: '{selected}' "
+                        f"(Confidence: {confidence:.2f}, Noul: {requires_skill:.2f}) "
+                        f"| Prompt: {user_prompt[:70]}...\n"
+                    )
+                    with open(log_file, "a", encoding="utf-8") as f:
+                        f.write(log_line)
+                except Exception:
+                    pass
+
+                badge_notice = (
+                    f"> 🧩 **Activated Skill**: `{selected}`\n\n"
+                    f"[INSTRUCTION FOR AGENT: The Jev Dynamic Router selected and activated '{selected}' for this turn. "
+                    f"Start your response with the badge `> 🧩 **Activated Skill**: {selected}` so the developer is informed.]\n\n"
+                )
+
                 output = {
                     "injectSteps": [
                         {
-                            "ephemeralMessage": f"<activated_skill name='{selected}'>\n{full_body}\n</activated_skill>"
+                            "ephemeralMessage": f"<activated_skill name='{selected}'>\n{badge_notice}{full_body}\n</activated_skill>"
                         }
                     ]
                 }
