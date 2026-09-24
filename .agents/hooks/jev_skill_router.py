@@ -119,6 +119,9 @@ def main():
         }
     }
 
+    import time
+    start_time = time.time()
+
     try:
         req = urllib.request.Request(
             ENDPOINT,
@@ -133,6 +136,8 @@ def main():
         requires_skill = answers.get("requires_skill", {}).get("noul", 0.0)
         selected = answers.get("selected_skill", {}).get("choice")
         confidence = answers.get("selected_skill", {}).get("confidence", 0.0)
+        latency_ms = (time.time() - start_time) * 1000
+
         should_activate = selected and (confidence >= 0.80 or (confidence >= 0.65 and requires_skill >= 0.40))
         if should_activate:
             # Inject ephemeral skill instructions into context
@@ -140,19 +145,12 @@ def main():
             if target:
                 full_body = Path(target["path"]).read_text(encoding="utf-8", errors="ignore")
 
-                # Log activation to ~/.gemini/config/jev_activations.log
+                # Log activation via env_loader (only if DEBUG=true)
                 try:
-                    log_file = Path(os.path.expanduser("~/.gemini/config/jev_activations.log"))
-                    import datetime
-                    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    cwd_name = Path.cwd().name
-                    log_line = (
-                        f"[{ts}] [{cwd_name}] Activated: '{selected}' "
-                        f"(Confidence: {confidence:.2f}, Noul: {requires_skill:.2f}) "
-                        f"| Prompt: {user_prompt[:70]}...\n"
+                    env_loader.log_debug(
+                        "skill_router",
+                        f"Activated: '{selected}' (Confidence: {confidence:.2f}, Noul: {requires_skill:.2f}, Latency: {latency_ms:.0f}ms) | Prompt: {user_prompt[:70]}..."
                     )
-                    with open(log_file, "a", encoding="utf-8") as f:
-                        f.write(log_line)
                 except Exception:
                     pass
 
@@ -170,6 +168,14 @@ def main():
                     ]
                 }
                 print(json.dumps(output))
+        else:
+            try:
+                env_loader.log_debug(
+                    "skill_router",
+                    f"No skill activated (Candidate: '{selected}', Confidence: {confidence:.2f}, Noul: {requires_skill:.2f}, Latency: {latency_ms:.0f}ms) | Prompt: {user_prompt[:70]}..."
+                )
+            except Exception:
+                pass
     except Exception:
         # Fail safe: allow normal turn execution without skill modification
         sys.exit(0)

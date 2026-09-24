@@ -83,3 +83,25 @@ def get_client_config():
 
     return api_key, endpoint, model, headers
 
+def is_debug() -> bool:
+    """Returns True if DEBUG is enabled in environment or .env file."""
+    return os.environ.get("DEBUG", "false").strip().lower() in ("true", "1", "yes", "on")
+
+def log_debug(hook_name: str, message: str):
+    """
+    Writes a formatted, timestamped log entry to ~/.gemini/config/jev_activations.log
+    only if DEBUG mode is enabled.
+    """
+    if not is_debug():
+        return
+    try:
+        log_file = Path(os.path.expanduser("~/.gemini/config/jev_activations.log"))
+        import datetime
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cwd_name = Path.cwd().name
+        log_line = f"[{ts}] [{cwd_name}] [{hook_name}] {message}\n"
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(log_line)
+    except Exception:
+        pass
+

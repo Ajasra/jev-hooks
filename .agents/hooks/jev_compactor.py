@@ -178,6 +178,10 @@ def main():
         final_chars = len(json.dumps(compacted))
 
         reduction = (1 - final_chars / initial_chars) * 100 if initial_chars else 0
+        try:
+            env_loader.log_debug("compactor", f"Compacted {traj_path.name}: {initial_chars:,} -> {final_chars:,} chars ({reduction:.1f}% reduction)")
+        except Exception:
+            pass
         print(f"Compaction complete: {initial_chars:,} chars -> {final_chars:,} chars ({reduction:.1f}% reduction).")
 
         if isinstance(data, list):

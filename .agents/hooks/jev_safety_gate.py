@@ -73,6 +73,9 @@ def main():
         }
     }
 
+    import time
+    start_time = time.time()
+
     try:
         req = urllib.request.Request(
             ENDPOINT,
@@ -86,6 +89,7 @@ def main():
         answers = data.get("answers", {})
         blast_score = answers.get("blast_radius", {}).get("score", 0)
         is_destructive = answers.get("is_destructive", {}).get("noul", 0.0)
+        latency_ms = (time.time() - start_time) * 1000
 
         # Halt execution if score >= 2 or is_destructive >= 0.7
         if blast_score >= 2 or is_destructive >= 0.7:
@@ -93,6 +97,13 @@ def main():
                 f"[Jev Safety Gate] Intercepted high-impact action: blast_radius={blast_score}, "
                 f"destructive_prob={is_destructive:.2f}. Requires developer confirmation."
             )
+            try:
+                env_loader.log_debug(
+                    "safety_gate",
+                    f"INTERCEPTED: blast_radius={blast_score}, destructive_prob={is_destructive:.2f} ({latency_ms:.0f}ms) | Tool: {tool_name} | Args: {command[:70]}"
+                )
+            except Exception:
+                pass
             # Output force_ask decision to Antigravity runtime
             print(json.dumps({
                 "decision": "force_ask",
@@ -101,11 +112,22 @@ def main():
             sys.exit(0)
 
         # Safe operation
+        try:
+            env_loader.log_debug(
+                "safety_gate",
+                f"ALLOWED: blast_radius={blast_score}, destructive_prob={is_destructive:.2f} ({latency_ms:.0f}ms) | Tool: {tool_name} | Args: {command[:70]}"
+            )
+        except Exception:
+            pass
         print(json.dumps({"decision": "allow"}))
         sys.exit(0)
 
     except Exception as e:
         # On error/timeout, fail-safe: allow command to proceed
+        try:
+            env_loader.log_debug("safety_gate", f"ERROR/TIMEOUT: {e} | Tool: {tool_name}")
+        except Exception:
+            pass
         print(json.dumps({"decision": "allow"}))
         sys.exit(0)
 
