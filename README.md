@@ -281,13 +281,20 @@ This repository is already fully configured for Antigravity:
 
 Whenever you open `d:\01_GIT\Jev` in Antigravity, all hooks execute automatically.
 
-### Mode 2: Global Installation (Across All Projects)
-To enforce Jev System One safety, skill routing, and compaction across **all** your workspaces on your machine, copy the configuration to your global Antigravity customization folder:
+### Mode 2: Global Installation via Symlinks (Recommended)
+Instead of copying files, you can link them directly to your global Antigravity configuration directory (`C:\Users\user\.gemini\config`). Any edits, prompt adjustments, or threshold changes in this repo will take effect across **all** your workspaces immediately:
+
 ```cmd
-cmd /c xcopy /E /I .agents\hooks C:\Users\user\.gemini\config\hooks
-cmd /c copy .agents\hooks.json C:\Users\user\.gemini\config\hooks.json
-cmd /c copy .agents\.env C:\Users\user\.gemini\config\.env
+:: Create directory junction for hooks (works across drives without admin privileges)
+cmd /c mklink /J "C:\Users\user\.gemini\config\hooks" "d:\01_GIT\Jev\.agents\hooks"
+
+:: Create symbolic links for hooks.json and .env
+cmd /c mklink "C:\Users\user\.gemini\config\hooks.json" "d:\01_GIT\Jev\.agents\hooks.json"
+cmd /c mklink "C:\Users\user\.gemini\config\.env" "d:\01_GIT\Jev\.agents\.env"
 ```
+
+*(Note: These symlinks are already configured on your machine and verified active across all workspaces).*
+
 
 
 ## Defensive Engineering & Failure Policy
