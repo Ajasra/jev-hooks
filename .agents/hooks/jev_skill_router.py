@@ -15,12 +15,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
     import env_loader
+    API_KEY, ENDPOINT, MODEL, BASE_HEADERS = env_loader.get_client_config()
 except ImportError:
-    pass
+    API_KEY = os.environ.get("TYPESAFE_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
+    ENDPOINT = os.environ.get("TYPESAFE_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
+    MODEL = os.environ.get("JEV_MODEL", "jev-latest")
+    BASE_HEADERS = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
 
-TYPESAFE_API_KEY = os.environ.get("TYPESAFE_API_KEY", "")
-TYPESAFE_ENDPOINT = os.environ.get("TYPESAFE_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
-JEV_MODEL = os.environ.get("JEV_MODEL", "jev-latest")
 
 def load_skill_catalog():
     """Discovers all SKILL.md files in workspace and global directories."""
@@ -43,7 +44,7 @@ def load_skill_catalog():
     return skills
 
 def main():
-    if not TYPESAFE_API_KEY:
+    if not API_KEY:
         # Fallback if no API key is provided
         sys.exit(0)
 
@@ -61,7 +62,7 @@ def main():
     # Build Jev Choice criteria
     criteria = {s["name"]: s["snippet"][:200] for s in skills}
     payload = {
-        "model": JEV_MODEL,
+        "model": MODEL,
         "state": user_prompt,
         "questions": {
             "selected_skill": {
@@ -78,12 +79,9 @@ def main():
 
     try:
         req = urllib.request.Request(
-            TYPESAFE_ENDPOINT,
+            ENDPOINT,
             data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {TYPESAFE_API_KEY}"
-            },
+            headers=BASE_HEADERS,
             method="POST"
         )
         with urllib.request.urlopen(req, timeout=0.8) as resp:

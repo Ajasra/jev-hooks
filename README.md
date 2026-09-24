@@ -44,21 +44,24 @@ Copy the example template:
 cmd /c copy .agents\.env.example .agents\.env
 ```
 
-Edit `.agents/.env`:
+#### Option A: Using OpenRouter (Recommended if you already have OpenRouter credits)
+You can use Jev directly through OpenRouter using the model slug [`typesafe/jev-latest`](https://openrouter.ai/~typesafe/jev-latest).
 ```ini
-# TypeSafe AI / Jev Configuration
-# Get your API key at: https://console.typesafe.ai/keys
+# In .agents/.env
+OPENROUTER_API_KEY=sk-or-v1-your_openrouter_api_key_here
+```
+*The hook loader auto-detects `OPENROUTER_API_KEY`, redirects endpoints to `https://openrouter.ai/api/v1/systemone`, selects model `typesafe/jev-latest`, and adds OpenRouter headers (`HTTP-Referer`, `X-Title`). See [22. Guide: OpenRouter Jev Setup](file:///d:/01_GIT/Jev/proposals/22_GUIDE_OPENROUTER_JEV_SETUP.md) for details.*
+
+#### Option B: Using Direct TypeSafe AI API
+```ini
+# In .agents/.env
 TYPESAFE_API_KEY=your_typesafe_api_key_here
 TYPESAFE_ENDPOINT=https://api.typesafe.ai/v1/systemone
 JEV_MODEL=jev-latest
-
-# Optional Parameters
-JEV_HOOK_TIMEOUT_SECONDS=0.8
-JEV_KEEP_THRESHOLD=0.50
-JEV_PRESERVE_RECENT_MESSAGES=6
 ```
 
-> **Note**: If `TYPESAFE_API_KEY` is not set, all hooks safely fail open (transparently passing prompts, commands, and logs unhindered).
+> **Note**: If neither key is set, all hooks safely fail open (transparently passing prompts, commands, and logs unhindered).
+
 
 ---
 
@@ -184,6 +187,9 @@ The [proposals/](file:///d:/01_GIT/Jev/proposals) directory contains complete re
 | **[15_USE_CASE_PREDICTIVE_ML_FEATURE_EXTRACTION.md](file:///d:/01_GIT/Jev/proposals/15_USE_CASE_PREDICTIVE_ML_FEATURE_EXTRACTION.md)** | Continuous calibrated numeric features for CatBoost / XGBoost. |
 | **[16_INSPIRATION_SHAPESHIFT_DYNAMIC_UI.md](file:///d:/01_GIT/Jev/proposals/16_INSPIRATION_SHAPESHIFT_DYNAMIC_UI.md)** | Shapeshift Case Study: *"Jev decides, code computes"*. |
 | **[17_FRAMEWORK_PYDANTIC_AI_TYPESAFE_INTEGRATION.md](file:///d:/01_GIT/Jev/proposals/17_FRAMEWORK_PYDANTIC_AI_TYPESAFE_INTEGRATION.md)** | Reference implementation: Pydantic AI's native `TypeSafeModel`. |
+| **[19_PROPOSAL_OFFICIAL_AGENT_SKILL_PORT_AND_DISPATCH.md](file:///d:/01_GIT/Jev/proposals/19_PROPOSAL_OFFICIAL_AGENT_SKILL_PORT_AND_DISPATCH.md)** | Integration of official `typesafe-ai` skill into Antigravity with live docs index. |
+| **[20_PROPOSAL_JEV_1_13_JAGGEDNESS_MITIGATION_AND_ANTI_ARITHMETIC_LINTING.md](file:///d:/01_GIT/Jev/proposals/20_PROPOSAL_JEV_1_13_JAGGEDNESS_MITIGATION_AND_ANTI_ARITHMETIC_LINTING.md)** | Runtime guardrails and linters preventing known `jev-1.13` failure modes. |
+| **[21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md](file:///d:/01_GIT/Jev/proposals/21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md)** | Speculative fan-out prefetching and dual-axis confidence arbitration matrix. |
 
 ---
 

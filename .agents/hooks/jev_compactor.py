@@ -16,15 +16,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
     import env_loader
+    API_KEY, ENDPOINT, MODEL, BASE_HEADERS = env_loader.get_client_config()
 except ImportError:
-    pass
+    API_KEY = os.environ.get("TYPESAFE_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
+    ENDPOINT = os.environ.get("TYPESAFE_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
+    MODEL = os.environ.get("JEV_MODEL", "jev-latest")
+    BASE_HEADERS = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
 
-TYPESAFE_API_KEY = os.environ.get("TYPESAFE_API_KEY", "")
-TYPESAFE_ENDPOINT = os.environ.get("TYPESAFE_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
-JEV_MODEL = os.environ.get("JEV_MODEL", "jev-latest")
-
-KEEP_THRESHOLD = 0.50
-PRESERVE_RECENT_MESSAGES = 6
+KEEP_THRESHOLD = float(os.environ.get("JEV_KEEP_THRESHOLD", "0.50"))
+PRESERVE_RECENT_MESSAGES = int(os.environ.get("JEV_PRESERVE_RECENT_MESSAGES", "6"))
 TRUNCATE_HEAD_CHARS = 300
 MAX_STATE_CHARS = 100_000
 
@@ -33,7 +33,7 @@ def compact_trajectory(messages: list) -> list:
     Performs deterministic boundary definition, tool masking, parallel Jev evaluation,
     and surgical reconstruction.
     """
-    if len(messages) <= PRESERVE_RECENT_MESSAGES + 1 or not TYPESAFE_API_KEY:
+    if len(messages) <= PRESERVE_RECENT_MESSAGES + 1 or not API_KEY:
         return messages
 
     # 1. Identify tool pairs
@@ -87,19 +87,16 @@ def compact_trajectory(messages: list) -> list:
 
     # 4. Dispatch parallel evaluation to Jev
     payload = {
-        "model": JEV_MODEL,
+        "model": MODEL,
         "state": state_str,
         "questions": questions
     }
 
     try:
         req = urllib.request.Request(
-            TYPESAFE_ENDPOINT,
+            ENDPOINT,
             data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {TYPESAFE_API_KEY}"
-            },
+            headers=BASE_HEADERS,
             method="POST"
         )
         with urllib.request.urlopen(req, timeout=1.5) as resp:

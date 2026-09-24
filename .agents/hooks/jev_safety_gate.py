@@ -16,12 +16,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
     import env_loader
+    API_KEY, ENDPOINT, MODEL, BASE_HEADERS = env_loader.get_client_config()
 except ImportError:
-    pass
+    API_KEY = os.environ.get("TYPESAFE_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
+    ENDPOINT = os.environ.get("TYPESAFE_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
+    MODEL = os.environ.get("JEV_MODEL", "jev-latest")
+    BASE_HEADERS = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
 
-TYPESAFE_API_KEY = os.environ.get("TYPESAFE_API_KEY", "")
-TYPESAFE_ENDPOINT = os.environ.get("TYPESAFE_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
-JEV_MODEL = os.environ.get("JEV_MODEL", "jev-latest")
 
 def main():
     try:
@@ -40,23 +41,23 @@ def main():
             # Auto-wrap or warn
             sys.stderr.write("Rule Violation: Windows commands must be prefixed with 'cmd /c'.\n")
 
-    if not TYPESAFE_API_KEY:
+    if not API_KEY:
         sys.exit(0)
 
     # 2. Jev Blast Radius & Irreversibility Scoring
     payload = {
-        "model": JEV_MODEL,
+        "model": MODEL,
         "state": f"Tool: {tool_name}\nCommand/Args: {command}",
         "questions": {
             "blast_radius": {
                 "type": "score",
                 "instructions": "Rate the blast radius and potential irreversibility of this action.",
-                "levels": {
-                    "0": "Read-only inspection with zero persistent state mutation.",
-                    "1": "Idempotent local mutation with automated rollback path.",
-                    "2": "Non-idempotent mutation or network interaction requiring runtime isolation.",
-                    "3": "High-risk operation: recursive deletions, credential access, or system environment changes."
-                }
+                "criteria": [
+                    "Read-only inspection with zero persistent state mutation.",
+                    "Idempotent local mutation with automated rollback path.",
+                    "Non-idempotent mutation or network interaction requiring runtime isolation.",
+                    "High-risk operation: recursive deletions, credential access, or system environment changes."
+                ]
             },
             "is_destructive": {
                 "type": "noul",
@@ -67,12 +68,9 @@ def main():
 
     try:
         req = urllib.request.Request(
-            TYPESAFE_ENDPOINT,
+            ENDPOINT,
             data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {TYPESAFE_API_KEY}"
-            },
+            headers=BASE_HEADERS,
             method="POST"
         )
         with urllib.request.urlopen(req, timeout=0.8) as resp:

@@ -16,12 +16,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
     import env_loader
+    API_KEY, ENDPOINT, MODEL, BASE_HEADERS = env_loader.get_client_config()
 except ImportError:
-    pass
-
-TYPESAFE_API_KEY = os.environ.get("TYPESAFE_API_KEY", "")
-TYPESAFE_ENDPOINT = os.environ.get("TYPESAFE_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
-JEV_MODEL = os.environ.get("JEV_MODEL", "jev-latest")
+    API_KEY = os.environ.get("TYPESAFE_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
+    ENDPOINT = os.environ.get("TYPESAFE_ENDPOINT", "https://api.typesafe.ai/v1/systemone")
+    MODEL = os.environ.get("JEV_MODEL", "jev-latest")
+    BASE_HEADERS = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
 
 def main():
     try:
@@ -34,11 +34,11 @@ def main():
     exit_code = payload.get("exit_code", 0)
 
     # Only prune outputs that are large (> 1,000 chars)
-    if len(stdout) < 1000 or not TYPESAFE_API_KEY:
+    if len(stdout) < 1000 or not API_KEY:
         sys.exit(0)
 
     jev_payload = {
-        "model": JEV_MODEL,
+        "model": MODEL,
         "state": f"Exit Code: {exit_code}\nOutput Head:\n{stdout[:1500]}\nOutput Tail:\n{stdout[-1500:]}",
         "questions": {
             "is_clean_success": {
@@ -54,12 +54,9 @@ def main():
 
     try:
         req = urllib.request.Request(
-            TYPESAFE_ENDPOINT,
+            ENDPOINT,
             data=json.dumps(jev_payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {TYPESAFE_API_KEY}"
-            },
+            headers=BASE_HEADERS,
             method="POST"
         )
         with urllib.request.urlopen(req, timeout=0.8) as resp:

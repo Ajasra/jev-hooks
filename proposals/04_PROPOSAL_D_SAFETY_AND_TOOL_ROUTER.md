@@ -51,13 +51,13 @@ const safetyQuestions = {
   risk_level: {
     type: "score",
     instructions: "Rate the risk level and potential irreversibility of this shell command.",
-    levels: {
-      "1": "Pure inspection or read-only (e.g., git status, dir, npm list)",
-      "2": "Standard development task (e.g., npm test, tsc, git checkout new-branch)",
-      "3": "State modification (e.g., npm install, git commit, file touch)",
-      "4": "High impact (e.g., git reset, killing active tasks, database schema drop)",
-      "5": "Critical / Potentially destructive (e.g., rm -rf, del /f /s /q, git clean -fdx)"
-    }
+    criteria: [
+      "Pure inspection or read-only (e.g., git status, dir, npm list)",
+      "Standard development task (e.g., npm test, tsc, git checkout new-branch)",
+      "State modification (e.g., npm install, git commit, file touch)",
+      "High impact (e.g., git reset, killing active tasks, database schema drop)",
+      "Critical / Potentially destructive (e.g., rm -rf, del /f /s /q, git clean -fdx)"
+    ]
   },
   violates_platform_rules: {
     type: "noul",
