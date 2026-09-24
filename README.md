@@ -62,28 +62,35 @@ Every activated skill displays a transparent in-chat badge:
 ```mermaid
 flowchart TD
     UserPrompt["Developer Prompt"] --> Hook_PreInv["PreInvocation Hook<br/>(jev_skill_router.py)"]
-    
-    subgraph S1 ["Stage 1: System One Fast Path (~90ms)"]
+
+    subgraph S1 ["Stage 1: System One Skill Routing (~90ms)"]
         Hook_PreInv --> JevChoice["Jev Choice & Noul Catalog Scan"]
         JevChoice -->|Confidence ≥ 0.80| InjectBadge["Inject Ephemeral Skill + In-Chat Badge<br/>(&lt;activated_skill name='...'&gt;)"]
         JevChoice -->|No Skill Required| CleanPrompt["Zero Extra Tokens Injected"]
     end
-    
+
     InjectBadge --> LLM_Turn["Gemini Foundation Model<br/>(Reasoning, Architecture & Code Synthesis)"]
     CleanPrompt --> LLM_Turn
-    
+
     LLM_Turn -->|Proposed Action| Hook_PreTool["PreToolUse Hook<br/>(jev_safety_gate.py)"]
-    
-    subgraph S2 ["Stage 2: Execution Safety Gate (~80ms)"]
-        Hook_PreTool --> JevBlast["Jev Blast-Radius & Destructive Scoring"]
-        JevBlast -->|Safe: Score ≤ 1| AutoAllow["decision: allow<br/>(Auto-Execute Instantly)"]
-        JevBlast -->|High Risk: Score ≥ 2 or Prob ≥ 0.70| Intercept["decision: force_ask<br/>(Halt & Render Confirmation Modal)"]
+
+    subgraph S2 ["Stage 2: Execution Safety Gate"]
+        Hook_PreTool --> CritShield["① Critical Shield (~0ms)<br/>Regex: rm -rf, git reset --hard, rmdir /s…<br/>→ force_ask (cannot be bypassed)"]
+        CritShield -->|No match| DBLookup["② Decision DB (~1ms)<br/>SQLite: always + session rules<br/>Pre-seeded: git*, file writes always allow"]
+        DBLookup -->|Rule: allow/deny| DBResult["decision: allow / deny<br/>(Zero Jev API call)"]
+        DBLookup -->|No rule| JevBlast["③ Jev Scoring (~80ms)<br/>blast_radius Score + is_destructive Noul"]
+        JevBlast -->|Safe| AutoAllow["decision: allow"]
+        JevBlast -->|High Risk| ForceAsk["decision: force_ask<br/>+ permissionOverrides (once / session / always)"]
     end
-    
-    AutoAllow --> ToolExec["Local OS Execution<br/>(cmd /c, file writes, git operations)"]
-    Intercept -->|User Confirms in IDE| ToolExec
-    Intercept -->|User Cancels| AbortAction["Return Cancellation to Agent"]
-    
+
+    CritShield -->|Match| ForceAsk
+    DBResult --> ToolExec["Local OS Execution<br/>(cmd /c, file writes, git operations)"]
+    AutoAllow --> ToolExec
+    ForceAsk -->|User: Allow once| ToolExec
+    ForceAsk -->|User: Save session/always| SaveDB["Persist rule to SQLite<br/>→ future calls skip Jev"]
+    SaveDB --> ToolExec
+    ForceAsk -->|User Cancels| AbortAction["Return Cancellation to Agent"]
+
     ToolExec --> SessionStore["Session Trajectory Storage"]
     SessionStore -->|Context Exhaustion| JevCompactor["Verbatim Trajectory GC<br/>(jev_compactor.py)"]
 ```
@@ -158,21 +165,40 @@ Restart Antigravity or press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $
 ## Implemented Lifecycle Hooks
 
 ### 1. `PreToolUse`: Safety Gate ([`jev_safety_gate.py`](file:///d:/01_GIT/Jev/.agents/hooks/jev_safety_gate.py))
-* **Matcher**: `run_command|write_to_file|replace_file_content`
-* **Protocol**: Complies with official Antigravity `PreToolUse` contract:
-  * Input (`stdin`): `{"toolCall": {"name": "...", "args": {...}}}`
-  * Output (`stdout`): `{"decision": "force_ask", "reason": "..."}` or `{"decision": "allow"}`
-* **Scoring Rubric**:
-  * Level 0: Read-only inspection (`dir`, `git status`)
-  * Level 1: Idempotent local mutation (`git checkout -b`)
-  * Level 2: Non-idempotent mutation or network calls
-  * Level 3: Destructive operations (recursive deletions, volume formatting, credential access)
+* **Matcher**: `run_command|write_to_file|replace_file_content|multi_replace_file_content`
+* **Protocol**: Complies with official Antigravity `PreToolUse` contract.
+* **3-stage decision pipeline** (in priority order):
 
-#### Manual Test Command:
-```cmd
-cmd /c echo {"toolCall":{"name":"run_command","args":{"CommandLine":"cmd /c rmdir /s /q build"}}} | python %USERPROFILE%\.gemini\config\hooks\jev_safety_gate.py
+  | Stage | Source | Latency | Notes |
+  |:---|:---|:---|:---|
+  | **1. Critical Shield** | Hard regex in `safety_db.py` | ~0ms | `git reset --hard`, `rmdir /s`, `git push --force`, `rm -rf`, `DROP DATABASE`, etc. **Always** `force_ask` — cannot be overridden. |
+  | **2. Decision DB** | SQLite `safety_decisions.db` | ~1ms | Pattern rules with `always` (permanent) or `session` (conversation-scoped) lifetime. Pre-seeded with 23 safe-by-default rules covering all routine git and file ops. |
+  | **3. Jev Scoring** | TypeSafe API | ~80ms | Only reached for unknown commands. `blast_radius ≥ 2` or `is_destructive ≥ 0.70` triggers `force_ask` with save-back options. |
+
+* **Save-back**: When the user approves a `force_ask` modal, their choice is persisted to the DB so future identical calls skip Jev entirely.
+* **Audit**: All decisions (stage, scores, command) are recorded in `decision_log` table.
+
+#### Integration Test Results:
 ```
-*Returns:* `{"decision": "force_ask", "reason": "[Jev Safety Gate] Intercepted high-impact action: blast_radius=2.89, destructive_prob=0.86..."}`
+[     allow]  run_command: git commit -m 'update hooks'   ← Stage 2 DB (always rule)
+[     allow]  run_command: git push origin main            ← Stage 2 DB (always rule)
+[ force_ask]  run_command: git push --force                ← Stage 1 Critical Shield
+[ force_ask]  run_command: git reset --hard HEAD~1         ← Stage 1 Critical Shield
+[ force_ask]  run_command: rmdir /s /q dist                ← Stage 1 Critical Shield
+[     allow]  write_to_file: any file                     ← Stage 2 DB (always rule)
+```
+
+#### Decision DB CLI:
+```cmd
+:: List all rules
+cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --list
+
+:: Add a permanent allow rule
+cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --allow "uv pip install*" --tool run_command
+
+:: Test command resolution
+cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --test-cmd "cmd /c git reset --hard"
+```
 
 ---
 
@@ -220,7 +246,7 @@ The [`proposals/`](file:///d:/01_GIT/Jev/proposals) directory houses 22 detailed
 | **01** | **[Verbatim Context Compactor](file:///d:/01_GIT/Jev/proposals/01_PROPOSAL_A_VERBATIM_CONTEXT_COMPACTOR.md)** | **Implemented** | Replaces lossy summaries with surgical tool pruning while keeping code & discourse 100% verbatim. |
 | **02** | **[Dynamic Skill Dispatcher](file:///d:/01_GIT/Jev/proposals/02_PROPOSAL_B_DYNAMIC_SKILL_DISPATCHER.md)** | **Implemented** | Two-stage progressive disclosure cutting wrong skill loads by >50% and eliminating prompt bloat. |
 | **03** | **[Knowledge Item Matcher](file:///d:/01_GIT/Jev/proposals/03_PROPOSAL_C_KNOWLEDGE_ITEM_MATCHER.md)** | *Blueprint* | Pre-flight semantic scanner mounting repository memory artifacts before code investigation begins. |
-| **04** | **[Safety & Tool Router](file:///d:/01_GIT/Jev/proposals/04_PROPOSAL_D_SAFETY_AND_TOOL_ROUTER.md)** | **Implemented** | Real-time blast-radius scoring and deterministic `force_ask` modal interception for destructive tools. |
+| **04** | **[Safety & Tool Router](file:///d:/01_GIT/Jev/proposals/04_PROPOSAL_D_SAFETY_AND_TOOL_ROUTER.md)** | **Implemented** | 3-stage pipeline: deterministic Critical Shield → SQLite Decision DB fast-path → Jev blast-radius scoring. Session and permanent save-back eliminates repetitive confirmations for routine operations. |
 | **05** | **[Additional Industry Patterns](file:///d:/01_GIT/Jev/proposals/05_ADDITIONAL_USE_CASES_AND_INDUSTRY_PATTERNS.md)** | *Catalog* | Reference catalog mapping 10 enterprise domains to System One non-autoregressive decision patterns. |
 | **06** | **[Intelligent Model Routing](file:///d:/01_GIT/Jev/proposals/06_USE_CASE_MODEL_ROUTING.md)** | *Blueprint* | 70ms task difficulty scoring to tier requests between fast (Flash/Haiku) and reasoning (Pro/Opus) models. |
 | **07** | **[Output & Citation Verification](file:///d:/01_GIT/Jev/proposals/07_USE_CASE_OUTPUT_AND_CITATION_VERIFICATION.md)** | *Blueprint* | Pre-execution verification of generated API signatures against library ASTs and documentation. |
@@ -244,7 +270,7 @@ The [`proposals/`](file:///d:/01_GIT/Jev/proposals) directory houses 22 detailed
 
 ## Defensive Engineering & Failure Policy
 
-1. **Zero External Dependencies**: All hooks use standard library Python (`urllib`, `json`, `pathlib`, `os`, `sys`). No virtual environment activation or `pip install` required.
+1. **Zero External Dependencies**: All hooks use standard library Python (`urllib`, `json`, `pathlib`, `os`, `sys`, `sqlite3`, `re`, `fnmatch`). No virtual environment activation or `pip install` required.
 2. **Strict 3.5s Timeout**: HTTP requests to Jev are hard-capped at 3.5 seconds. If the network stalls, the hook exits cleanly with `{"decision": "allow"}` without blocking Antigravity.
 3. **Fail-Open Policy for Routine Tasks**: If Jev is unreachable or encounters an API limit:
    * Skills fall back to standard baseline progressive disclosure.

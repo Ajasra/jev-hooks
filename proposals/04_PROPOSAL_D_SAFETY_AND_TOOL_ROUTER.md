@@ -7,124 +7,187 @@ Antigravity gives the agent direct local execution access via `run_command` (`cm
 While autonomous execution is essential for productivity, it introduces distinct risks:
 1. **Destructive Shell Operations**: Accidental `git reset --hard`, deleting unversioned files, running long-running blocking processes, or overwriting critical configs.
 2. **Ambiguous Tool Arguments**: Choosing between subtle flags (e.g. should a daemon run in background, should `AllowMultiple` be true on replace, should a search be regex or literal).
-3. **Flaky Generative Function Calling**: Generative models streaming JSON occasionally generate invalid schemas or miss mandatory constraints, resulting in runtime tool failures.
+3. **Repetitive Friction**: Jev scoring `git commit` or file saves as medium-risk on every call, triggering unnecessary `force_ask` modals for routine, reversible operations.
 
 ---
 
-## 2. Core Idea: Fast Calibrated Guardrail & Argument Verifier
+## 2. Core Architecture: 3-Stage Decision Pipeline
 
-Using Jev's `Score` and `Confidence` primitives, this proposal inserts a **sub-100ms verification gate** right before high-impact tool execution.
+The production implementation uses a **layered, ordered pipeline** that resolves the vast majority of decisions without calling Jev at all, reserving the model only for genuinely unknown operations.
 
 ```mermaid
 flowchart TD
-    LLM_Output["Primary LLM Emits Tool Call<br/>(e.g., run_command or write_to_file)"] --> JevGate["Jev Safety & Ambiguity Gate (~60ms)"]
-    
-    subgraph JevChecks ["Simultaneous Jev Primitives"]
-        RiskScore["Score: 1-5 Risk Level<br/>(1=read-only, 3=reversible edit, 5=destructive)"]
-        InteractiveReq["Noul: Does this command require interactive stdin?"]
-        EnvRuleCheck["Noul: Does this violate user rules (e.g. missing 'cmd /c')?"]
+    LLM_Output["Primary LLM Emits Tool Call<br/>(e.g., run_command or write_to_file)"] --> Stage1
+
+    subgraph Stage1 ["Stage 1: Critical Shield (~0ms, deterministic)"]
+        CritCheck["Regex match against CRITICAL_PATTERNS<br/>(rm -rf, git reset --hard, rmdir /s, git push --force, DROP DATABASE…)"]
+        CritCheck -->|Pattern matched| ForceAsk1["decision: force_ask<br/>⛔ Cannot be bypassed by any rule"]
+        CritCheck -->|No match| Stage2
     end
-    JevGate --> JevChecks
-    
-    JevChecks --> EvaluateDecision{"Safety Evaluation Matrix"}
-    
-    EvaluateDecision -->|Risk ≤ 2 and Rules OK| AutoExecute["Auto-Execute Tool Immediately<br/>(Normal Fast Path)"]
-    
-    EvaluateDecision -->|Rule Violation Detected| AutoFix["Auto-Correct Parameter<br/>(e.g. wrap command in cmd /c automatically)"]
-    AutoFix --> AutoExecute
-    
-    EvaluateDecision -->|Risk ≥ 4 or High Irreversibility| InterceptModal["Intercept Execution & Invoke ask_question:<br/>Render interactive modal for user confirmation"]
-    
-    InterceptModal -->|User Approves| AutoExecute
-    InterceptModal -->|User Rejects| ReturnError["Return Cancellation Note to Agent Context"]
+
+    subgraph Stage2 ["Stage 2: Decision DB Fast-Path (~1ms, SQLite)"]
+        DBCheck["Query safety_decisions.db<br/>Match by tool_name + command pattern<br/>Scope: 'always' OR session conversation_id"]
+        DBCheck -->|Rule found: allow| AutoAllow["decision: allow<br/>(Zero Jev cost)"]
+        DBCheck -->|Rule found: deny| AutoDeny["decision: deny"]
+        DBCheck -->|No rule| Stage3
+    end
+
+    subgraph Stage3 ["Stage 3: Jev Scoring (~80ms)"]
+        JevScore["Jev: blast_radius Score + is_destructive Noul"]
+        JevScore -->|blast_score < 2 AND destructive < 0.70| AutoAllow2["decision: allow"]
+        JevScore -->|blast_score ≥ 2 OR destructive ≥ 0.70| Modal["decision: force_ask<br/>+ permissionOverrides for save-back"]
+    end
+
+    Modal -->|User: Allow once| ToolExec["Local OS Execution"]
+    Modal -->|User: Save for session| SaveSession["Write session-scoped rule to DB<br/>→ future calls skip Jev"]
+    Modal -->|User: Save always| SaveAlways["Write permanent rule to DB<br/>→ future calls skip Jev forever"]
+    Modal -->|User: Cancel| AbortAction["Return Cancellation to Agent"]
+
+    AutoAllow --> ToolExec
+    AutoAllow2 --> ToolExec
+    SaveSession --> ToolExec
+    SaveAlways --> ToolExec
 ```
 
 ---
 
-## 3. Concrete Antigravity Applications
+## 3. Stage 1: Critical Shield
 
-### 3.1 Destructive Action Detection (The Safety Gate)
-Whenever `run_command` is proposed, Jev evaluates the command against the current workspace context:
+A set of hard-coded regex patterns identifies operations that **always** require developer confirmation — regardless of any saved rules:
 
-```typescript
-const safetyQuestions = {
-  risk_level: {
-    type: "score",
-    instructions: "Rate the risk level and potential irreversibility of this shell command.",
-    criteria: [
-      "Pure inspection or read-only (e.g., git status, dir, npm list)",
-      "Standard development task (e.g., npm test, tsc, git checkout new-branch)",
-      "State modification (e.g., npm install, git commit, file touch)",
-      "High impact (e.g., git reset, killing active tasks, database schema drop)",
-      "Critical / Potentially destructive (e.g., rm -rf, del /f /s /q, git clean -fdx)"
-    ]
-  },
-  violates_platform_rules: {
-    type: "noul",
-    instructions: "On this Windows system, does this command violate the rule requiring 'cmd /c' wrapper or launch an unmanaged interactive shell?"
-  }
-};
-```
+| Category | Patterns |
+|:--- |:--- |
+| Recursive deletion | `rmdir /s`, `rd /s`, `del /s`, `rm -rf`, `rm --recursive` |
+| Destructive git | `git reset --hard`, `git clean -f`, `git push --force`, `git checkout -- .` |
+| Disk operations | `format C:`, `diskpart`, `fdisk`, `mkfs` |
+| Database drop | `DROP DATABASE`, `DROP SCHEMA`, `TRUNCATE TABLE` |
 
-**Policy Response:**
-- **Risk 1–3**: Executed synchronously with zero delay.
-- **Risk 4–5**: Intercepted by the harness. The harness triggers the native `ask_question` tool with choices:
-  - *"Proceed with command: `<command>`"*
-  - *"Cancel and ask agent to choose a safer alternative"*
-
-### 3.2 Closed-Set Argument Resolution (Function Calling Pattern)
-For tools with enumerated or boolean arguments (such as `MatchPerLine`, `CaseInsensitive`, `IsRegex` in `grep_search`, or `IsDaemon` in `run_command`), Jev can resolve natural language requests directly into closed-set arguments with calibrated confidence.
-
-For instance, when determining whether a process is a daemon:
-```typescript
-const daemonQuestion = {
-  type: "noul",
-  instructions: "Is this process intended to run continuously in the background (like a dev server or file watcher) rather than terminate on its own?"
-};
-```
-If `noul > 0.85`, set `IsDaemon = true`, avoiding the frequent pitfall where the agent accidentally blocks the shell on dev servers.
+These patterns are **not overridable** — `save_decision()` refuses to store an `allow` rule for any critical match, raising a `ValueError`.
 
 ---
 
-## 4. Expected Benefits
+## 4. Stage 2: Decision Database (`safety_decisions.db`)
 
-1. **Safety with Zero Latency Penalty**: Evaluation takes 50–70ms, completely imperceptible to the user compared to the multiple seconds taken by agent reasoning.
-2. **Deterministic Rule Enforcement**: Enforces environment constraints (like Windows shell handling) reliably, catching accidental slips before shell errors occur.
-3. **Confidence-Gated Escalation**: User interruption occurs only when genuine danger or ambiguity exists, keeping non-destructive autonomous tasks running smoothly.
+A local SQLite database (`~/.gemini/config/safety_decisions.db`) stores approval rules with two scopes:
 
----
+| Scope | Lifetime | Use Case |
+|:--- |:--- |:--- |
+| `always` | Permanent | Routine operations that should never interrupt the agent |
+| `session` | Single conversation (`conversationId`) | Operations allowed in context but not universally |
 
-## 5. Live Production Verification (Antigravity Runtime)
+### Pre-seeded Default Rules (23 rules on first init)
 
-This proposal is implemented and actively deployed as an Antigravity `PreToolUse` lifecycle hook (`.agents/hooks/jev_safety_gate.py` linked globally to `~/.gemini/config/hooks.json`).
+All standard git workflow operations and file mutation tools are pre-approved permanently:
 
-### Real-World Intercept Trace
+```
+git status*, git diff*, git log*, git show*      → always allow
+git add*, git commit*, git push, git push origin*
+git pull*, git fetch*, git checkout*, git switch*
+git branch*, git stash*, git merge*
+npm test*, npm run *, pytest*, uv run *
+write_to_file:           * → always allow
+replace_file_content:    * → always allow
+multi_replace_file_content: * → always allow
+```
 
-In a separate workspace (`d:\01_GIT\AAA`), a user requested:
-> *"can you delete benchmarks/tests folder?"*
+### Pattern Matching
 
-The agent proposed the following destructive tool call:
+Rules use glob-style prefix matching on the command string (after stripping `cmd /c` wrappers):
+- `git commit*` matches `git commit -m "any message"`
+- `git push origin *` matches `git push origin main`
+- `*` on a tool matches all invocations of that tool
+
+### CLI Interface
+
 ```cmd
-cmd /c rmdir /s /q benchmarks\tests
+:: List all rules
+cmd /c python .agents/hooks/safety_db.py --list
+
+:: Add a permanent allow rule
+cmd /c python .agents/hooks/safety_db.py --allow "uv pip install*" --tool run_command
+
+:: Add a session-scoped rule
+cmd /c python .agents/hooks/safety_db.py --allow "git push --tags" --scope session --conversation abc123
+
+:: Test how any command resolves
+cmd /c python .agents/hooks/safety_db.py --test-cmd "cmd /c git reset --hard HEAD~1"
+
+:: Reinitialize with default rules
+cmd /c python .agents/hooks/safety_db.py --init-defaults
 ```
 
-Before the command reached the Windows shell, the `PreToolUse` hook intercepted the call and dispatched it to Jev:
-- **Jev Evaluation**:
-  - `blast_radius`: `3` (*"High-risk operation: recursive deletions, credential access, or system environment changes"*)
-  - `destructive_prob`: `0.95`
-- **Hook Response**:
-  ```json
-  {
-    "decision": "force_ask",
-    "reason": "[Jev Safety Gate] Intercepted high-impact action: blast_radius=3, destructive_prob=0.95. Requires developer confirmation."
-  }
-  ```
+---
 
-### Rendered User Experience in Antigravity IDE
+## 5. Stage 3: Jev Scoring
 
-Antigravity halted execution and presented an interactive confirmation modal with options to allow, remember for conversation, or cancel:
+Only commands that pass the Critical Shield **and** have no DB rule reach Jev. The gate asks two parallel questions:
 
-![Jev Safety Gate Intercept Modal](./assets/jev_safety_gate_intercept_modal.png)
+```python
+questions = {
+    "blast_radius": {
+        "type": "score",
+        "criteria": [
+            "Read-only inspection with zero persistent state mutation.",        # 0
+            "Idempotent local mutation with automated rollback path.",           # 1
+            "Non-idempotent mutation or network interaction.",                  # 2
+            "High-risk: recursive deletions, credential access, env changes."   # 3
+        ]
+    },
+    "is_destructive": {
+        "type": "noul",
+        "instructions": "Does this permanently destroy uncommitted work or delete directories?"
+    }
+}
+```
 
-This demonstrates the core architectural value: **autonomous agent speed on routine tasks, with sub-100ms deterministic safety barriers against irreversible mutations.**
+**Policy:**
+- `blast_score < 2` AND `is_destructive < 0.70` → `allow`
+- Either threshold exceeded → `force_ask` with three `permissionOverrides`:
+  - `command(...)` — allow just this invocation
+  - `session:command(...)` — save for current session
+  - `always:command(...)` — save permanently to DB
 
+---
+
+## 6. Integration Test Results
+
+Running `tests/test_gate_integration.py` against all cases:
+
+```
+[     allow]  run_command: cmd /c git commit -m 'update hooks'    ← Stage 2 DB hit
+[     allow]  run_command: cmd /c git push origin main            ← Stage 2 DB hit
+[     allow]  run_command: cmd /c git status                      ← Stage 2 DB hit
+[ force_ask]  run_command: cmd /c git push --force                ← Stage 1 Critical
+[ force_ask]  run_command: cmd /c git reset --hard HEAD~1         ← Stage 1 Critical
+[ force_ask]  run_command: cmd /c rmdir /s /q dist                ← Stage 1 Critical
+[     allow]  write_to_file: {"TargetFile": "test.py"}            ← Stage 2 DB hit
+[     allow]  replace_file_content: {"TargetFile": "main.py"}     ← Stage 2 DB hit
+```
+
+Zero Jev API calls needed for any of the above — all resolved via deterministic shield or DB lookup.
+
+---
+
+## 7. Benefits vs. Original Design
+
+| Concern | Original (Jev-only) | New (3-Stage Pipeline) |
+|:--- |:--- |:--- |
+| `git commit` blocked | Yes — blast_score ~1.67 triggered ask | No — DB fast-path, 0ms |
+| `write_to_file` blocked | Yes — Jev scored it ambiguously | No — DB always-allow |
+| `git reset --hard` blocked | Inconsistent — Jev might score ~2.27 | Always — Critical Shield |
+| `rmdir /s /q` blocked | Yes, when Jev available | Always — Critical Shield (even offline) |
+| Session save-back | No | Yes — rule persisted to SQLite |
+| Permanent save-back | No | Yes — rule persisted to SQLite |
+| Works offline | No — Jev call fails open | Yes — Shield + DB work without API |
+| Audit trail | Debug log only | `decision_log` table in SQLite |
+
+---
+
+## 8. Files
+
+| File | Purpose |
+|:--- |:--- |
+| [`jev_safety_gate.py`](../.agents/hooks/jev_safety_gate.py) | Main hook — 3-stage pipeline entry point |
+| [`safety_db.py`](../.agents/hooks/safety_db.py) | Decision DB + Critical Shield — standalone module |
+| [`tests/test_gate_integration.py`](../tests/test_gate_integration.py) | End-to-end pipeline integration test |
+| [`tests/test_gate_eval.py`](../tests/test_gate_eval.py) | Jev blast-radius scoring evaluation harness |
