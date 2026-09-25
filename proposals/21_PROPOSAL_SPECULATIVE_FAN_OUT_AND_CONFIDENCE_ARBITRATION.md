@@ -162,17 +162,42 @@ fan_out_payload = {
   </speculative_preflight>
   ```
 
-#### Example 3: Vague or Underspecified Prompt
-* **Prompt**: `"it broke, do something"`
-* **Jev System One Batch (190ms)**:
+#### Example 3: Vague or Underspecified Prompt (Interactive Modal Short-Circuit)
+* **Prompt**: `"its broke, do something"` (or unguided requests)
+* **Jev System One Batch (190ms–270ms)**:
   * `ambiguity_score`: `2.0` (Conf: `1.00`)
+  * `suggested_action`: `"clarify"`
 * **Injected PreInvocation Context**:
   ```markdown
   <speculative_preflight>
-  > [!NOTE]
-  > **Speculative Arbiter Advisory**: This user prompt was evaluated as ambiguous or underspecified (Score=2.0/2.0, Conf=1.00). Consider confirming key requirements before modifying files or executing stateful mutations.
+  > **Jev Speculative Pre-Flight**: Attached speculative evidence (ambiguity_alert (Score=2.0) in 270ms).
+
+  > [!IMPORTANT]
+  > **Speculative Arbiter Advisory**: This user prompt was evaluated as highly ambiguous or underspecified (Score=2.0/2.0, Conf=1.00).
+
+  [CRITICAL AGENT INSTRUCTION: The user instruction is completely underspecified.
+  DO NOT browse the workspace, explore random files, or speculate on hidden context.
+  You MUST immediately invoke your `ask_question` tool to render an interactive clarification modal for the user,
+  blocking further execution until they select an option or specify what is broken!
+  DO NOT call any other tools (no run_command, no grep_search, no view_file).]
   </speculative_preflight>
   ```
+* **Interactive UI Short-Circuit**:
+  Instead of burning 15–20 seconds exploring random files, the agent is hard-gated by Jev to pause instantly and pop up the interactive `ask_question` modal:
+
+  ![Interactive Clarification Modal](../assets/jev_speculative_ambiguity_modal.png)
+
+  ```text
+  Thought for 2s >
+  Asking 1 question
+  Waiting for user input.
+
+  [?] How would you like to proceed?
+      1. Run the test suite and diagnose any failures
+      2. Review recent git uncommitted changes and diff
+      3. Other (write your answer)
+  ```
+* **Net Result**: 100% elimination of exploratory tool wandering; execution halts until the developer selects an explicit path.
 
 ### 5.3 Automated Verification Command
 To verify the speculative fan-out engine against live Jev:
