@@ -1,5 +1,5 @@
 """
-safety_db.py - Decision Database and Invariant Safety Shield for Antigravity Jev.
+safety_db.py - Decision Database, Invariant Safety Shield, and Audit Lifecycle for Antigravity Jev.
 
 Architecture:
 1. Invariant Safety Shield (Tier 1): A tight, non-bypassable guard against unambiguous,
@@ -7,7 +7,11 @@ Architecture:
    Only applies to run_command; file-editing tools are protected by IDE local history.
 2. User Decision Memory (Tier 2): SQLite database storing user-approved overrides
    ('always' or 'session-scoped'). No large hardcoded allowlist needed.
+   Session rules auto-expire after 30 days.
 3. Audit Log: Tracks all tool calls, Jev intent judgments, latency, and decisions.
+   Retains all records until manually pruned with `--prune`.
+4. Security Review: Built-in `--review` tool for inspecting intercepted commands,
+   false positive analysis, and prompt/rule optimization.
 """
 
 import os
@@ -103,6 +107,19 @@ def init_db(db_path: Optional[Path] = None):
                     source TEXT,
                     reason TEXT
                 )
+            """)
+            # Schema migration: ensure routine_score and risk_score columns exist
+            cols = {r["name"] for r in conn.execute("PRAGMA table_info(decision_log)").fetchall()}
+            if "routine_score" not in cols:
+                conn.execute("ALTER TABLE decision_log ADD COLUMN routine_score REAL DEFAULT 0.0")
+            if "risk_score" not in cols:
+                conn.execute("ALTER TABLE decision_log ADD COLUMN risk_score REAL DEFAULT 0.0")
+
+            # Auto-expire session rules older than 30 days
+            conn.execute("""
+                DELETE FROM rules
+                WHERE scope = 'session'
+                  AND created_at < datetime('now', '-30 days')
             """)
     finally:
         conn.close()
@@ -298,19 +315,150 @@ def clear_all_rules() -> int:
         conn.close()
 
 
+def prune_db(days: int = 30) -> Tuple[int, int]:
+    """
+    Manually prunes decision_log records and session rules older than `days` days.
+    Returns (pruned_logs_count, pruned_session_rules_count).
+    """
+    init_db()
+    conn = get_connection()
+    try:
+        with conn:
+            cur1 = conn.execute(
+                "DELETE FROM decision_log WHERE timestamp < datetime('now', ?)",
+                (f"-{days} days",)
+            )
+            pruned_logs = cur1.rowcount
+            cur2 = conn.execute(
+                "DELETE FROM rules WHERE scope = 'session' AND created_at < datetime('now', ?)",
+                (f"-{days} days",)
+            )
+            pruned_rules = cur2.rowcount
+            return pruned_logs, pruned_rules
+    finally:
+        conn.close()
+
+
+def get_review_stats() -> Dict[str, Any]:
+    """Queries the audit log and returns aggregated statistics for security review."""
+    init_db()
+    conn = get_connection()
+    try:
+        total_decisions = conn.execute("SELECT COUNT(*) FROM decision_log").fetchone()[0]
+
+        decisions_by_type = {}
+        for r in conn.execute("SELECT decision, COUNT(*) as cnt FROM decision_log GROUP BY decision").fetchall():
+            decisions_by_type[r["decision"]] = r["cnt"]
+
+        sources_breakdown = {}
+        for r in conn.execute("SELECT source, COUNT(*) as cnt FROM decision_log GROUP BY source").fetchall():
+            sources_breakdown[r["source"]] = r["cnt"]
+
+        intercepted = []
+        for r in conn.execute("""
+            SELECT command, tool_name, source, routine_score, risk_score, reason, COUNT(*) as count
+            FROM decision_log
+            WHERE decision = 'force_ask'
+            GROUP BY command, tool_name, source
+            ORDER BY count DESC, risk_score DESC
+            LIMIT 15
+        """).fetchall():
+            intercepted.append(dict(r))
+
+        recent_decisions = []
+        for r in conn.execute("""
+            SELECT timestamp, tool_name, command, source, decision, routine_score, risk_score
+            FROM decision_log
+            ORDER BY id DESC
+            LIMIT 10
+        """).fetchall():
+            recent_decisions.append(dict(r))
+
+        rules_always = conn.execute("SELECT COUNT(*) FROM rules WHERE scope = 'always'").fetchone()[0]
+        rules_session = conn.execute("SELECT COUNT(*) FROM rules WHERE scope = 'session'").fetchone()[0]
+
+        return {
+            "total_decisions": total_decisions,
+            "decisions_by_type": decisions_by_type,
+            "sources": sources_breakdown,
+            "intercepted": intercepted,
+            "recent_decisions": recent_decisions,
+            "rules_always": rules_always,
+            "rules_session": rules_session,
+        }
+    finally:
+        conn.close()
+
+
+def print_review():
+    """Prints a formatted security review of the audit log."""
+    stats = get_review_stats()
+    db_path = get_db_path()
+
+    print(f"\n{'='*75}")
+    print(f" JEV SAFETY GATE SECURITY AUDIT REVIEW")
+    print(f" Database: {db_path}")
+    print(f"{'='*75}\n")
+
+    print(f"Summary:")
+    print(f"  Total Logged Events    : {stats['total_decisions']}")
+    print(f"  Allowed                : {stats['decisions_by_type'].get('allow', 0)}")
+    print(f"  Intercepted (force_ask): {stats['decisions_by_type'].get('force_ask', 0)}")
+
+    print(f"\nRouting Sources:")
+    for src, count in stats['sources'].items():
+        print(f"  {src:<22}: {count}")
+
+    print(f"\nActive Rules in Memory:")
+    print(f"  Permanent ('always')   : {stats['rules_always']}")
+    print(f"  Session-scoped         : {stats['rules_session']} (auto-expires after 30 days)")
+
+    if stats["intercepted"]:
+        print(f"\nTop Intercepted Actions:")
+        print(f"  {'Count':<6} {'Source':<16} {'Tool':<14} Command")
+        print(f"  {'-'*70}")
+        for item in stats["intercepted"]:
+            cmd_short = item['command'].replace('\n', ' ')[:45]
+            print(f"  {item['count']:<6} {item['source']:<16} {item['tool_name']:<14} {cmd_short}")
+    else:
+        print(f"\nTop Intercepted Actions: None recorded.")
+
+    if stats["recent_decisions"]:
+        print(f"\nRecent Activity Log (Latest 10):")
+        print(f"  {'Time':<20} {'Decision':<10} {'Source':<16} Command")
+        print(f"  {'-'*70}")
+        for r in stats["recent_decisions"]:
+            cmd_short = r['command'].replace('\n', ' ')[:38]
+            print(f"  {r['timestamp'][:19]:<20} {r['decision']:<10} {r['source']:<16} {cmd_short}")
+
+    print(f"\n{'='*75}\n")
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Antigravity Jev Safety Gate Decision Database")
-    parser.add_argument("--list",          action="store_true")
-    parser.add_argument("--allow",         type=str)
+    parser.add_argument("--list",          action="store_true", help="List active saved rules")
+    parser.add_argument("--review",        action="store_true", help="Review audit log and security statistics")
+    parser.add_argument("--prune",         action="store_true", help="Prune logs and session rules older than --days")
+    parser.add_argument("--days",          type=int, default=30, help="Days threshold for pruning (default: 30)")
+    parser.add_argument("--allow",         type=str, help="Add permanent or session allow rule pattern")
     parser.add_argument("--tool",          type=str, default="run_command")
     parser.add_argument("--scope",         choices=["always", "session"], default="always")
     parser.add_argument("--conversation",  type=str, default="")
     parser.add_argument("--workspace",     type=str, default="")
     parser.add_argument("--reason",        type=str, default="User specified rule")
-    parser.add_argument("--clear-all",     action="store_true")
-    parser.add_argument("--test-cmd",      type=str)
+    parser.add_argument("--clear-all",     action="store_true", help="Clear all saved rules")
+    parser.add_argument("--test-cmd",      type=str, help="Test how a command resolves")
     args = parser.parse_args()
+
+    if args.review:
+        print_review()
+        sys.exit(0)
+
+    if args.prune:
+        p_logs, p_rules = prune_db(args.days)
+        print(f"[+] Pruned {p_logs} log entries and {p_rules} session rules older than {args.days} days.")
+        sys.exit(0)
 
     if args.clear_all:
         count = clear_all_rules()
