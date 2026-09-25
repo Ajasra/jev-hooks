@@ -166,10 +166,22 @@ def evaluate_speculative_batch(user_prompt: str, cwd: str) -> dict:
     return answers
 
 
-def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str) -> dict:
+AFFIRMATIVE_CONTINUATIONS = {
+    "yes", "yes, implement", "yes, please", "proceed", "continue", "go ahead",
+    "do it", "approved", "ok", "okay", "sure", "yep", "lgtm", "yes implement"
+}
+
+def is_affirmative_continuation(prompt: str) -> bool:
+    """Detects short affirmative continuations so they aren't falsely flagged as ambiguous."""
+    import re
+    clean = re.sub(r"[^\w\s]", "", prompt.lower()).strip()
+    return clean in {re.sub(r"[^\w\s]", "", w) for w in AFFIRMATIVE_CONTINUATIONS}
+
+
+def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversation_id: str = "") -> dict:
     """
     Dual-Axis Confidence Arbiter:
-    Maps Jev's answers to pre-flight context injections.
+    Maps Jev's answers to pre-flight context injections and logs to SQLite for active tuning.
     """
     needs_git = answers.get("needs_git_diff", {}).get("noul", 0.0)
     needs_test = answers.get("needs_test_log", {}).get("noul", 0.0)
@@ -179,6 +191,9 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str) -> dict:
     suggested = answers.get("suggested_action", {}).get("choice", "none")
     suggested_conf = answers.get("suggested_action", {}).get("confidence", 0.0)
     latency_ms = answers.get("_latency_ms", 0.0)
+
+    # Check for affirmative continuation (e.g., 'yes', 'proceed', 'yes, implement')
+    is_affirmative = is_affirmative_continuation(user_prompt)
 
     sections = []
     actions_taken = []
@@ -195,8 +210,8 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str) -> dict:
         sections.append(f"#### Speculatively Prefetched Test Diagnostics (P={needs_test:.2f}):\n{test_context}")
         actions_taken.append(f"test_prefetch (P={needs_test:.2f})")
 
-    # 3. High Ambiguity Notice (Score >= 1.75 and confidence >= 0.75)
-    if ambiguity >= 1.75 and ambiguity_conf >= 0.75:
+    # 3. High Ambiguity Notice (Score >= 1.75 and confidence >= 0.75, skipped for affirmative continuations)
+    if ambiguity >= 1.75 and ambiguity_conf >= 0.75 and not is_affirmative:
         sections.append(
             "> [!IMPORTANT]\n"
             f"> **Speculative Arbiter Advisory**: This user prompt was evaluated as highly ambiguous or underspecified "
@@ -208,6 +223,26 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str) -> dict:
             "DO NOT call any other tools (no run_command, no grep_search, no view_file).]"
         )
         actions_taken.append(f"ambiguity_alert (Score={ambiguity:.1f})")
+
+    # 4. Log to SQLite Database for Active Learning & Continuous Calibration
+    try:
+        import safety_db
+        if is_affirmative:
+            safety_db.record_speculative_feedback(conversation_id, user_prompt, "accepted_affirmative")
+        safety_db.log_speculative_decision(
+            conversation_id=conversation_id,
+            prompt=user_prompt,
+            latency_ms=latency_ms,
+            needs_git=needs_git,
+            needs_test=needs_test,
+            ambiguity_score=ambiguity,
+            ambiguity_conf=ambiguity_conf,
+            suggested_action=suggested,
+            suggested_conf=suggested_conf,
+            actions_taken=actions_taken
+        )
+    except Exception:
+        pass
 
     # Log debug activation if available
     try:
@@ -284,9 +319,11 @@ def main():
     if not user_prompt:
         sys.exit(0)
 
+    conversation_id = context.get("conversationId", "")
+
     try:
         answers = evaluate_speculative_batch(user_prompt, cwd)
-        result = arbitrate_and_assemble(answers, user_prompt, cwd)
+        result = arbitrate_and_assemble(answers, user_prompt, cwd, conversation_id)
         if result:
             print(json.dumps(result))
     except Exception:

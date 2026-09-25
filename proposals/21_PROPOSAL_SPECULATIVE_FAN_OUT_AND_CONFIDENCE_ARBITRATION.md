@@ -228,3 +228,13 @@ Model: typesafe/jev-1.13 | Endpoint: https://openrouter.ai/api/v1/systemone
 === ALL SPECULATIVE ROUTER TESTS PASSED ===
 ```
 
+### 5.4 Active Learning & SQLite Feedback Database (`--review-speculative`)
+Every speculative evaluation, Jev score, and subsequent developer response is automatically recorded in `~/.gemini/config/safety_decisions.db` under the `speculative_decisions` table:
+- **Continuous Calibration**: Automatically correlates Jev predictions (`ambiguity_score`, `needs_git_diff`, `suggested_action`) with the developer's subsequent reply/selection.
+- **Affirmative Continuation Support**: Short approvals (`"yes, implement"`, `"proceed"`, `"approved"`) are automatically recognized as affirmative continuations and logged as `accepted_affirmative` feedback on the prior turn, preventing false-alarm modals.
+- **Diagnostic Audit CLI**:
+  ```cmd
+  cmd /c python .agents/hooks/safety_db.py --review-speculative
+  ```
+  Produces aggregated evaluation counts, ambiguity hit rates, prefetch statistics, and recent turns with user feedback labels.
+

@@ -200,6 +200,9 @@ Restart Antigravity or press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $
 :: Inspect security audit, top intercepted commands & stats
 cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --review
 
+:: Inspect speculative fan-out active learning audit & user clarifications
+cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --review-speculative
+
 :: List all active saved rules
 cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --list
 

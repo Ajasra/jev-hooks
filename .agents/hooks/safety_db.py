@@ -12,6 +12,8 @@ Architecture:
    Retains all records until manually pruned with `--prune`.
 4. Security Review: Built-in `--review` tool for inspecting intercepted commands,
    false positive analysis, and prompt/rule optimization.
+5. Speculative Fan-Out Active Learning: `--review-speculative` tool for auditing
+   speculative evaluations, ambiguity accuracy, and user calibration replies.
 """
 
 import os
@@ -120,6 +122,26 @@ def init_db(db_path: Optional[Path] = None):
                 DELETE FROM rules
                 WHERE scope = 'session'
                   AND created_at < datetime('now', '-30 days')
+            """)
+
+            # Table for Speculative Fan-Out & Ambiguity Arbitrations (Proposal 21 Active Learning)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS speculative_decisions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    conversation_id TEXT,
+                    prompt TEXT,
+                    latency_ms REAL,
+                    needs_git_diff REAL,
+                    needs_test_log REAL,
+                    ambiguity_score REAL,
+                    ambiguity_conf REAL,
+                    suggested_action TEXT,
+                    suggested_conf REAL,
+                    actions_taken TEXT,
+                    user_reply TEXT DEFAULT '',
+                    feedback_label TEXT DEFAULT 'pending'
+                )
             """)
     finally:
         conn.close()
@@ -390,6 +412,116 @@ def get_review_stats() -> Dict[str, Any]:
         conn.close()
 
 
+def log_speculative_decision(
+    conversation_id: str,
+    prompt: str,
+    latency_ms: float,
+    needs_git: float,
+    needs_test: float,
+    ambiguity_score: float,
+    ambiguity_conf: float,
+    suggested_action: str,
+    suggested_conf: float,
+    actions_taken: List[str],
+    db_path: Optional[Path] = None
+) -> int:
+    """Logs a speculative pre-flight evaluation to SQLite for active tuning and audit."""
+    init_db(db_path)
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.execute("""
+                INSERT INTO speculative_decisions (
+                    conversation_id, prompt, latency_ms,
+                    needs_git_diff, needs_test_log,
+                    ambiguity_score, ambiguity_conf,
+                    suggested_action, suggested_conf,
+                    actions_taken, feedback_label
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                conversation_id or "", prompt, latency_ms,
+                needs_git, needs_test,
+                ambiguity_score, ambiguity_conf,
+                suggested_action, suggested_conf,
+                ", ".join(actions_taken) if actions_taken else "none",
+                "pending"
+            ))
+            return cur.lastrowid
+    except Exception:
+        return -1
+    finally:
+        conn.close()
+
+
+def record_speculative_feedback(
+    conversation_id: str,
+    user_reply: str,
+    feedback_label: str = "clarified",
+    db_path: Optional[Path] = None
+):
+    """Updates the pending speculative decision record with developer feedback."""
+    init_db(db_path)
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            conn.execute("""
+                UPDATE speculative_decisions
+                SET user_reply = ?, feedback_label = ?
+                WHERE id = (
+                    SELECT id FROM speculative_decisions
+                    WHERE (conversation_id = ? OR conversation_id = '') AND feedback_label = 'pending'
+                    ORDER BY id DESC LIMIT 1
+                )
+            """, (user_reply, feedback_label, conversation_id or ""))
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
+
+def print_speculative_review(db_path: Optional[Path] = None):
+    """Prints diagnostic review of speculative router evaluations and ambiguity calibration."""
+    init_db(db_path)
+    conn = get_connection(db_path)
+    try:
+        total = conn.execute("SELECT COUNT(*) FROM speculative_decisions").fetchone()[0]
+        ambig_count = conn.execute("SELECT COUNT(*) FROM speculative_decisions WHERE ambiguity_score >= 1.75").fetchone()[0]
+        git_count = conn.execute("SELECT COUNT(*) FROM speculative_decisions WHERE needs_git_diff >= 0.65").fetchone()[0]
+        test_count = conn.execute("SELECT COUNT(*) FROM speculative_decisions WHERE needs_test_log >= 0.65").fetchone()[0]
+        clarified = conn.execute("SELECT COUNT(*) FROM speculative_decisions WHERE feedback_label = 'clarified'").fetchone()[0]
+
+        recent = conn.execute("""
+            SELECT timestamp, prompt, latency_ms, ambiguity_score, actions_taken, user_reply, feedback_label
+            FROM speculative_decisions
+            ORDER BY id DESC LIMIT 10
+        """).fetchall()
+
+        print(f"\n{'='*75}")
+        print(f" JEV SPECULATIVE ARBITER & ACTIVE LEARNING AUDIT")
+        print(f" Database: {db_path or get_db_path()}")
+        print(f"{'='*75}\n")
+
+        print(f"Summary:")
+        print(f"  Total Evaluated Turns : {total}")
+        print(f"  Ambiguity Alerts      : {ambig_count}")
+        print(f"  Git Prefetches        : {git_count}")
+        print(f"  Test Prefetches       : {test_count}")
+        print(f"  Clarifications Logged : {clarified}")
+
+        if recent:
+            print(f"\nRecent Speculative Turns:")
+            print(f"  {'Timestamp':<19} {'Lat':<6} {'Ambig':<6} {'Action':<22} Prompt")
+            print(f"  {'-'*75}")
+            for r in recent:
+                p_short = r['prompt'].replace('\n', ' ')[:32]
+                print(f"  {r['timestamp'][:19]:<19} {r['latency_ms']:<6.0f} {r['ambiguity_score']:<6.1f} {r['actions_taken']:<22} {p_short}")
+                if r['user_reply']:
+                    print(f"    -> User Reply: {r['user_reply'][:60]} ({r['feedback_label']})")
+        print(f"\n{'='*75}\n")
+    finally:
+        conn.close()
+
+
 def print_review():
     """Prints a formatted security review of the audit log."""
     stats = get_review_stats()
@@ -439,6 +571,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Antigravity Jev Safety Gate Decision Database")
     parser.add_argument("--list",          action="store_true", help="List active saved rules")
     parser.add_argument("--review",        action="store_true", help="Review audit log and security statistics")
+    parser.add_argument("--review-speculative", action="store_true", help="Review speculative fan-out and ambiguity audit")
     parser.add_argument("--prune",         action="store_true", help="Prune logs and session rules older than --days")
     parser.add_argument("--days",          type=int, default=30, help="Days threshold for pruning (default: 30)")
     parser.add_argument("--allow",         type=str, help="Add permanent or session allow rule pattern")
@@ -450,6 +583,10 @@ if __name__ == "__main__":
     parser.add_argument("--clear-all",     action="store_true", help="Clear all saved rules")
     parser.add_argument("--test-cmd",      type=str, help="Test how a command resolves")
     args = parser.parse_args()
+
+    if args.review_speculative:
+        print_speculative_review()
+        sys.exit(0)
 
     if args.review:
         print_review()
