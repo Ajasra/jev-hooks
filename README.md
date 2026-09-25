@@ -75,12 +75,15 @@ flowchart TD
     LLM_Turn -->|Proposed Action| Hook_PreTool["PreToolUse Hook<br/>(jev_safety_gate.py)"]
 
     subgraph S2 ["Stage 2: Execution Safety Gate"]
-        Hook_PreTool --> CritShield["① Critical Shield (~0ms)<br/>Regex: rm -rf, git reset --hard, rmdir /s…<br/>→ force_ask (cannot be bypassed)"]
-        CritShield -->|No match| DBLookup["② Decision DB (~1ms)<br/>SQLite: always + session rules<br/>Pre-seeded: git*, file writes always allow"]
-        DBLookup -->|Rule: allow/deny| DBResult["decision: allow / deny<br/>(Zero Jev API call)"]
-        DBLookup -->|No rule| JevBlast["③ Jev Scoring (~80ms)<br/>blast_radius Score + is_destructive Noul"]
-        JevBlast -->|Safe| AutoAllow["decision: allow"]
-        JevBlast -->|High Risk| ForceAsk["decision: force_ask<br/>+ permissionOverrides (once / session / always)"]
+        Hook_PreTool --> FileFast["① File Editing Fast-Path (~0ms)<br/>write_to_file, replace_*<br/>Workspace safe, sensitive paths guarded"]
+        FileFast -->|File Tool| AutoAllow["decision: allow"]
+        FileFast -->|run_command| CritShield["② Invariant Shield (~0ms)<br/>rm -rf, git reset --hard, rmdir /s…<br/>→ force_ask (cannot be bypassed)"]
+        CritShield -->|Match| ForceAsk["decision: force_ask<br/>+ permissionOverrides (once / session / always)"]
+        CritShield -->|No match| DBLookup["③ User Memory DB (~1ms)<br/>SQLite: user-saved 'always' / 'session' rules"]
+        DBLookup -->|Rule: allow/deny| DBResult["decision: allow / deny<br/>(Instant zero-call return)"]
+        DBLookup -->|No rule| JevBlast["④ Jev Intent Judgment (~80ms)<br/>is_routine_dev_action + irreversible_destruction_risk"]
+        JevBlast -->|Routine Dev Action| AutoAllow
+        JevBlast -->|High Destruction Risk| ForceAsk
     end
 
     CritShield -->|Match| ForceAsk

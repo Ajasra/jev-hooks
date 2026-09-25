@@ -100,11 +100,11 @@ Rules use glob-style prefix matching on the command string (after stripping `cmd
 ### CLI Interface
 
 ```cmd
-:: List all rules
+:: List all user-saved rules
 cmd /c python .agents/hooks/safety_db.py --list
 
 :: Add a permanent allow rule
-cmd /c python .agents/hooks/safety_db.py --allow "uv pip install*" --tool run_command
+cmd /c python .agents/hooks/safety_db.py --allow "docker compose*" --tool run_command
 
 :: Add a session-scoped rule
 cmd /c python .agents/hooks/safety_db.py --allow "git push --tags" --scope session --conversation abc123
@@ -112,40 +112,42 @@ cmd /c python .agents/hooks/safety_db.py --allow "git push --tags" --scope sessi
 :: Test how any command resolves
 cmd /c python .agents/hooks/safety_db.py --test-cmd "cmd /c git reset --hard HEAD~1"
 
-:: Reinitialize with default rules
-cmd /c python .agents/hooks/safety_db.py --init-defaults
+:: Clear all rules
+cmd /c python .agents/hooks/safety_db.py --clear-all
 ```
 
 ---
 
-## 5. Stage 3: Jev Scoring
+## 5. Stage 4: Jev Intent Judgment
 
-Only commands that pass the Critical Shield **and** have no DB rule reach Jev. The gate asks two parallel questions:
+Only unknown commands that pass the Invariant Shield **and** have no existing user rule reach Jev. Rather than brittle blast-radius thresholds, Jev evaluates semantic intent directly:
 
 ```python
 questions = {
-    "blast_radius": {
-        "type": "score",
-        "criteria": [
-            "Read-only inspection with zero persistent state mutation.",        # 0
-            "Idempotent local mutation with automated rollback path.",           # 1
-            "Non-idempotent mutation or network interaction.",                  # 2
-            "High-risk: recursive deletions, credential access, env changes."   # 3
-        ]
-    },
-    "is_destructive": {
+    "is_routine_dev_action": {
         "type": "noul",
-        "instructions": "Does this permanently destroy uncommitted work or delete directories?"
+        "instructions": (
+            "Is this a standard, routine development activity such as running tests, "
+            "building, linting, installing packages, checking git status, staging, "
+            "committing code, pushing branch updates, or running local scripts?"
+        )
+    },
+    "irreversible_destruction_risk": {
+        "type": "noul",
+        "instructions": (
+            "Does this command irreversibly destroy unrecoverable data, wipe disk state "
+            "without backup, drop databases, or overwrite remote history?"
+        )
     }
 }
 ```
 
 **Policy:**
-- `blast_score < 2` AND `is_destructive < 0.70` → `allow`
-- Either threshold exceeded → `force_ask` with three `permissionOverrides`:
+- Routine dev action (`routine >= 0.70` and `destruction_risk < 0.40`) → `allow` silently.
+- High destruction risk (`destruction_risk >= 0.50`) or non-routine anomaly → `force_ask` with `permissionOverrides`:
   - `command(...)` — allow just this invocation
   - `session:command(...)` — save for current session
-  - `always:command(...)` — save permanently to DB
+  - `always:command(...)` — save permanently to SQLite DB
 
 ---
 
@@ -154,14 +156,13 @@ questions = {
 Running `tests/test_gate_integration.py` against all cases:
 
 ```
-[     allow]  run_command: cmd /c git commit -m 'update hooks'    ← Stage 2 DB hit
-[     allow]  run_command: cmd /c git push origin main            ← Stage 2 DB hit
-[     allow]  run_command: cmd /c git status                      ← Stage 2 DB hit
-[ force_ask]  run_command: cmd /c git push --force                ← Stage 1 Critical
-[ force_ask]  run_command: cmd /c git reset --hard HEAD~1         ← Stage 1 Critical
-[ force_ask]  run_command: cmd /c rmdir /s /q dist                ← Stage 1 Critical
-[     allow]  write_to_file: {"TargetFile": "test.py"}            ← Stage 2 DB hit
-[     allow]  replace_file_content: {"TargetFile": "main.py"}     ← Stage 2 DB hit
+[     allow]  write_to_file / replace_*                   ← Fast-path (workspace safe)
+[ force_ask]  write_to_file on ~/.ssh/id_rsa              ← Guarded sensitive path
+[     allow]  run_command: git commit / status / add      ← Jev Intent (routine dev)
+[     allow]  run_command: pytest / npm run / cargo       ← Jev Intent (routine dev)
+[ force_ask]  run_command: git reset --hard / push -f     ← Invariant Shield
+[ force_ask]  run_command: rmdir /s / rm -rf              ← Invariant Shield
+[     allow]  run_command: custom tool                    ← User Memory SQLite
 ```
 
 Zero Jev API calls needed for any of the above — all resolved via deterministic shield or DB lookup.
