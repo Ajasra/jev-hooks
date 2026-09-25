@@ -105,14 +105,77 @@ def prefetch_test_state(cwd: str) -> str:
         return f"Unable to prefetch test state: {e}"
 
 
+def get_project_summary(cwd: str) -> str:
+    """Extracts a compact 1-line summary of the workspace identity from README or project configs."""
+    try:
+        readme = Path(cwd) / "README.md"
+        if readme.exists():
+            for line in readme.read_text(encoding="utf-8", errors="ignore").splitlines()[:8]:
+                line = line.strip().lstrip("#").strip()
+                if line and not line.startswith("!") and not line.startswith("["):
+                    return line[:120]
+        pkg = Path(cwd) / "package.json"
+        if pkg.exists():
+            data = json.loads(pkg.read_text(encoding="utf-8"))
+            desc = data.get("description") or data.get("name")
+            if desc:
+                return desc[:120]
+        pyproject = Path(cwd) / "pyproject.toml"
+        if pyproject.exists():
+            for line in pyproject.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if "description" in line and "=" in line:
+                    return line.split("=", 1)[1].strip(" '\"")[:120]
+    except Exception:
+        pass
+    return Path(cwd).name
+
+
+def get_git_branch(cwd: str) -> str:
+    """Fast zero-subprocess extraction of current git branch from .git/HEAD."""
+    try:
+        head = Path(cwd) / ".git" / "HEAD"
+        if head.exists():
+            content = head.read_text(encoding="utf-8", errors="ignore").strip()
+            if content.startswith("ref: refs/heads/"):
+                return content.replace("ref: refs/heads/", "")
+            return content[:8]
+    except Exception:
+        pass
+    return ""
+
+
+def is_bare_link(prompt: str) -> bool:
+    """Detects if prompt is just a raw URL without accompanying instructions."""
+    p = prompt.strip().strip("<>\"'")
+    if " " in p or "\n" in p:
+        return False
+    return p.startswith("http://") or p.startswith("https://") or p.startswith("www.")
+
+
+def is_informational_question(prompt: str) -> bool:
+    """Detects conceptual/architectural questions so they are not falsely treated as ambiguous tasks."""
+    p = prompt.lower().strip()
+    prefixes = ("what", "how", "why", "who", "when", "where", "can you", "explain", "describe", "tell me", "is there", "are there", "does", "do we", "should we")
+    return any(p.startswith(w) for w in prefixes) or p.endswith("?")
+
+
 def evaluate_speculative_batch(user_prompt: str, cwd: str) -> dict:
     """
-    Submits a single parallel 4-question speculative batch to Jev.
+    Submits a single parallel 4-question speculative batch to Jev with project context.
     Returns the parsed answer dictionary.
     """
+    project_desc = get_project_summary(cwd)
+    branch = get_git_branch(cwd)
+    branch_str = f" (Branch: {branch})" if branch else ""
+    state = (
+        f"Project Identity: {project_desc}\n"
+        f"Workspace Path: {cwd}{branch_str}\n"
+        f"Developer Prompt: {user_prompt}"
+    )
+
     payload = {
         "model": MODEL,
-        "state": f"Workspace Path: {cwd}\nDeveloper Instruction: {user_prompt}",
+        "state": state,
         "questions": {
             "needs_git_diff": {
                 "type": "noul",
@@ -130,11 +193,15 @@ def evaluate_speculative_batch(user_prompt: str, cwd: str) -> dict:
             },
             "ambiguity_score": {
                 "type": "score",
-                "instructions": "Rate how underspecified, contradictory, or ambiguous the user's explicit objective is.",
+                "instructions": (
+                    "Rate how underspecified, contradictory, or unguided the developer prompt is. "
+                    "Note: Conceptual or architectural questions asking for explanations, descriptions, or how things work "
+                    "are completely unambiguous (score 0). Bare URLs or unguided prompts like 'it broke' lack context (score 2)."
+                ),
                 "criteria": [
-                    "Completely explicit with concrete filenames, commands, or clear code targets",
-                    "Clear high-level intent requiring standard architectural discovery and reasoning",
-                    "Highly ambiguous, contradictory, or empty instruction requiring clarification before acting"
+                    "Completely explicit request, clear informational question, or conceptual explanation",
+                    "Standard feature or implementation request requiring normal engineering discovery",
+                    "Underspecified action commands that lack context or target (e.g. 'it broke', 'do something', or bare links without instructions)"
                 ]
             },
             "suggested_action": {
@@ -194,6 +261,8 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversati
 
     # Check for affirmative continuation (e.g., 'yes', 'proceed', 'yes, implement')
     is_affirmative = is_affirmative_continuation(user_prompt)
+    is_bare = is_bare_link(user_prompt)
+    is_info = is_informational_question(user_prompt)
 
     sections = []
     actions_taken = []
@@ -210,19 +279,31 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversati
         sections.append(f"#### Speculatively Prefetched Test Diagnostics (P={needs_test:.2f}):\n{test_context}")
         actions_taken.append(f"test_prefetch (P={needs_test:.2f})")
 
-    # 3. High Ambiguity Notice (Score >= 1.75 and confidence >= 0.75, skipped for affirmative continuations)
-    if ambiguity >= 1.75 and ambiguity_conf >= 0.75 and not is_affirmative:
-        sections.append(
-            "> [!IMPORTANT]\n"
-            f"> **Speculative Arbiter Advisory**: This user prompt was evaluated as highly ambiguous or underspecified "
-            f"(Score={ambiguity:.1f}/2.0, Conf={ambiguity_conf:.2f}).\n\n"
-            f"[CRITICAL AGENT INSTRUCTION: The user instruction '{user_prompt}' is completely underspecified. "
-            "DO NOT browse the workspace, explore random files, or speculate on hidden context. "
-            "You MUST immediately invoke your `ask_question` tool to render an interactive clarification modal for the user, "
-            "blocking further execution until they select an option or specify what is broken! "
-            "DO NOT call any other tools (no run_command, no grep_search, no view_file).]"
-        )
-        actions_taken.append(f"ambiguity_alert (Score={ambiguity:.1f})")
+    # 3. High Ambiguity & Bare URL Handling (skipped for affirmative continuations and informational queries)
+    if not is_affirmative and not is_info:
+        if is_bare:
+            sections.append(
+                "> [!IMPORTANT]\n"
+                f"> **Speculative Arbiter Advisory**: Detected bare URL without developer instructions (Score={ambiguity:.1f}/2.0, Conf={ambiguity_conf:.2f}).\n\n"
+                f"[CRITICAL AGENT INSTRUCTION: The user provided a bare URL without instructions ('{user_prompt}'). "
+                "DO NOT speculate on the intended action or browse random files. "
+                "You MUST immediately invoke your `ask_question` tool to render an interactive clarification modal asking the user "
+                "how they would like to proceed with this link (e.g., summarize content, extract submission/open-call details, integrate into code, or save to notes). "
+                "DO NOT call any other tools (no run_command, no grep_search, no view_file).]"
+            )
+            actions_taken.append(f"bare_link_alert (Score={ambiguity:.1f})")
+        elif ambiguity >= 1.75 and ambiguity_conf >= 0.75:
+            sections.append(
+                "> [!IMPORTANT]\n"
+                f"> **Speculative Arbiter Advisory**: This user prompt was evaluated as highly ambiguous or underspecified "
+                f"(Score={ambiguity:.1f}/2.0, Conf={ambiguity_conf:.2f}).\n\n"
+                f"[CRITICAL AGENT INSTRUCTION: The user instruction '{user_prompt}' is completely underspecified. "
+                "DO NOT browse the workspace, explore random files, or speculate on hidden context. "
+                "You MUST immediately invoke your `ask_question` tool to render an interactive clarification modal for the user, "
+                "blocking further execution until they select an option or specify what is broken! "
+                "DO NOT call any other tools (no run_command, no grep_search, no view_file).]"
+            )
+            actions_taken.append(f"ambiguity_alert (Score={ambiguity:.1f})")
 
     # 4. Log to SQLite Database for Active Learning & Continuous Calibration
     try:
