@@ -154,15 +154,18 @@ fan_out_payload = {
   * `suggested_action`: `"git_status_diff"` (Conf: `0.95`)
 * **Arbiter Action**: Runs `cmd /c git status -s` and `cmd /c git diff -U2` (capped to 80 lines) with UTF-8 encoding.
 * **Injected PreInvocation Context**:
+
+  ![Jev Speculative Pre-Flight Badge](./assets/jev_speculative_preflight_badge.png)
+
   ```markdown
   <speculative_preflight>
-  > **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.98) in 240ms). Proceed directly to reasoning without intermediate status tool calls.
+  > **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.77) in 266ms).
 
-  #### Speculatively Prefetched Git Context (P=0.98):
+  #### Speculatively Prefetched Git Context (P=0.77):
   ### Git Status:
    M .agents/hooks.json
    M README.md
-   M proposals/21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md
+   M proposals/RFC-21_EXT_speculative_fan_out.md
   </speculative_preflight>
   ```
 * **Net Result**: The primary agent synthesizes the commit message on Turn 1 with zero preliminary tool calls.

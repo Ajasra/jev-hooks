@@ -48,8 +48,10 @@ Instead of advertising 30+ skills on every turn, Jev evaluates the prompt in **~
 ### PreInvocation Speculative Pre-Flight Arbiter (Eliminating Turn-1 Roundtrips)
 Before primary reasoning starts, Jev evaluates a parallel batch in **~220ms**, auto-prefetching git diffs or pytest diagnostics into Turn 1:
 
+![Jev Speculative Pre-Flight Badge](./proposals/assets/jev_speculative_preflight_badge.png)
+
 ```text
-> **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.98) in 240ms). Proceed directly to reasoning without intermediate status tool calls.
+> **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.77) in 266ms).
 ```
 
 ---

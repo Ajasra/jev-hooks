@@ -60,6 +60,15 @@ When your prompt requires a specific domain skill, Jev activates it ephemerally 
 > **Activated Skill**: `app-security`
 ```
 
+### C. Speculative Pre-Flight Badge
+Before primary reasoning starts, Jev speculatively evaluates the context and prefetches diffs or test logs into Turn 1:
+
+![Jev Speculative Pre-Flight Badge](../proposals/assets/jev_speculative_preflight_badge.png)
+
+```text
+> **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.77) in 266ms).
+```
+
 ---
 
 ## 5. Getting Started (60 Seconds)
