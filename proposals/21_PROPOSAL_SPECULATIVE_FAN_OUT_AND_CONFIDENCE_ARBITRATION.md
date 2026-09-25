@@ -106,7 +106,7 @@ fan_out_payload = {
 ---
 
 ## 4. Benchmark & Impact Analysis
-
+ 
 | Metric | Traditional Sequential Flow | Jev Speculative Fan-Out | Net Impact |
 | :--- | :--- | :--- | :--- |
 | **Initial Context Assembly** | 0ms | ~110ms | +110ms upfront |
@@ -114,3 +114,92 @@ fan_out_payload = {
 | **Total Turn Time** | ~28 seconds | **~9.5 seconds** | **~3x faster end-to-end** |
 | **Total Prompt Token Cost** | ~$0.048 per session | **~$0.016 per session** | **66% cost reduction** |
 | **Type & Argument Errors** | ~6.2% | **0.0%** (guaranteed schemas) | Complete reliability |
+
+---
+
+## 5. Live Implementation Reference & Concrete Examples
+
+### 5.1 Active Implementation Artifacts
+- **PreInvocation Hook**: [`jev_speculative_router.py`](file:///d:/01_GIT/Jev/.agents/hooks/jev_speculative_router.py) (mirrored to `~/.gemini/config/hooks/jev_speculative_router.py`)
+- **Hook Registration**: Registered under `PreInvocation` in [`hooks.json`](file:///d:/01_GIT/Jev/.agents/hooks.json)
+- **Integration Test Suite**: [`tests/test_speculative_router.py`](file:///d:/01_GIT/Jev/tests/test_speculative_router.py)
+
+### 5.2 Real-World Invocation Examples
+
+#### Example 1: Developer Prompts Involving Working Tree / Commits
+* **Prompt**: `"Review my uncommitted changes and commit with a clean message"`
+* **Jev System One Batch (240ms)**:
+  * `needs_git_diff`: `0.98`
+  * `suggested_action`: `"git_status_diff"` (Conf: `0.95`)
+* **Arbiter Action**: Runs `cmd /c git status -s` and `cmd /c git diff -U2` (capped to 80 lines) with UTF-8 encoding.
+* **Injected PreInvocation Context**:
+  ```markdown
+  <speculative_preflight>
+  > **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.98) in 240ms). Proceed directly to reasoning without intermediate status tool calls.
+
+  #### Speculatively Prefetched Git Context (P=0.98):
+  ### Git Status:
+   M .agents/hooks.json
+   M README.md
+   M proposals/21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md
+  </speculative_preflight>
+  ```
+* **Net Result**: The primary agent synthesizes the commit message on Turn 1 with zero preliminary tool calls.
+
+#### Example 2: Developer Asks to Diagnose Failing Tests
+* **Prompt**: `"Why did the gate tests fail? Fix the regression."`
+* **Jev System One Batch (220ms)**:
+  * `needs_test_log`: `0.98`
+  * `suggested_action`: `"test_status"` (Conf: `0.96`)
+* **Arbiter Action**: Checks `.pytest_cache/v/cache/lastfailed` or executes fast `pytest -q --tb=line` probe.
+* **Injected PreInvocation Context**:
+  ```markdown
+  <speculative_preflight>
+  > **Jev Speculative Pre-Flight**: Attached speculative evidence (test_prefetch (P=0.98) in 220ms)...
+  #### Speculatively Prefetched Test Diagnostics (P=0.98):
+  ### Pytest Quick Summary:
+  FAILED tests/test_gate_eval.py::test_eval - AssertionError
+  </speculative_preflight>
+  ```
+
+#### Example 3: Vague or Underspecified Prompt
+* **Prompt**: `"it broke, do something"`
+* **Jev System One Batch (190ms)**:
+  * `ambiguity_score`: `2.0` (Conf: `1.00`)
+* **Injected PreInvocation Context**:
+  ```markdown
+  <speculative_preflight>
+  > [!NOTE]
+  > **Speculative Arbiter Advisory**: This user prompt was evaluated as ambiguous or underspecified (Score=2.0/2.0, Conf=1.00). Consider confirming key requirements before modifying files or executing stateful mutations.
+  </speculative_preflight>
+  ```
+
+### 5.3 Automated Verification Command
+To verify the speculative fan-out engine against live Jev:
+```cmd
+cmd /c python tests/test_speculative_router.py
+```
+Expected output:
+```text
+=== Testing Proposal 21: Speculative Fan-Out & Dual-Axis Arbiter ===
+Model: typesafe/jev-1.13 | Endpoint: https://openrouter.ai/api/v1/systemone
+
+--- Test 1: Speculative Git Diff Prefetch ---
+  needs_git_diff Noul: 0.98
+  [PASS] Git diff correctly speculatively identified and prefetched.
+
+--- Test 2: Speculative Test Diagnostics Prefetch ---
+  needs_test_log Noul: 0.98
+  [PASS] Test diagnostics correctly speculatively identified and prefetched.
+
+--- Test 3: Ambiguity Scoring on Underspecified Prompt ---
+  ambiguity_score: 2.00 (Confidence: 1.00)
+  [PASS] Ambiguity correctly rated high for underspecified prompt.
+
+--- Test 4: Benign Prompt (No Stalls, Clean Pass) ---
+  needs_git: 0.19, needs_test: 0.02
+  [PASS] Benign prompt does not trigger unnecessary prefetching.
+
+=== ALL SPECULATIVE ROUTER TESTS PASSED ===
+```
+

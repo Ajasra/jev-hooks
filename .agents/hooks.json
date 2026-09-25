@@ -21,5 +21,14 @@
         "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_skill_router.py"
       }
     ]
+  },
+  "jev-speculative-router": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_speculative_router.py"
+      }
+    ]
   }
 }
