@@ -68,3 +68,12 @@ When designing a new hook, tool router, or System One evaluation:
 - [ ] Does this hook consider prior turn context before declaring a request ambiguous?
 - [ ] Does this hook preserve user velocity without triggering confirmation fatigue?
 - [ ] Is output tagged semantically (e.g. `<system_preflight_hook name="...">`) so LLMs treat it as trusted harness telemetry?
+
+---
+
+## 4. Canonical Specification Document
+
+The full architectural protocol, design spectrum, and formal telemetry schemas are maintained in:
+* **Workspace Protocol**: [`.agents/protocols/system-one-balance-protocol.md`](file:///d:/01_GIT/Jev/.agents/protocols/system-one-balance-protocol.md)
+* **Global Linked Protocol**: `~/.gemini/config/protocols/system-one-balance-protocol.md`
+* **Architectural Blueprint**: [`proposals/23_PROTOCOL_SYSTEM_ONE_AGENT_BALANCE_AND_ANTI_BUREAUCRACY.md`](file:///d:/01_GIT/Jev/proposals/23_PROTOCOL_SYSTEM_ONE_AGENT_BALANCE_AND_ANTI_BUREAUCRACY.md)

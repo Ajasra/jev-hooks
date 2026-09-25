@@ -152,9 +152,10 @@ Expected output:
 Instead of copying scripts to every project, link them globally to your Antigravity configuration directory (`~/.gemini/config`). Edits in this repo immediately protect **every workspace on your machine**:
 
 ```cmd
-:: 1. Create directory junctions for hooks and skills (no admin privileges needed)
+:: 1. Create directory junctions for hooks, skills, and protocols (no admin privileges needed)
 cmd /c mklink /J "%USERPROFILE%\.gemini\config\hooks" "d:\01_GIT\Jev\.agents\hooks"
 cmd /c mklink /J "%USERPROFILE%\.gemini\config\skills" "d:\01_GIT\Jev\.agents\skills"
+cmd /c mklink /J "%USERPROFILE%\.gemini\config\protocols" "d:\01_GIT\Jev\.agents\protocols"
 
 :: 2. Create symbolic links for hooks.json and .env
 cmd /c mklink "%USERPROFILE%\.gemini\config\hooks.json" "d:\01_GIT\Jev\.agents\hooks.json"
