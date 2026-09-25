@@ -39,12 +39,12 @@ When a developer or agent prompts: *"can you delete benchmarks/tests folder?"*, 
 
 Before the shell executes the command, the `PreToolUse` hook evaluates the blast radius. Jev scores `blast_radius=3` and `destructive_prob=0.95`, immediately halting execution and rendering an interactive confirmation modal in the Antigravity IDE:
 
-![Jev Safety Gate Intercept Modal](./assets/jev_safety_gate_intercept_modal.png)
+![Jev Safety Gate Intercept Modal](./proposals/assets/jev_safety_gate_intercept_modal.png)
 
 ### 2. PreInvocation Dynamic Skill Router (Zero Prompt Bloat)
 Instead of advertising 30+ domain skills in the prompt on every turn, Jev evaluates the developer's prompt in **~95ms**, selects the exact qualifying skill, and injects it ephemerally with a visible developer status badge:
 
-![Jev Skill Router Live Activations Log](./assets/jev_skill_router_activations_log.png)
+![Jev Skill Router Live Activations Log](./proposals/assets/jev_skill_router_activations_log.png)
 
 ```text
 [2026-09-24 13:01:16] [AAA] Activated: 'app-security'   (Confidence: 1.00, Noul: 0.63) | Prompt: How should we harden our file upload endpoint against SSRF...
@@ -58,7 +58,7 @@ Every activated skill displays a transparent in-chat badge:
 ### 3. PreInvocation Speculative Pre-Flight Arbiter (Eliminating Turn-1 Roundtrips)
 Before the primary reasoning model begins Turn 1, Jev evaluates a parallel 4-question speculative batch in **~220ms**. It auto-prefetches git diffs or pytest diagnostic summaries when relevant, and intercepts unguided or bare link prompts with an interactive clarification modal:
 
-![Jev Speculative Ambiguity Intercept Modal](./assets/jev_speculative_ambiguity_modal.png)
+![Jev Speculative Ambiguity Intercept Modal](./proposals/assets/jev_speculative_ambiguity_modal.png)
 
 ```text
 > **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.98) in 240ms). Proceed directly to reasoning without intermediate status tool calls.

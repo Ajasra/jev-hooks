@@ -185,7 +185,7 @@ fan_out_payload = {
 * **Interactive UI Short-Circuit**:
   Instead of burning 15–20 seconds exploring random files, the agent is hard-gated by Jev to pause instantly and pop up the interactive `ask_question` modal:
 
-  ![Interactive Clarification Modal](../assets/jev_speculative_ambiguity_modal.png)
+  ![Interactive Clarification Modal](./assets/jev_speculative_ambiguity_modal.png)
 
   ```text
   Thought for 2s >
@@ -217,7 +217,7 @@ fan_out_payload = {
   When a developer drops a raw link with no accompanying prompt, the agent is prevented from guessing or executing unguided web scrapes. Instead, the arbiter prompts the agent to halt and ask:
   > *"The provided URL is a completely underspecified instruction. Will immediately invoke a question-asking mechanism to clarify the user's intent. The goal is to avoid any assumptions or speculative actions based on the incomplete instruction."*
 
-  ![Bare URL Ambiguity Triage](../assets/jev_speculative_url_ambiguity.png)
+  ![Bare URL Ambiguity Triage](./assets/jev_speculative_url_ambiguity.png)
 
 * **Net Result**: Zero hallucinated assumptions or uncontrolled scraping; the agent pauses immediately to confirm how the link should be handled.
 
