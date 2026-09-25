@@ -256,6 +256,28 @@ cmd /c python tests\test_compactor.py
 
 ---
 
+### 4. `PreInvocation`: Speculative Fan-Out & Dual-Axis Arbiter ([`jev_speculative_router.py`](file:///d:/01_GIT/Jev/.agents/hooks/jev_speculative_router.py))
+* **Scope**: Submits a parallel 4-question speculative batch to Jev in ~220ms before primary LLM reasoning starts.
+* **Prefetch Actions**:
+  * **Git Status & Diff**: Injects `git status -s` and concise diffs when `needs_git_diff ≥ 0.65`, eliminating Turn-1 status roundtrips.
+  * **Test Diagnostics**: Prefetches `.pytest_cache/lastfailed` reports when `needs_test_log ≥ 0.65`.
+* **Ambiguity & Bare Link Halts**:
+  * Evaluates `ambiguity_score` (0–2 scale).
+  * Automatically flags bare URLs (`is_bare_link`) and underspecified commands (`Score ≥ 1.75`), immediately halting execution via interactive `ask_question` clarification modals.
+  * Informational queries (`"what is..."`, `"how..."`, `"why..."`) bypass modals cleanly.
+* **Context Enrichment**:
+  * Dynamically injects Project Identity ([`README.md`](file:///d:/01_GIT/Jev/README.md), `package.json`), Git Branch (0ms direct `.git/HEAD` read), and Active Agent Persona ([`AGENTS.md`](file:///d:/01_GIT/Jev/AGENTS.md), [`AGENT.md`](file:///d:/01_GIT/Jev/AGENT.md)).
+* **Active Learning & Feedback**:
+  * Every decision is recorded in `~/.gemini/config/safety_decisions.db` (`speculative_decisions`).
+  * Affirmative continuations (`"yes"`, `"proceed"`, `"approved"`) are logged as positive reinforcement.
+
+#### Run Test Suite:
+```cmd
+cmd /c python tests\test_speculative_router.py
+```
+
+---
+
 ## Master Proposals & Architecture Directory
 
 The [`proposals/`](file:///d:/01_GIT/Jev/proposals) directory houses 22 detailed technical specifications and architectural blueprints:

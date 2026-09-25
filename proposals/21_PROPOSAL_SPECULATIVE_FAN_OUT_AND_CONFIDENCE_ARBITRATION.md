@@ -247,6 +247,11 @@ Model: typesafe/jev-1.13 | Endpoint: https://openrouter.ai/api/v1/systemone
   needs_git: 0.19, needs_test: 0.02
   [PASS] Benign prompt does not trigger unnecessary prefetching.
 
+--- Test 5: Custom Agent Context Injection ---
+  Jev Batch Latency with Agent Context: 190ms
+  needs_git_diff Noul for Auditor: 0.67
+  [PASS] Agent context injected and correctly informed speculative judgment.
+
 === ALL SPECULATIVE ROUTER TESTS PASSED ===
 ```
 
@@ -259,4 +264,20 @@ Every speculative evaluation, Jev score, and subsequent developer response is au
   cmd /c python .agents/hooks/safety_db.py --review-speculative
   ```
   Produces aggregated evaluation counts, ambiguity hit rates, prefetch statistics, and recent turns with user feedback labels.
+
+### 5.5 Context Enrichment & Custom Agent Persona Injection
+To sharpen Jev's semantic predictions while keeping pre-flight latency ultra-fast (~200ms), the router builds an enriched, token-efficient `state` block before submitting the batch:
+
+```yaml
+Project Identity: TypeSafe AI — Small units of AI intelligence for agentic software
+Workspace Path: d:\01_GIT\Jev (Branch: master)
+Active Agent: Security & Code Hygiene Auditor
+Developer Prompt: audit this codebase
+```
+
+- **Project Identity**: Compact 1-line project summary dynamically extracted from [`README.md`](file:///d:/01_GIT/Jev/README.md), `package.json`, or `pyproject.toml`.
+- **Git Branch**: Direct zero-cost read from `.git/HEAD` (0ms overhead) informing Jev whether work is on a feature branch, hotfix, or main branch.
+- **Active Agent Persona**: Multi-tiered discovery via invocation context metadata (`context["agent"]`, `context["role"]`, etc.) or workspace specification files ([`AGENTS.md`](file:///d:/01_GIT/Jev/AGENTS.md), [`AGENT.md`](file:///d:/01_GIT/Jev/AGENT.md), [`GEMINI.md`](file:///d:/01_GIT/Jev/GEMINI.md)).
+- **Domain Specialization**: Specializes prefetching behavior based on persona (e.g. Code Auditors get git diffs, Test Engineers get pytest diagnostics, Curators get link extraction). When no custom agent is active, the field is omitted to save tokens.
+
 
