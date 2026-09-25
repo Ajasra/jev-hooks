@@ -262,7 +262,7 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversati
         "Use the prefetched evidence below directly without emitting redundant status tool calls.]\n\n"
     )
 
-    full_message = f"<speculative_preflight>\n{badge}\n\n{agent_directive}" + "\n\n".join(sections) + "\n</speculative_preflight>"
+    full_message = f"<system_preflight_hook name='jev_speculative_arbiter'>\n{badge}\n\n{agent_directive}" + "\n\n".join(sections) + "\n</system_preflight_hook>"
     return {
         "injectSteps": [
             {

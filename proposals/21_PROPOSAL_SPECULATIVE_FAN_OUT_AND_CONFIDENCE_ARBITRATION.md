@@ -199,6 +199,28 @@ fan_out_payload = {
   ```
 * **Net Result**: 100% elimination of exploratory tool wandering; execution halts until the developer selects an explicit path.
 
+#### Example 4: Bare URL or External Link Triage (Unguided Link Inputs)
+* **Prompt**: `"https://see-zeen.com/submissions"` or `"https://wellcome.org/engagement-..."`
+* **Jev System One Batch (243ms)**:
+  * `ambiguity_score`: `1.9` (Conf: `0.99`)
+  * `suggested_action`: `"clarify"`
+* **Injected PreInvocation Context**:
+  ```markdown
+  <system_preflight_hook name="jev_speculative_arbiter">
+  > **Jev Speculative Pre-Flight**: Attached speculative evidence (ambiguity_alert (Score=1.9) in 243ms).
+
+  > [!IMPORTANT]
+  > **Speculative Arbiter Advisory**: This user prompt was evaluated as highly ambiguous or underspecified (Score=1.9/2.0, Conf=0.99).
+  </system_preflight_hook>
+  ```
+* **Interactive UI Short-Circuit & Agent Reasoning**:
+  When a developer drops a raw link with no accompanying prompt, the agent is prevented from guessing or executing unguided web scrapes. Instead, the arbiter prompts the agent to halt and ask:
+  > *"The provided URL is a completely underspecified instruction. Will immediately invoke a question-asking mechanism to clarify the user's intent. The goal is to avoid any assumptions or speculative actions based on the incomplete instruction."*
+
+  ![Bare URL Ambiguity Triage](../assets/jev_speculative_url_ambiguity.png)
+
+* **Net Result**: Zero hallucinated assumptions or uncontrolled scraping; the agent pauses immediately to confirm how the link should be handled.
+
 ### 5.3 Automated Verification Command
 To verify the speculative fan-out engine against live Jev:
 ```cmd
