@@ -198,10 +198,12 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str) -> dict:
     # 3. High Ambiguity Notice (Score >= 1.75 and confidence >= 0.75)
     if ambiguity >= 1.75 and ambiguity_conf >= 0.75:
         sections.append(
-            "> [!NOTE]\n"
-            "> **Speculative Arbiter Advisory**: This user prompt was evaluated as ambiguous or underspecified "
-            f"(Score={ambiguity:.1f}/2.0, Conf={ambiguity_conf:.2f}). Consider confirming key requirements "
-            "before modifying files or executing stateful mutations."
+            "> [!IMPORTANT]\n"
+            f"> **Speculative Arbiter Advisory**: This user prompt was evaluated as highly ambiguous or underspecified "
+            f"(Score={ambiguity:.1f}/2.0, Conf={ambiguity_conf:.2f}).\n\n"
+            f"[CRITICAL AGENT INSTRUCTION: The user instruction '{user_prompt}' is completely underspecified. "
+            "DO NOT browse the workspace, explore random files, or speculate on hidden context. "
+            "You MUST immediately pause and ask the user for clarification on what specifically is broken and what action they want taken!]"
         )
         actions_taken.append(f"ambiguity_alert (Score={ambiguity:.1f})")
 
@@ -216,13 +218,14 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str) -> dict:
     if not sections:
         return {}
 
-    banner = (
-        "> **Jev Speculative Pre-Flight**: Attached speculative evidence "
-        f"({', '.join(actions_taken)} in {latency_ms:.0f}ms). "
-        "Proceed directly to reasoning without intermediate status tool calls.\n\n"
+    badge = f"> **Jev Speculative Pre-Flight**: Attached speculative evidence ({', '.join(actions_taken)} in {latency_ms:.0f}ms)."
+    agent_directive = (
+        f"[INSTRUCTION FOR AGENT: The Jev Speculative Pre-Flight Arbiter evaluated this turn in {latency_ms:.0f}ms. "
+        f"You MUST start your response with the badge `{badge}` so the user is informed. "
+        "Use the prefetched evidence below directly without emitting redundant status tool calls.]\n\n"
     )
 
-    full_message = f"<speculative_preflight>\n{banner}" + "\n\n".join(sections) + "\n</speculative_preflight>"
+    full_message = f"<speculative_preflight>\n{badge}\n\n{agent_directive}" + "\n\n".join(sections) + "\n</speculative_preflight>"
     return {
         "injectSteps": [
             {
