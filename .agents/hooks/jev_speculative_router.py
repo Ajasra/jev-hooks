@@ -9,6 +9,7 @@ Pre-fetches git status/diffs and test diagnostics to eliminate Turn-1 sequential
 
 import sys
 import os
+import re
 import json
 import subprocess
 import time
@@ -193,9 +194,87 @@ def is_informational_question(prompt: str) -> bool:
     return any(p.startswith(w) for w in prefixes) or p.endswith("?")
 
 
-def evaluate_speculative_batch(user_prompt: str, cwd: str, context: dict = None, prior_turn: str = "") -> dict:
+def extract_context_from_transcript(transcript_path: Path) -> dict:
     """
-    Submits a single parallel 4-question speculative batch to Jev with project, agent, and conversational recency context.
+    Extracts current prompt, active editor document, open documents,
+    and prior conversation turns from Antigravity transcript.jsonl.
+    """
+    if not transcript_path or not transcript_path.exists():
+        return {}
+
+    current_prompt = ""
+    active_doc = ""
+    open_docs = []
+    prior_prompt = ""
+    found_current = False
+
+    try:
+        lines = transcript_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        for line in reversed(lines):
+            if not line.strip():
+                continue
+            try:
+                step = json.loads(line)
+            except Exception:
+                continue
+
+            is_user = (step.get("type") == "USER_INPUT" or step.get("source") == "USER_EXPLICIT")
+            content = step.get("content", "")
+
+            if is_user and not found_current:
+                found_current = True
+                if "<USER_REQUEST>" in content:
+                    req_match = re.search(r"<USER_REQUEST>(.*?)</USER_REQUEST>", content, re.DOTALL)
+                    current_prompt = req_match.group(1).strip() if req_match else content.strip()
+                else:
+                    current_prompt = content.strip()
+
+                if "<ADDITIONAL_METADATA>" in content:
+                    meta_match = re.search(r"<ADDITIONAL_METADATA>(.*?)</ADDITIONAL_METADATA>", content, re.DOTALL)
+                    if meta_match:
+                        meta = meta_match.group(1)
+                        doc_match = re.search(r"Active Document:\s*([^\r\n]+)", meta)
+                        if doc_match:
+                            raw_doc = doc_match.group(1).strip()
+                            active_doc = re.sub(r"\s*\(LANGUAGE_[A-Z_]+\)", "", raw_doc).strip()
+
+                        open_docs_match = re.search(r"Other open documents:\s*(.*?)(?:No browser|Cursor|$)", meta, re.DOTALL)
+                        if open_docs_match:
+                            for d_line in open_docs_match.group(1).strip().splitlines():
+                                d_clean = re.sub(r"\s*\(LANGUAGE_[A-Z_]+\)", "", d_line.strip().lstrip("-").strip()).strip()
+                                if d_clean and d_clean != active_doc and d_clean not in open_docs:
+                                    open_docs.append(d_clean)
+                continue
+
+            if is_user and found_current and not prior_prompt:
+                if "<USER_REQUEST>" in content:
+                    req_match = re.search(r"<USER_REQUEST>(.*?)</USER_REQUEST>", content, re.DOTALL)
+                    prior_prompt = req_match.group(1).strip() if req_match else content.strip()
+                else:
+                    prior_prompt = content.strip()
+                break
+    except Exception:
+        pass
+
+    return {
+        "current_prompt": current_prompt,
+        "active_document": active_doc,
+        "open_documents": open_docs,
+        "prior_prompt": prior_prompt
+    }
+
+
+def evaluate_speculative_batch(
+    user_prompt: str,
+    cwd: str,
+    context: dict = None,
+    prior_turn: str = "",
+    active_doc: str = "",
+    open_docs: list = None
+) -> dict:
+    """
+    Submits a single parallel 4-question speculative batch to Jev with project, agent,
+    open editor document, and conversational recency context.
     Returns the parsed answer dictionary.
     """
     project_desc = get_project_summary(cwd)
@@ -203,12 +282,16 @@ def evaluate_speculative_batch(user_prompt: str, cwd: str, context: dict = None,
     branch_str = f" (Branch: {branch})" if branch else ""
     agent_desc = get_agent_summary(cwd, context)
     agent_str = f"\nActive Agent: {agent_desc}" if agent_desc else ""
-    prior_str = f"\nPrior Turn Context: {prior_turn}" if prior_turn else ""
+    prior_str = f"\nPrior Turn Request: {prior_turn}" if prior_turn else ""
+    active_doc_str = f"\nActive Editor Document: {active_doc}" if active_doc else ""
+    open_docs_str = f"\nOther Open Documents: {', '.join(open_docs[:3])}" if open_docs else ""
 
     state = (
         f"Project Identity: {project_desc}\n"
         f"Workspace Path: {cwd}{branch_str}"
         f"{agent_str}"
+        f"{active_doc_str}"
+        f"{open_docs_str}"
         f"{prior_str}\n"
         f"Developer Prompt: {user_prompt}"
     )
@@ -231,16 +314,26 @@ def evaluate_speculative_batch(user_prompt: str, cwd: str, context: dict = None,
                     "or verify unit/integration test outcomes?"
                 )
             },
+            "is_continuation": {
+                "type": "noul",
+                "instructions": (
+                    "Does this prompt represent an explicit affirmative confirmation, approval, or constructive next step continuation "
+                    "(e.g. 'yes', 'proceed', 'apply edits', 'refine proposal', 'commit', 'looks good') "
+                    "that affirmatively agrees or advances existing work, as opposed to an unguided error report, isolated question, or new unanchored task?"
+                )
+            },
             "ambiguity_score": {
                 "type": "score",
                 "instructions": (
-                    "Rate how underspecified, contradictory, or unguided the developer prompt is. "
-                    "Note: Conceptual or architectural questions asking for explanations, descriptions, or how things work "
-                    "are completely unambiguous (score 0). Bare URLs or unguided prompts like 'it broke' lack context (score 2)."
+                    "Rate how underspecified, contradictory, or unguided the developer prompt is in the context of the workspace, "
+                    "open editor document, and prior conversational turn. "
+                    "Informational questions, requests referring to the active file/proposal/code, and standard iterative continuations "
+                    "(e.g., 'apply edits', 'review proposal', 'update docs', 'run tests') are clear and unambiguous (score 0 or 1). "
+                    "Only commands that genuinely lack context or target in the workspace (e.g. 'it broke', 'do something', or bare links without instructions) receive score 2."
                 ),
                 "criteria": [
-                    "Completely explicit request, clear informational question, or conceptual explanation",
-                    "Standard feature or implementation request requiring normal engineering discovery",
+                    "Completely explicit request, clear informational question, or refers to the active document/project context",
+                    "Standard engineering request, review, or workflow requiring normal code discovery",
                     "Underspecified action commands that lack context or target (e.g. 'it broke', 'do something', or bare links without instructions)"
                 ]
             },
@@ -278,20 +371,28 @@ AFFIRMATIVE_CONTINUATIONS = {
     "do it", "approved", "ok", "okay", "sure", "yep", "lgtm", "yes implement"
 }
 
+
 def is_affirmative_continuation(prompt: str) -> bool:
-    """Detects short affirmative continuations so they aren't falsely flagged as ambiguous."""
-    import re
+    """Zero-latency local fallback for micro-affirmations."""
     clean = re.sub(r"[^\w\s]", "", prompt.lower()).strip()
     return clean in {re.sub(r"[^\w\s]", "", w) for w in AFFIRMATIVE_CONTINUATIONS}
 
 
-def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversation_id: str = "") -> dict:
+def arbitrate_and_assemble(
+    answers: dict,
+    user_prompt: str,
+    cwd: str,
+    conversation_id: str = "",
+    active_doc: str = "",
+    prior_turn: str = ""
+) -> dict:
     """
     Dual-Axis Confidence Arbiter:
     Maps Jev's answers to pre-flight context injections and logs to SQLite for active tuning.
     """
     needs_git = answers.get("needs_git_diff", {}).get("noul", 0.0)
     needs_test = answers.get("needs_test_log", {}).get("noul", 0.0)
+    is_continuation_noul = answers.get("is_continuation", {}).get("noul", 0.0)
     ambiguity = answers.get("ambiguity_score", {}).get("score", 0.0)
     ambiguity_conf = answers.get("ambiguity_score", {}).get("confidence", 0.0)
 
@@ -299,8 +400,8 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversati
     suggested_conf = answers.get("suggested_action", {}).get("confidence", 0.0)
     latency_ms = answers.get("_latency_ms", 0.0)
 
-    # Check for affirmative continuation (e.g., 'yes', 'proceed', 'yes, implement')
-    is_affirmative = is_affirmative_continuation(user_prompt)
+    # Machine-native Jev semantic continuation detection (threshold >= 0.60 or affirmative fallback)
+    is_continuation = (is_continuation_noul >= 0.60) or is_affirmative_continuation(user_prompt)
     is_bare = is_bare_link(user_prompt)
     is_info = is_informational_question(user_prompt)
 
@@ -319,8 +420,8 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversati
         sections.append(f"#### Speculatively Prefetched Test Diagnostics (P={needs_test:.2f}):\n{test_context}")
         actions_taken.append(f"test_prefetch (P={needs_test:.2f})")
 
-    # 3. High Ambiguity & Bare URL Handling (skipped for affirmative continuations and informational queries)
-    if not is_affirmative and not is_info:
+    # 3. High Ambiguity & Bare URL Handling (skipped when Jev confirms continuation or informational queries)
+    if not is_continuation and not is_info:
         if is_bare:
             sections.append(
                 "> [!IMPORTANT]\n"
@@ -332,7 +433,7 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversati
                 "DO NOT call any other tools (no run_command, no grep_search, no view_file).]"
             )
             actions_taken.append(f"bare_link_alert (Score={ambiguity:.1f})")
-        elif ambiguity >= 1.75 and ambiguity_conf >= 0.75:
+        elif ambiguity >= 1.85 and ambiguity_conf >= 0.80:
             sections.append(
                 "> [!IMPORTANT]\n"
                 f"> **Speculative Arbiter Advisory**: This user prompt was evaluated as open-ended or underspecified "
@@ -347,7 +448,7 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversati
     # 4. Log to SQLite Database for Active Learning & Continuous Calibration
     try:
         import safety_db
-        if is_affirmative:
+        if is_continuation:
             safety_db.record_speculative_feedback(conversation_id, user_prompt, "accepted_affirmative")
         safety_db.log_speculative_decision(
             conversation_id=conversation_id,
@@ -359,7 +460,8 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversati
             ambiguity_conf=ambiguity_conf,
             suggested_action=suggested,
             suggested_conf=suggested_conf,
-            actions_taken=actions_taken
+            actions_taken=actions_taken,
+            is_continuation=is_continuation_noul
         )
     except Exception:
         pass
@@ -413,37 +515,42 @@ def main():
     except Exception:
         sys.exit(0)
 
+    # 1. Turn-1 Guard: Speculative Pre-Flight only runs on initial invocation of user turn
+    if context.get("invocationNum", 1) > 1:
+        sys.exit(0)
+
+    # 2. Debounce: Prevent duplicate execution if workspace and global hooks.json both fire
+    conv_id = context.get("conversationId", "")
+    inv_num = context.get("invocationNum", 1)
+    lock_file = Path(os.path.expanduser("~/.gemini/config/.speculative_debounce.json"))
+    now = time.time()
+    try:
+        if lock_file.exists():
+            data = json.loads(lock_file.read_text(encoding="utf-8"))
+            if data.get("conv_id") == conv_id and data.get("inv_num") == inv_num and (now - data.get("ts", 0)) < 2.5:
+                sys.exit(0)
+    except Exception:
+        pass
+    try:
+        lock_file.write_text(json.dumps({"conv_id": conv_id, "inv_num": inv_num, "ts": now}), encoding="utf-8")
+    except Exception:
+        pass
+
     user_prompt = context.get("prompt", "")
     workspace_paths = context.get("workspacePaths", [])
     cwd = workspace_paths[0] if workspace_paths else os.getcwd()
 
+    active_doc = ""
+    open_docs = []
     prior_turn = ""
+
     if "transcriptPath" in context:
-        try:
-            t_path = Path(context["transcriptPath"])
-            if t_path.exists():
-                lines = t_path.read_text(encoding="utf-8").splitlines()
-                for line in reversed(lines):
-                    if line.strip():
-                        try:
-                            step = json.loads(line)
-                            is_user = (step.get("type") == "USER_INPUT" or step.get("source") == "USER_EXPLICIT")
-                            content = step.get("content", "")
-                            if not user_prompt and is_user:
-                                if "<USER_REQUEST>" in content:
-                                    content = content.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
-                                user_prompt = content
-                                continue
-                            if user_prompt and not prior_turn and content:
-                                clean = " ".join(content.split())
-                                if "<USER_REQUEST>" in clean:
-                                    clean = clean.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
-                                prior_turn = clean[:120]
-                                break
-                        except Exception:
-                            continue
-        except Exception:
-            pass
+        t_info = extract_context_from_transcript(Path(context["transcriptPath"]))
+        if not user_prompt:
+            user_prompt = t_info.get("current_prompt", "")
+        active_doc = t_info.get("active_document", "")
+        open_docs = t_info.get("open_documents", [])
+        prior_turn = t_info.get("prior_prompt", "")
 
     if not user_prompt:
         sys.exit(0)
@@ -451,8 +558,22 @@ def main():
     conversation_id = context.get("conversationId", "")
 
     try:
-        answers = evaluate_speculative_batch(user_prompt, cwd, context, prior_turn)
-        result = arbitrate_and_assemble(answers, user_prompt, cwd, conversation_id)
+        answers = evaluate_speculative_batch(
+            user_prompt=user_prompt,
+            cwd=cwd,
+            context=context,
+            prior_turn=prior_turn,
+            active_doc=active_doc,
+            open_docs=open_docs
+        )
+        result = arbitrate_and_assemble(
+            answers=answers,
+            user_prompt=user_prompt,
+            cwd=cwd,
+            conversation_id=conversation_id,
+            active_doc=active_doc,
+            prior_turn=prior_turn
+        )
         if result:
             print(json.dumps(result))
     except Exception:

@@ -60,35 +60,55 @@ Executed inside `PreInvocation` hook:
 ```python
 fan_out_payload = {
     "model": "jev-latest",
-    "state": f"Workspace: {cwd}\nUser Instruction: {user_prompt}",
+    "state": (
+        f"Project Identity: {project_desc}\n"
+        f"Workspace Path: {cwd} (Branch: {branch})\n"
+        f"Active Agent: {agent_desc}\n"
+        f"Active Editor Document: {active_doc}\n"
+        f"Prior Turn Request: {prior_turn}\n"
+        f"Developer Prompt: {user_prompt}"
+    ),
     "questions": {
         "needs_git_diff": {
             "type": "noul",
-            "instructions": "Does resolving this instruction require reviewing recent uncommitted git modifications or branch diffs?"
+            "instructions": "Does resolving this developer instruction require reviewing recent uncommitted git modifications, branch diffs, git status, or pending workspace edits?"
         },
         "needs_test_log": {
             "type": "noul",
-            "instructions": "Is the developer asking to diagnose a failed test run or CI build error?"
+            "instructions": "Is the developer asking to diagnose a failed test, fix a test failure, inspect regression logs, or verify unit/integration test outcomes?"
         },
-        "target_language": {
-            "type": "choice",
-            "instructions": "Which programming language or ecosystem is the focal point?",
-            "criteria": {
-                "python": "Python scripts, pytest, virtualenv, pip",
-                "typescript_js": "Node, React, Next, npm, bun, vite",
-                "go_rust_c": "Compiled systems code, cargo, go build",
-                "shell_config": "PowerShell, bash, dockerfile, dotfiles",
-                "general_prose": "Documentation, architectural writeups, planning"
-            }
+        "is_continuation": {
+            "type": "noul",
+            "instructions": (
+                "Does this prompt represent an explicit affirmative confirmation, approval, or constructive next step continuation "
+                "(e.g. 'yes', 'proceed', 'apply edits', 'refine proposal', 'commit', 'looks good') "
+                "that affirmatively agrees or advances existing work, as opposed to an unguided error report, isolated question, or new unanchored task?"
+            )
         },
         "ambiguity_score": {
             "type": "score",
-            "instructions": "Rate how underspecified or ambiguous the user's explicit objective is.",
+            "instructions": (
+                "Rate how underspecified, contradictory, or unguided the developer prompt is in the context of the workspace, "
+                "open editor document, and prior conversational turn. "
+                "Informational questions, requests referring to the active file/proposal/code, and standard iterative continuations "
+                "(e.g., 'apply edits', 'review proposal', 'update docs', 'run tests') are clear and unambiguous (score 0 or 1). "
+                "Only commands that genuinely lack context or target in the workspace (e.g. 'it broke', 'do something', or bare links without instructions) receive score 2."
+            ),
             "criteria": [
-                "Completely explicit with concrete filenames and desired outcomes",
-                "Clear high-level intent requiring standard architectural discovery",
-                "Highly ambiguous or contradictory requiring clarification"
+                "Completely explicit request, clear informational question, or refers to the active document/project context",
+                "Standard engineering request, review, or workflow requiring normal code discovery",
+                "Underspecified action commands that lack context or target (e.g. 'it broke', 'do something', or bare links without instructions)"
             ]
+        },
+        "suggested_action": {
+            "type": "choice",
+            "instructions": "What is the single most valuable pre-flight diagnostic evidence to fetch before the primary agent starts reasoning?",
+            "criteria": {
+                "git_status_diff": "Fetch current git status and concise diff of modified files",
+                "test_status": "Fetch recent test failure reports or run targeted test probe",
+                "clarify": "Instruction is too vague; ask developer for clarification",
+                "none": "No speculative pre-fetch needed; proceed with standard agent reasoning"
+            }
         }
     }
 }
@@ -98,9 +118,10 @@ fan_out_payload = {
 
 | Question Result | Calibrated Confidence | Action Taken by Harness Before LLM Turn |
 | :--- | :--- | :--- |
-| `ambiguity_score == 2` | $\ge 0.85$ | **Short-Circuit**: Prompt developer via `ask_question` directly. Saves 15s of LLM guessing. |
-| `needs_git_diff == true` | $\ge 0.75$ | **Auto-Prefetch**: Execute `cmd /c git status -s && git diff -U2` and prepend into context. |
-| `needs_test_log == true` | $\ge 0.70$ | **Auto-Prefetch**: Locate and attach the latest test report or failure buffer. |
+| `is_continuation == true` | $\ge 0.60$ | **Affirmative Fast-Path**: Recognize iterative follow-up, suppress ambiguity alerts, and log accepted affirmative. |
+| `ambiguity_score == 2` | $\ge 0.85$ (Conf $\ge 0.80$) | **Short-Circuit**: Prompt developer via `ask_question` directly. Saves 15s of LLM guessing. |
+| `needs_git_diff == true` | $\ge 0.65$ | **Auto-Prefetch**: Execute `cmd /c git status -s && git diff -U2` and prepend into context. |
+| `needs_test_log == true` | $\ge 0.65$ | **Auto-Prefetch**: Locate and attach the latest test report or failure buffer. |
 | `confidence < 0.50` | Any | **Conservative Fallback**: Do not prefetch; pass clean prompt to LLM to investigate normally. |
 
 ---
@@ -240,17 +261,26 @@ Model: typesafe/jev-1.13 | Endpoint: https://openrouter.ai/api/v1/systemone
   [PASS] Test diagnostics correctly speculatively identified and prefetched.
 
 --- Test 3: Ambiguity Scoring on Underspecified Prompt ---
-  ambiguity_score: 2.00 (Confidence: 1.00)
+  ambiguity_score: 1.97 (Confidence: 0.95)
   [PASS] Ambiguity correctly rated high for underspecified prompt.
 
 --- Test 4: Benign Prompt (No Stalls, Clean Pass) ---
-  needs_git: 0.19, needs_test: 0.02
+  needs_git: 0.24, needs_test: 0.01
   [PASS] Benign prompt does not trigger unnecessary prefetching.
 
 --- Test 5: Custom Agent Context Injection ---
-  Jev Batch Latency with Agent Context: 190ms
+  Jev Batch Latency with Agent Context: 229ms
   needs_git_diff Noul for Auditor: 0.67
   [PASS] Agent context injected and correctly informed speculative judgment.
+
+--- Test 6: Active Document Context Ambiguity Calibration ---
+  Score without active doc: 0.93 -> Score with active doc: 0.30
+  [PASS] Active document successfully suppresses false positive ambiguity alert.
+
+--- Test 7: Jev Machine-Native Continuation Detection ---
+  'apply edits to proposal' is_continuation Noul: 0.96
+  'it broke, do something' is_continuation Noul: 0.10
+  [PASS] Jev successfully discriminates continuations without hardcoded lists.
 
 === ALL SPECULATIVE ROUTER TESTS PASSED ===
 ```

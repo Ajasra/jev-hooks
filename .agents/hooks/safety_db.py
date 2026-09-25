@@ -143,6 +143,9 @@ def init_db(db_path: Optional[Path] = None):
                     feedback_label TEXT DEFAULT 'pending'
                 )
             """)
+            spec_cols = {r["name"] for r in conn.execute("PRAGMA table_info(speculative_decisions)").fetchall()}
+            if "is_continuation" not in spec_cols:
+                conn.execute("ALTER TABLE speculative_decisions ADD COLUMN is_continuation REAL DEFAULT 0.0")
     finally:
         conn.close()
 
@@ -423,6 +426,7 @@ def log_speculative_decision(
     suggested_action: str,
     suggested_conf: float,
     actions_taken: List[str],
+    is_continuation: float = 0.0,
     db_path: Optional[Path] = None
 ) -> int:
     """Logs a speculative pre-flight evaluation to SQLite for active tuning and audit."""
@@ -436,14 +440,15 @@ def log_speculative_decision(
                     needs_git_diff, needs_test_log,
                     ambiguity_score, ambiguity_conf,
                     suggested_action, suggested_conf,
-                    actions_taken, feedback_label
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    actions_taken, is_continuation, feedback_label
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 conversation_id or "", prompt, latency_ms,
                 needs_git, needs_test,
                 ambiguity_score, ambiguity_conf,
                 suggested_action, suggested_conf,
                 ", ".join(actions_taken) if actions_taken else "none",
+                is_continuation,
                 "pending"
             ))
             return cur.lastrowid

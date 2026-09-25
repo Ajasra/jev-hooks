@@ -56,7 +56,7 @@ Every activated skill displays a transparent in-chat badge:
 > **Activated Skill**: `app-security`
 
 ### 3. PreInvocation Speculative Pre-Flight Arbiter (Eliminating Turn-1 Roundtrips)
-Before the primary reasoning model begins Turn 1, Jev evaluates a parallel 4-question speculative batch in **~220ms**. It auto-prefetches git diffs or pytest diagnostic summaries when relevant, and intercepts unguided or bare link prompts with an interactive clarification modal:
+Before the primary reasoning model begins Turn 1, Jev evaluates a parallel 5-question speculative batch in **~220ms**. Ingesting active editor metadata and conversational recency, it semantically confirms natural continuations (`is_continuation`), auto-prefetches git diffs or pytest diagnostic summaries, and intercepts unguided or bare link prompts with an interactive clarification modal:
 
 ![Jev Speculative Ambiguity Intercept Modal](./proposals/assets/jev_speculative_ambiguity_modal.png)
 
@@ -84,15 +84,17 @@ flowchart TD
     PassPrompt --> Hook_PreInv_Spec
 
     subgraph S1_5 ["Stage 1.5: Speculative Pre-Flight & Triage (~220ms)"]
-        Hook_PreInv_Spec --> JevSpecBatch["Parallel 4-Question Batch<br/>(needs_git, needs_test, ambiguity, suggested)"]
+        Hook_PreInv_Spec --> JevSpecBatch["Parallel 5-Question Batch<br/>(needs_git, needs_test, is_continuation, ambiguity, suggested)"]
         JevSpecBatch -->|needs_git ≥ 0.65| PrefetchGit["Prefetch: git status -s + git diff -U2"]
         JevSpecBatch -->|needs_test ≥ 0.65| PrefetchTest["Prefetch: .pytest_cache failure report"]
-        JevSpecBatch -->|Ambiguity ≥ 1.75 & No Prior Recency| HaltModal["Advisory / ask_question Modal Halt"]
-        JevSpecBatch -->|Contextual Continuation| EnrichContext["Inject Project + Branch + Agent + Prior Turn"]
+        JevSpecBatch -->|is_continuation ≥ 0.60| FastPass["Affirmative Fast-Pass: Suppress Ambiguity Warnings"]
+        JevSpecBatch -->|Ambiguity ≥ 1.85 & Not Continuation| HaltModal["Advisory / ask_question Modal Halt"]
+        JevSpecBatch -->|Context Enriched| EnrichContext["Inject Project + Branch + Agent + Active Doc + Prior Turn"]
     end
 
     PrefetchGit --> LLM_Turn["Gemini Foundation Model<br/>(Reasoning, Architecture & Code Synthesis)"]
     PrefetchTest --> LLM_Turn
+    FastPass --> LLM_Turn
     HaltModal --> LLM_Turn
     EnrichContext --> LLM_Turn
 

@@ -74,6 +74,28 @@ def main():
     except Exception:
         sys.exit(0)
 
+    # 1. Turn-1 Guard: Skill Router only runs on initial invocation of user turn
+    if context.get("invocationNum", 1) > 1:
+        sys.exit(0)
+
+    # 2. Debounce: Prevent duplicate execution if workspace and global hooks.json both fire
+    conv_id = context.get("conversationId", "")
+    inv_num = context.get("invocationNum", 1)
+    lock_file = Path(os.path.expanduser("~/.gemini/config/.skill_router_debounce.json"))
+    import time
+    now = time.time()
+    try:
+        if lock_file.exists():
+            data = json.loads(lock_file.read_text(encoding="utf-8"))
+            if data.get("conv_id") == conv_id and data.get("inv_num") == inv_num and (now - data.get("ts", 0)) < 2.5:
+                sys.exit(0)
+    except Exception:
+        pass
+    try:
+        lock_file.write_text(json.dumps({"conv_id": conv_id, "inv_num": inv_num, "ts": now}), encoding="utf-8")
+    except Exception:
+        pass
+
     workspace_paths = context.get("workspacePaths", [])
     skills = load_skill_catalog(workspace_paths)
 
@@ -119,7 +141,6 @@ def main():
         }
     }
 
-    import time
     start_time = time.time()
 
     try:
@@ -168,8 +189,8 @@ def main():
                     ]
                 }
                 print(json.dumps(output))
-        elif selected and (confidence >= 0.50 or requires_skill >= 0.30):
-            # Soft Tier: inject lightweight skill awareness hint without flooding tokens
+        elif selected and (confidence >= 0.50 and requires_skill >= 0.30):
+            # Soft Tier: inject lightweight skill awareness hint only when confidence >= 0.50 AND requires_skill >= 0.30
             target = next((s for s in skills if s["name"] == selected), None)
             if target:
                 hint_msg = (
