@@ -163,12 +163,12 @@ Rather than dumping raw transcript slices, the synthesizer formats a high-signal
 
 ## 4. The Read Engine: Calibrated Pre-Flight Triage
 
-### 4.1 Discovery and Fast Exit
-At turn start (`PreInvocation`), the Read Engine parses `metadata.json` files from:
-1. `<appDataDir>/knowledge/` (Global & Workspace-Shared KIs)
-2. `<workspace>/.agents/knowledge/` (Workspace-Specific KIs)
+### 4.1 Workspace-First Discovery & Anti-Contamination Isolation
+To prevent cross-repository contamination (e.g. leaking Python/Jev hook gotchas into a TypeScript/React project), the engine enforces **strict workspace isolation by default**:
+1. **Primary Source**: `<workspace>/.agents/knowledge/` (version-controlled in git, branch-aware, and isolated per repository).
+2. **Optional Global Fallback**: `<appDataDir>/knowledge/` (only evaluated if explicitly enabled via `--include-global`).
 
-If zero KIs exist, the Read Engine exits in **< 1ms**, imposing zero latency overhead.
+If zero KIs exist in the workspace, the Read Engine exits in **< 2ms**, imposing zero latency overhead.
 
 ### 4.2 Pre-Flight Jev Matching Batch
 If KIs are found, the summaries are assembled into a Jev Choice + Noul evaluation:

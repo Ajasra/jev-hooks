@@ -64,6 +64,22 @@ Before the primary reasoning model begins Turn 1, Jev evaluates a parallel 5-que
 > **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.98) in 240ms). Proceed directly to reasoning without intermediate status tool calls.
 ```
 
+### 4. PreInvocation Knowledge Item Lifecycle Engine (Turn-1 Precedent Mounting)
+Rather than forcing models into multi-turn exploratory grep searches or manual file reading for repository gotchas, Jev's Read Engine triages the project-local `.agents/knowledge/` catalog in **~70ms**. On high confidence ($\ge 0.70$), it mounts the verified architectural pattern directly into Turn 1:
+
+```html
+<system_preflight_hook name='jev_ki_engine'>
+> **Jev KI Pre-Flight**: Auto-mounted relevant architectural precedent `ki_20260925_134914_tool_harness` (Conf: 0.94).
+
+<ki_context id='ki_20260925_134914_tool_harness'>
+# System One Speculative Fan-Out Protocol
+...
+</ki_context>
+</system_preflight_hook>
+```
+
+And whenever new solutions or gotchas are resolved, Jev's Write Engine (`--distill` / `--learn`) autonomously synthesizes structured patterns with closed-loop deduplication.
+
 ---
 
 ## Architecture & Control Flow

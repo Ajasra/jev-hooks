@@ -13,11 +13,12 @@ When working in this workspace, you must adhere to the custom protocols defined 
 
 ## 2. Machine-Native Lifecycle Hooks
 
-The repository implements 4 native Google Antigravity 2.0 lifecycle hooks in [`.agents/hooks/`](hooks/):
+The repository implements 5 native Google Antigravity 2.0 lifecycle hooks in [`.agents/hooks/`](hooks/):
 1. **Safety Gate** ([`jev_safety_gate.py`](hooks/jev_safety_gate.py)): PreToolUse hook enforcing the deterministic Invariant Shield (`rmdir /s`, `git reset --hard`) + SQLite user memory + Jev blast radius scoring.
 2. **Dynamic Skill Router** ([`jev_skill_router.py`](hooks/jev_skill_router.py)): PreInvocation hook discovering skills across workspace, global, and plugins, injecting full bodies ($\ge 0.80$) or lightweight soft hints ($0.50 \le P < 0.80$).
 3. **Speculative Fan-Out Arbiter** ([`jev_speculative_router.py`](hooks/jev_speculative_router.py)): PreInvocation hook evaluating 4-question semantic batches in ~200ms, prefetching git/test context and managing ambiguity triage.
 4. **Trajectory Compactor** ([`jev_compactor.py`](hooks/jev_compactor.py)): Session GC replacing raw stdout with 300-char receipts while preserving 100% of user discourse and code edits verbatim.
+5. **Knowledge Item Lifecycle Engine** ([`jev_ki_engine.py`](hooks/jev_ki_engine.py)): PreInvocation triage & Turn-1 auto-mounting plus closed-loop distillation and deduplication on commit/compactor/`/learn`.
 
 ---
 

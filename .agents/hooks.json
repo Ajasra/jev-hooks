@@ -30,5 +30,14 @@
         "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_speculative_router.py"
       }
     ]
+  },
+  "jev-ki-engine": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_ki_engine.py --read"
+      }
+    ]
   }
 }
