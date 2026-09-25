@@ -97,9 +97,15 @@ Rules use glob-style prefix matching on the command string (after stripping `cmd
 - `git push origin *` matches `git push origin main`
 - `*` on a tool matches all invocations of that tool
 
-### CLI Interface
+### CLI Interface & Lifecycle Management
+
+- **Session Auto-Expiration**: Rules saved with `session` scope automatically expire after **30 days**. Permanent (`always`) rules are kept indefinitely.
+- **Audit Retention**: All safety gate decisions are recorded in `decision_log` and kept until manually pruned with `--prune`.
 
 ```cmd
+:: Run security audit review (stats, top intercepted commands, recent events)
+cmd /c python .agents/hooks/safety_db.py --review
+
 :: List all user-saved rules
 cmd /c python .agents/hooks/safety_db.py --list
 
@@ -111,6 +117,9 @@ cmd /c python .agents/hooks/safety_db.py --allow "git push --tags" --scope sessi
 
 :: Test how any command resolves
 cmd /c python .agents/hooks/safety_db.py --test-cmd "cmd /c git reset --hard HEAD~1"
+
+:: Prune decision logs and session rules older than 30 days
+cmd /c python .agents/hooks/safety_db.py --prune --days 30
 
 :: Clear all rules
 cmd /c python .agents/hooks/safety_db.py --clear-all

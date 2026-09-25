@@ -178,29 +178,42 @@ Restart Antigravity or press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $
   | **2. Decision DB** | SQLite `safety_decisions.db` | ~1ms | Pattern rules with `always` (permanent) or `session` (conversation-scoped) lifetime. Pre-seeded with 23 safe-by-default rules covering all routine git and file ops. |
   | **3. Jev Scoring** | TypeSafe API | ~80ms | Only reached for unknown commands. `blast_radius ≥ 2` or `is_destructive ≥ 0.70` triggers `force_ask` with save-back options. |
 
-* **Save-back**: When the user approves a `force_ask` modal, their choice is persisted to the DB so future identical calls skip Jev entirely.
-* **Audit**: All decisions (stage, scores, command) are recorded in `decision_log` table.
+* **Save-back**: When the user approves a `force_ask` modal, their choice can be saved permanently (`always`) or for the current conversation (`session`).
+* **Audit & Lifecycle**:
+  * All decisions (routing source, scores, command, decision) are recorded in the `decision_log` table.
+  * **Session Auto-Expiration**: Session-scoped rules automatically expire after **30 days**. Permanent rules remain indefinitely.
+  * **Full Audit Retention**: The decision log retains history until explicitly pruned.
 
 #### Integration Test Results:
 ```
-[     allow]  run_command: git commit -m 'update hooks'   ← Stage 2 DB (always rule)
-[     allow]  run_command: git push origin main            ← Stage 2 DB (always rule)
-[ force_ask]  run_command: git push --force                ← Stage 1 Critical Shield
-[ force_ask]  run_command: git reset --hard HEAD~1         ← Stage 1 Critical Shield
-[ force_ask]  run_command: rmdir /s /q dist                ← Stage 1 Critical Shield
-[     allow]  write_to_file: any file                     ← Stage 2 DB (always rule)
+[     allow]  write_to_file / replace_*                   ← Fast-path (workspace safe, 0ms)
+[ force_ask]  write_to_file on ~/.ssh/id_rsa              ← Guarded sensitive credentials
+[     allow]  run_command: git commit / status / add      ← Jev Intent (routine dev action)
+[     allow]  run_command: pytest / npm run / cargo       ← Jev Intent (routine dev action)
+[ force_ask]  run_command: git push --force / reset -hard ← Invariant Shield (0ms, non-bypassable)
+[ force_ask]  run_command: rmdir /s / rm -rf              ← Invariant Shield (0ms, non-bypassable)
+[     allow]  run_command: custom tool                    ← User Memory SQLite (~1ms)
 ```
 
-#### Decision DB CLI:
+#### Decision DB & Audit CLI:
 ```cmd
-:: List all rules
+:: Inspect security audit, top intercepted commands & stats
+cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --review
+
+:: List all active saved rules
 cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --list
 
 :: Add a permanent allow rule
-cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --allow "uv pip install*" --tool run_command
+cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --allow "docker compose*" --tool run_command
 
-:: Test command resolution
+:: Test command resolution against Shield & DB
 cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --test-cmd "cmd /c git reset --hard"
+
+:: Prune decision logs and expired session rules older than 30 days
+cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --prune --days 30
+
+:: Clear all saved user rules
+cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --clear-all
 ```
 
 ---
