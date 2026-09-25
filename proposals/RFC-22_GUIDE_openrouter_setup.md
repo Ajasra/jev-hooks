@@ -46,7 +46,7 @@ X-Title: Antigravity Jev Integration
 
 ## 3. How the Antigravity Hooks Handle OpenRouter Automatically
 
-The repository's [.agents/hooks/env_loader.py](file:///d:/01_GIT/Jev/.agents/hooks/env_loader.py) includes automated provider detection.
+The repository's [`.agents/hooks/env_loader.py`](../.agents/hooks/env_loader.py) includes automated provider detection.
 
 If you set `OPENROUTER_API_KEY` in `.agents/.env` (or project root `.env`), the hooks:
 1. Detect that `OPENROUTER_API_KEY` is present.
@@ -56,7 +56,7 @@ If you set `OPENROUTER_API_KEY` in `.agents/.env` (or project root `.env`), the 
 
 ### Minimal Configuration
 
-Simply copy [.agents/.env.example](file:///d:/01_GIT/Jev/.agents/.env.example) to `.agents/.env`:
+Simply copy [`.agents/.env.example`](../.agents/.env.example) to `.agents/.env`:
 
 ```bash
 # In .agents/.env

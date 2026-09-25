@@ -1,5 +1,9 @@
-# Proposal C: Autonomous Dual-Engine Knowledge Item (KI) Lifecycle
+# RFC-03: Autonomous Dual-Engine Knowledge Item (KI) Lifecycle
 ## Self-Distilling Synthesizer (Write) & Calibrated Pre-Flight Triage (Read)
+
+> **Category**: `CORE`  
+> **Status**: 📐 Blueprint (Active Implementation)  
+> **Target Lifecycle**: `PreInvocation` (Read) + Post-Session/Commit (Write)  
 
 ---
 

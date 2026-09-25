@@ -74,6 +74,6 @@ When designing a new hook, tool router, or System One evaluation:
 ## 4. Canonical Specification Document
 
 The full architectural protocol, design spectrum, and formal telemetry schemas are maintained in:
-* **Workspace Protocol**: [`.agents/protocols/system-one-balance-protocol.md`](file:///d:/01_GIT/Jev/.agents/protocols/system-one-balance-protocol.md)
+* **Workspace Protocol**: [`.agents/protocols/system-one-balance-protocol.md`](../../protocols/system-one-balance-protocol.md)
 * **Global Linked Protocol**: `~/.gemini/config/protocols/system-one-balance-protocol.md`
-* **Architectural Blueprint**: [`proposals/23_PROTOCOL_SYSTEM_ONE_AGENT_BALANCE_AND_ANTI_BUREAUCRACY.md`](file:///d:/01_GIT/Jev/proposals/23_PROTOCOL_SYSTEM_ONE_AGENT_BALANCE_AND_ANTI_BUREAUCRACY.md)
+* **Architectural Blueprint**: [`proposals/RFC-23_PROTOCOL_system_one_balance.md`](../../../proposals/RFC-23_PROTOCOL_system_one_balance.md)

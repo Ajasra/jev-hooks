@@ -1,4 +1,10 @@
-# Proposal B: Dynamic Skill Dispatcher & Progressive Loader
+# RFC-02: Dynamic Skill Dispatcher & Progressive Loader
+
+> **Category**: `CORE`  
+> **Status**: ✅ Implemented  
+> **Target Lifecycle**: `PreInvocation`  
+
+---
 
 ## 1. Problem Statement
 
@@ -121,7 +127,7 @@ Based on the Hermes Agent 182-skill benchmark:
 
 ## 6. Live Production Verification & Multi-Workspace Traces
 
-This proposal is implemented and actively deployed as an Antigravity `PreInvocation` lifecycle hook ([`.agents/hooks/jev_skill_router.py`](file:///d:/01_GIT/Jev/.agents/hooks/jev_skill_router.py)) linked globally to `~/.gemini/config/hooks.json` and `~/.gemini/config/skills`.
+This proposal is implemented and actively deployed as an Antigravity `PreInvocation` lifecycle hook ([`.agents/hooks/jev_skill_router.py`](../.agents/hooks/jev_skill_router.py)) linked globally to `~/.gemini/config/hooks.json` and `~/.gemini/config/skills`.
 
 ### 6.1 Multi-Workspace Test Traces (Evaluated against 30+ Skills in `d:\01_GIT\AAA`)
 

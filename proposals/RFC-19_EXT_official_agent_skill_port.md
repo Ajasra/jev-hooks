@@ -5,8 +5,8 @@
 TypeSafe AI has released an official agent skill ([`typesafe-ai`](https://github.com/typesafe-ai/skills)) for Claude Code, Codex, and modern AI coding agents. 
 
 This proposal details the architectural integration of the official TypeSafe agent skill directly into the **Google Antigravity** runtime:
-1. **Local Vendoring**: Deploying the official skill at [`.agents/skills/typesafe-ai/SKILL.md`](file:///d:/01_GIT/Jev/.agents/skills/typesafe-ai/SKILL.md).
-2. **Hook Synergy**: Connecting the skill to Antigravity's `PreInvocation` lifecycle hook ([`jev_skill_router.py`](file:///d:/01_GIT/Jev/.agents/hooks/jev_skill_router.py)) for sub-100ms automatic skill hydration.
+1. **Local Vendoring**: Deploying the official skill at [`.agents/skills/typesafe-ai/SKILL.md`](../.agents/skills/typesafe-ai/SKILL.md).
+2. **Hook Synergy**: Connecting the skill to Antigravity's `PreInvocation` lifecycle hook ([`jev_skill_router.py`](../.agents/hooks/jev_skill_router.py)) for sub-100ms automatic skill hydration.
 3. **Live Documentation Access**: Equipping the primary agent with fast index navigation via `https://docs.typesafe.ai/llms.txt`.
 4. **Side-by-Side Verification**: Comparing native Jev primitive dispatch against traditional generative prompt-and-parse patterns.
 

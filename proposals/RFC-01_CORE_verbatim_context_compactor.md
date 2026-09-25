@@ -1,4 +1,10 @@
-# Proposal A: Verbatim Transcript Compactor for Antigravity
+# RFC-01: Verbatim Context Compactor for Antigravity
+
+> **Category**: `CORE`  
+> **Status**: ✅ Implemented  
+> **Target Lifecycle**: `Session GC` / `PostToolUse`  
+
+---
 
 ## 1. Problem Statement
 
@@ -107,7 +113,7 @@ const questions = {
 
 ## 6. Live Production Verification & Benchmark Results
 
-The compactor engine is implemented in [`.agents/hooks/jev_compactor.py`](file:///d:/01_GIT/Jev/.agents/hooks/jev_compactor.py) and validated via an automated test harness ([`tests/test_compactor.py`](file:///d:/01_GIT/Jev/tests/test_compactor.py)).
+The compactor engine is implemented in [`.agents/hooks/jev_compactor.py`](../.agents/hooks/jev_compactor.py) and validated via an automated test harness ([`tests/test_compactor.py`](../tests/test_compactor.py)).
 
 ### 6.1 Test Execution & Benchmark Metrics
 

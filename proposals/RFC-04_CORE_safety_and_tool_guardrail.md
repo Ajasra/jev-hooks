@@ -1,4 +1,10 @@
-# Proposal D: Pre-Execution Safety Guardrail & Tool Disambiguation
+# RFC-04: Pre-Execution Safety Guardrail & Tool Disambiguation
+
+> **Category**: `CORE`  
+> **Status**: ✅ Implemented  
+> **Target Lifecycle**: `PreToolUse`  
+
+---
 
 ## 1. Problem Statement
 

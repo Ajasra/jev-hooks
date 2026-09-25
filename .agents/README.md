@@ -23,8 +23,11 @@ This directory serves as the canonical configuration, lifecycle hook suite, prot
 │   ├── jev_ki_engine.py       ← PreInvocation: Fast KI triage & auto-mounting + closed-loop distillation (~70ms)
 │   └── safety_db.py           ← SQLite storage for safety decisions, rule memory & speculative feedback
 ├── protocols/                 ← Canonical architectural protocols & invariant specifications
-│   └── system-one-balance-protocol.md ← "Augment, Don't Handcuff" anti-bureaucracy protocol
+│   ├── system-one-balance-protocol.md ← "Augment, Don't Handcuff" anti-bureaucracy protocol
+│   └── documentation-standard-protocol.md ← Narrative standards, audience segmentation & unified RFC taxonomy
 └── skills/                    ← Modular skills discovered dynamically across workspace & globally
+    ├── doc-architect/         ← Standards auditor & author for user/dev documentation & RFCs
+    │   └── SKILL.md
     ├── skill-architect/       ← Interactive creator, refactorer, and auditor for agent skills
     │   ├── SKILL.md
     │   └── references/sample-skill.md

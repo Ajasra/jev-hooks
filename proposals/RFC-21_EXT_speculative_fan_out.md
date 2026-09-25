@@ -141,9 +141,9 @@ fan_out_payload = {
 ## 5. Live Implementation Reference & Concrete Examples
 
 ### 5.1 Active Implementation Artifacts
-- **PreInvocation Hook**: [`jev_speculative_router.py`](file:///d:/01_GIT/Jev/.agents/hooks/jev_speculative_router.py) (mirrored to `~/.gemini/config/hooks/jev_speculative_router.py`)
-- **Hook Registration**: Registered under `PreInvocation` in [`hooks.json`](file:///d:/01_GIT/Jev/.agents/hooks.json)
-- **Integration Test Suite**: [`tests/test_speculative_router.py`](file:///d:/01_GIT/Jev/tests/test_speculative_router.py)
+- **PreInvocation Hook**: [`jev_speculative_router.py`](../.agents/hooks/jev_speculative_router.py) (mirrored to `~/.gemini/config/hooks/jev_speculative_router.py`)
+- **Hook Registration**: Registered under `PreInvocation` in [`hooks.json`](../.agents/hooks.json)
+- **Integration Test Suite**: [`tests/test_speculative_router.py`](../tests/test_speculative_router.py)
 
 ### 5.2 Real-World Invocation Examples
 
@@ -305,9 +305,9 @@ Active Agent: Security & Code Hygiene Auditor
 Developer Prompt: audit this codebase
 ```
 
-- **Project Identity**: Compact 1-line project summary dynamically extracted from [`README.md`](file:///d:/01_GIT/Jev/README.md), `package.json`, or `pyproject.toml`.
+- **Project Identity**: Compact 1-line project summary dynamically extracted from [`README.md`](../README.md), `package.json`, or `pyproject.toml`.
 - **Git Branch**: Direct zero-cost read from `.git/HEAD` (0ms overhead) informing Jev whether work is on a feature branch, hotfix, or main branch.
-- **Active Agent Persona**: Multi-tiered discovery via invocation context metadata (`context["agent"]`, `context["role"]`, etc.) or workspace specification files ([`AGENTS.md`](file:///d:/01_GIT/Jev/AGENTS.md), [`AGENT.md`](file:///d:/01_GIT/Jev/AGENT.md), [`GEMINI.md`](file:///d:/01_GIT/Jev/GEMINI.md)).
+- **Active Agent Persona**: Multi-tiered discovery via invocation context metadata (`context["agent"]`, `context["role"]`, etc.) or workspace specification files ([`AGENTS.md`](../AGENTS.md), [`AGENT.md`](../AGENT.md), [`GEMINI.md`](../GEMINI.md)).
 - **Domain Specialization**: Specializes prefetching behavior based on persona (e.g. Code Auditors get git diffs, Test Engineers get pytest diagnostics, Curators get link extraction). When no custom agent is active, the field is omitted to save tokens.
 
 

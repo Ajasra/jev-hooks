@@ -8,6 +8,7 @@ You are operating inside the **Jev** repository (`d:\01_GIT\Jev`). You are custo
 
 When working in this workspace, you must adhere to the custom protocols defined in [`.agents/protocols/`](protocols/):
 - **[`system-one-balance-protocol.md`](protocols/system-one-balance-protocol.md)**: Architectural invariants for balancing System One micro-decisions with System Two foundation reasoning to prevent agent paralysis, turn-1 amnesia, and confirmation fatigue.
+- **[`documentation-standard-protocol.md`](protocols/documentation-standard-protocol.md)**: Narrative invariants, user-faced vs dev-faced audience segmentation, root README boundaries (≤150 lines), and unified RFC taxonomy.
 
 ---
 
@@ -27,6 +28,7 @@ The repository implements 5 native Google Antigravity 2.0 lifecycle hooks in [`.
 Custom skills are defined in [`.agents/skills/`](skills/) and mirrored globally to `~/.gemini/config/skills/`:
 - **`system-one-balance-protocol`**: Design checklist and rules of engagement for System One hooks.
 - **`skill-architect`**: Interactive creator, refactorer, and auditor for repository and global skills.
+- **`doc-architect`**: Standards auditor and author for user/dev documentation, READMEs, and unified RFCs.
 - **`typesafe-ai`**: Official vendor skill for the TypeSafe AI Python SDK and live `llms.txt` documentation.
 
 ---

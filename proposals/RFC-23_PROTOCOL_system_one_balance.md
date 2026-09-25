@@ -67,7 +67,7 @@ Instead of a single binary threshold, the dynamic skill router employs a two-tie
    <skill_hint name='system-one-balance-protocol'>
    > [!TIP]
    > **Available Skill Hint**: `system-one-balance-protocol` may be relevant to this task (Confidence: 0.51).
-   > If specialized workflows are needed, view its instructions at [system-one-balance-protocol](file:///path/to/SKILL.md).
+   > If specialized workflows are needed, view its instructions at [system-one-balance-protocol](path/to/SKILL.md).
    </skill_hint>
    ```
 
