@@ -203,7 +203,9 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str) -> dict:
             f"(Score={ambiguity:.1f}/2.0, Conf={ambiguity_conf:.2f}).\n\n"
             f"[CRITICAL AGENT INSTRUCTION: The user instruction '{user_prompt}' is completely underspecified. "
             "DO NOT browse the workspace, explore random files, or speculate on hidden context. "
-            "You MUST immediately pause and ask the user for clarification on what specifically is broken and what action they want taken!]"
+            "You MUST immediately invoke your `ask_question` tool to render an interactive clarification modal for the user, "
+            "blocking further execution until they select an option or specify what is broken! "
+            "DO NOT call any other tools (no run_command, no grep_search, no view_file).]"
         )
         actions_taken.append(f"ambiguity_alert (Score={ambiguity:.1f})")
 
