@@ -55,22 +55,46 @@ Instead of advertising 30+ domain skills in the prompt on every turn, Jev evalua
 Every activated skill displays a transparent in-chat badge:
 > **Activated Skill**: `app-security`
 
+### 3. PreInvocation Speculative Pre-Flight Arbiter (Eliminating Turn-1 Roundtrips)
+Before the primary reasoning model begins Turn 1, Jev evaluates a parallel 4-question speculative batch in **~220ms**. It auto-prefetches git diffs or pytest diagnostic summaries when relevant, and intercepts unguided or bare link prompts with an interactive clarification modal:
+
+![Jev Speculative Ambiguity Intercept Modal](./assets/jev_speculative_ambiguity_modal.png)
+
+```text
+> **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.98) in 240ms). Proceed directly to reasoning without intermediate status tool calls.
+```
+
 ---
 
 ## Architecture & Control Flow
 
 ```mermaid
 flowchart TD
-    UserPrompt["Developer Prompt"] --> Hook_PreInv["PreInvocation Hook<br/>(jev_skill_router.py)"]
+    UserPrompt["Developer Prompt"] --> Hook_PreInv_Skills["PreInvocation: Skill Router<br/>(jev_skill_router.py)"]
 
-    subgraph S1 ["Stage 1: System One Skill Routing (~90ms)"]
-        Hook_PreInv --> JevChoice["Jev Choice & Noul Catalog Scan"]
-        JevChoice -->|Confidence ≥ 0.80| InjectBadge["Inject Ephemeral Skill + In-Chat Badge<br/>(&lt;activated_skill name='...'&gt;)"]
-        JevChoice -->|No Skill Required| CleanPrompt["Zero Extra Tokens Injected"]
+    subgraph S1 ["Stage 1: Dynamic Skill Disclosure (~95ms)"]
+        Hook_PreInv_Skills --> JevChoice["Jev Choice & Noul Catalog Scan"]
+        JevChoice -->|Confidence ≥ 0.80| InjectSkill["Tier 1: Ephemeral Full Body<br/>(&lt;activated_skill name='...'&gt;)"]
+        JevChoice -->|0.50 ≤ Confidence < 0.80| InjectHint["Tier 2: Soft Link Hint<br/>(&lt;skill_hint name='...'&gt;)"]
+        JevChoice -->|No Skill Required| PassPrompt["Clean Prompt Passed"]
     end
 
-    InjectBadge --> LLM_Turn["Gemini Foundation Model<br/>(Reasoning, Architecture & Code Synthesis)"]
-    CleanPrompt --> LLM_Turn
+    InjectSkill --> Hook_PreInv_Spec["PreInvocation: Speculative Arbiter<br/>(jev_speculative_router.py)"]
+    InjectHint --> Hook_PreInv_Spec
+    PassPrompt --> Hook_PreInv_Spec
+
+    subgraph S1_5 ["Stage 1.5: Speculative Pre-Flight & Triage (~220ms)"]
+        Hook_PreInv_Spec --> JevSpecBatch["Parallel 4-Question Batch<br/>(needs_git, needs_test, ambiguity, suggested)"]
+        JevSpecBatch -->|needs_git ≥ 0.65| PrefetchGit["Prefetch: git status -s + git diff -U2"]
+        JevSpecBatch -->|needs_test ≥ 0.65| PrefetchTest["Prefetch: .pytest_cache failure report"]
+        JevSpecBatch -->|Ambiguity ≥ 1.75 & No Prior Recency| HaltModal["Advisory / ask_question Modal Halt"]
+        JevSpecBatch -->|Contextual Continuation| EnrichContext["Inject Project + Branch + Agent + Prior Turn"]
+    end
+
+    PrefetchGit --> LLM_Turn["Gemini Foundation Model<br/>(Reasoning, Architecture & Code Synthesis)"]
+    PrefetchTest --> LLM_Turn
+    HaltModal --> LLM_Turn
+    EnrichContext --> LLM_Turn
 
     LLM_Turn -->|Proposed Action| Hook_PreTool["PreToolUse Hook<br/>(jev_safety_gate.py)"]
 
