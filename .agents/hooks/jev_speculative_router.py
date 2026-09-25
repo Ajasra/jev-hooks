@@ -193,9 +193,9 @@ def is_informational_question(prompt: str) -> bool:
     return any(p.startswith(w) for w in prefixes) or p.endswith("?")
 
 
-def evaluate_speculative_batch(user_prompt: str, cwd: str, context: dict = None) -> dict:
+def evaluate_speculative_batch(user_prompt: str, cwd: str, context: dict = None, prior_turn: str = "") -> dict:
     """
-    Submits a single parallel 4-question speculative batch to Jev with project and agent context.
+    Submits a single parallel 4-question speculative batch to Jev with project, agent, and conversational recency context.
     Returns the parsed answer dictionary.
     """
     project_desc = get_project_summary(cwd)
@@ -203,11 +203,13 @@ def evaluate_speculative_batch(user_prompt: str, cwd: str, context: dict = None)
     branch_str = f" (Branch: {branch})" if branch else ""
     agent_desc = get_agent_summary(cwd, context)
     agent_str = f"\nActive Agent: {agent_desc}" if agent_desc else ""
+    prior_str = f"\nPrior Turn Context: {prior_turn}" if prior_turn else ""
 
     state = (
         f"Project Identity: {project_desc}\n"
         f"Workspace Path: {cwd}{branch_str}"
-        f"{agent_str}\n"
+        f"{agent_str}"
+        f"{prior_str}\n"
         f"Developer Prompt: {user_prompt}"
     )
 
@@ -333,13 +335,12 @@ def arbitrate_and_assemble(answers: dict, user_prompt: str, cwd: str, conversati
         elif ambiguity >= 1.75 and ambiguity_conf >= 0.75:
             sections.append(
                 "> [!IMPORTANT]\n"
-                f"> **Speculative Arbiter Advisory**: This user prompt was evaluated as highly ambiguous or underspecified "
+                f"> **Speculative Arbiter Advisory**: This user prompt was evaluated as open-ended or underspecified "
                 f"(Score={ambiguity:.1f}/2.0, Conf={ambiguity_conf:.2f}).\n\n"
-                f"[CRITICAL AGENT INSTRUCTION: The user instruction '{user_prompt}' is completely underspecified. "
-                "DO NOT browse the workspace, explore random files, or speculate on hidden context. "
-                "You MUST immediately invoke your `ask_question` tool to render an interactive clarification modal for the user, "
-                "blocking further execution until they select an option or specify what is broken! "
-                "DO NOT call any other tools (no run_command, no grep_search, no view_file).]"
+                f"[SPECULATIVE ARBITER ADVISORY: The user instruction '{user_prompt}' appears underspecified in isolation. "
+                "If the preceding conversational context or current project state does NOT clearly identify the intended target, "
+                "PREFER invoking `ask_question` to render an interactive clarification modal rather than wandering into unguided exploration. "
+                "However, if the immediate prior conversation context already defines the target or action, proceed with standard intelligent execution.]"
             )
             actions_taken.append(f"ambiguity_alert (Score={ambiguity:.1f})")
 
@@ -416,19 +417,28 @@ def main():
     workspace_paths = context.get("workspacePaths", [])
     cwd = workspace_paths[0] if workspace_paths else os.getcwd()
 
-    if not user_prompt and "transcriptPath" in context:
+    prior_turn = ""
+    if "transcriptPath" in context:
         try:
             t_path = Path(context["transcriptPath"])
             if t_path.exists():
-                for line in reversed(t_path.read_text(encoding="utf-8").splitlines()):
+                lines = t_path.read_text(encoding="utf-8").splitlines()
+                for line in reversed(lines):
                     if line.strip():
                         try:
                             step = json.loads(line)
-                            if step.get("type") == "USER_INPUT" or step.get("source") == "USER_EXPLICIT":
-                                content = step.get("content", "")
+                            is_user = (step.get("type") == "USER_INPUT" or step.get("source") == "USER_EXPLICIT")
+                            content = step.get("content", "")
+                            if not user_prompt and is_user:
                                 if "<USER_REQUEST>" in content:
                                     content = content.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
                                 user_prompt = content
+                                continue
+                            if user_prompt and not prior_turn and content:
+                                clean = " ".join(content.split())
+                                if "<USER_REQUEST>" in clean:
+                                    clean = clean.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
+                                prior_turn = clean[:120]
                                 break
                         except Exception:
                             continue
@@ -441,7 +451,7 @@ def main():
     conversation_id = context.get("conversationId", "")
 
     try:
-        answers = evaluate_speculative_batch(user_prompt, cwd, context)
+        answers = evaluate_speculative_batch(user_prompt, cwd, context, prior_turn)
         result = arbitrate_and_assemble(answers, user_prompt, cwd, conversation_id)
         if result:
             print(json.dumps(result))

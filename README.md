@@ -306,6 +306,7 @@ The [`proposals/`](file:///d:/01_GIT/Jev/proposals) directory houses 22 detailed
 | **20** | **[Jev 1.13 Jaggedness Mitigation](file:///d:/01_GIT/Jev/proposals/20_PROPOSAL_JEV_1_13_JAGGEDNESS_MITIGATION_AND_ANTI_ARITHMETIC_LINTING.md)** | **Implemented** | Runtime guardrails and linters preventing known `jev-1.13` failure modes (arithmetic, date math). |
 | **21** | **[Speculative Fan-Out & Arbitration](file:///d:/01_GIT/Jev/proposals/21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md)** | **Implemented** | Evaluates 4–5 speculative questions in a single 110ms batch at turn start. Pre-fetches git status, diffs, and test diagnostics to eliminate Turn-1 sequential tool roundtrips. |
 | **22** | **[OpenRouter Setup Guide](file:///d:/01_GIT/Jev/proposals/22_GUIDE_OPENROUTER_JEV_SETUP.md)** | **Implemented** | Step-by-step configuration guide for using `typesafe/jev-latest` on OpenRouter with single-key billing. |
+| **23** | **[Agent Balance & Anti-Bureaucracy](file:///d:/01_GIT/Jev/proposals/23_PROTOCOL_SYSTEM_ONE_AGENT_BALANCE_AND_ANTI_BUREAUCRACY.md)** | **Implemented** | Architectural protocol preventing over-governance, turn-1 amnesia, and confirmation fatigue via conversational recency, calibrated advisories, and two-tier skill hints. |
 
 ---
 

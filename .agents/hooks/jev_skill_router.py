@@ -168,6 +168,25 @@ def main():
                     ]
                 }
                 print(json.dumps(output))
+        elif selected and (confidence >= 0.50 or requires_skill >= 0.30):
+            # Soft Tier: inject lightweight skill awareness hint without flooding tokens
+            target = next((s for s in skills if s["name"] == selected), None)
+            if target:
+                hint_msg = (
+                    f"<skill_hint name='{selected}'>\n"
+                    f"> [!TIP]\n"
+                    f"> **Available Skill Hint**: `{selected}` may be relevant to this task (Confidence: {confidence:.2f}). "
+                    f"If specialized workflows are needed, view its instructions at [{selected}](file:///{target['path']}).\n"
+                    f"</skill_hint>"
+                )
+                output = {
+                    "injectSteps": [
+                        {
+                            "ephemeralMessage": hint_msg
+                        }
+                    ]
+                }
+                print(json.dumps(output))
         else:
             try:
                 env_loader.log_debug(
