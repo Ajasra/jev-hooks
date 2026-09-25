@@ -144,6 +144,40 @@ def get_git_branch(cwd: str) -> str:
     return ""
 
 
+def get_agent_summary(cwd: str, context: dict = None) -> str:
+    """
+    Extracts a concise 1-line agent persona/role from context or agent definition files
+    (e.g., AGENTS.md, AGENT.md, GEMINI.md, or hook context metadata).
+    """
+    if context:
+        for key in ("agentName", "agent", "subagent", "role", "persona", "customAgent"):
+            val = context.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()[:100]
+            elif isinstance(val, dict) and "name" in val:
+                return str(val["name"])[:100]
+
+    search_paths = [
+        Path(cwd) / "AGENTS.md",
+        Path(cwd) / ".agents" / "AGENTS.md",
+        Path(cwd) / "AGENT.md",
+        Path(cwd) / ".agents" / "AGENT.md",
+        Path(cwd) / "GEMINI.md",
+        Path(cwd) / ".agents" / "GEMINI.md",
+    ]
+    for p in search_paths:
+        try:
+            if p.exists():
+                for line in p.read_text(encoding="utf-8", errors="ignore").splitlines()[:10]:
+                    clean = line.strip().lstrip("#").strip()
+                    if clean and not clean.startswith("!") and not clean.startswith("["):
+                        return clean[:100]
+        except Exception:
+            pass
+
+    return ""
+
+
 def is_bare_link(prompt: str) -> bool:
     """Detects if prompt is just a raw URL without accompanying instructions."""
     p = prompt.strip().strip("<>\"'")
@@ -159,17 +193,21 @@ def is_informational_question(prompt: str) -> bool:
     return any(p.startswith(w) for w in prefixes) or p.endswith("?")
 
 
-def evaluate_speculative_batch(user_prompt: str, cwd: str) -> dict:
+def evaluate_speculative_batch(user_prompt: str, cwd: str, context: dict = None) -> dict:
     """
-    Submits a single parallel 4-question speculative batch to Jev with project context.
+    Submits a single parallel 4-question speculative batch to Jev with project and agent context.
     Returns the parsed answer dictionary.
     """
     project_desc = get_project_summary(cwd)
     branch = get_git_branch(cwd)
     branch_str = f" (Branch: {branch})" if branch else ""
+    agent_desc = get_agent_summary(cwd, context)
+    agent_str = f"\nActive Agent: {agent_desc}" if agent_desc else ""
+
     state = (
         f"Project Identity: {project_desc}\n"
-        f"Workspace Path: {cwd}{branch_str}\n"
+        f"Workspace Path: {cwd}{branch_str}"
+        f"{agent_str}\n"
         f"Developer Prompt: {user_prompt}"
     )
 
@@ -403,7 +441,7 @@ def main():
     conversation_id = context.get("conversationId", "")
 
     try:
-        answers = evaluate_speculative_batch(user_prompt, cwd)
+        answers = evaluate_speculative_batch(user_prompt, cwd, context)
         result = arbitrate_and_assemble(answers, user_prompt, cwd, conversation_id)
         if result:
             print(json.dumps(result))

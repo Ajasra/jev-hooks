@@ -80,6 +80,23 @@ def test_benign_prompt_clean_pass():
     print("  [PASS] Benign prompt does not trigger unnecessary prefetching.")
 
 
+def test_agent_context_injection():
+    print("\n--- Test 5: Custom Agent Context Injection ---")
+    mock_context = {
+        "agent": "Security & Code Hygiene Auditor",
+        "workspacePaths": [CWD]
+    }
+    agent_summary = jev_speculative_router.get_agent_summary(CWD, mock_context)
+    assert agent_summary == "Security & Code Hygiene Auditor"
+    prompt = "audit this codebase"
+    answers = jev_speculative_router.evaluate_speculative_batch(prompt, CWD, mock_context)
+    print("  Jev Batch Latency with Agent Context:", f"{answers.get('_latency_ms', 0):.0f}ms")
+    needs_git = answers.get("needs_git_diff", {}).get("noul", 0.0)
+    print(f"  needs_git_diff Noul for Auditor: {needs_git:.2f}")
+    assert needs_git >= 0.50
+    print("  [PASS] Agent context injected and correctly informed speculative judgment.")
+
+
 def run_all():
     api_key, endpoint, model, _ = env_loader.get_client_config()
     print("=== Testing Proposal 21: Speculative Fan-Out & Dual-Axis Arbiter ===")
@@ -88,6 +105,7 @@ def run_all():
     test_test_log_prefetch_trigger()
     test_ambiguity_scoring()
     test_benign_prompt_clean_pass()
+    test_agent_context_injection()
     print("\n=== ALL SPECULATIVE ROUTER TESTS PASSED ===")
 
 
