@@ -342,6 +342,44 @@ class Storage:
                 rows = connection.execute("SELECT * FROM events ORDER BY id").fetchall()
             return [dict(row) for row in rows]
 
+    def stats(self, harness: str | None = None) -> dict[str, Any]:
+        """Aggregate high-level telemetry and decision statistics from recorded events."""
+        self.initialize()
+        with self.connect() as connection:
+            params: tuple[Any, ...] = (harness,) if harness else ()
+            where_clause = "WHERE harness=?" if harness else ""
+            total_events = connection.execute(
+                f"SELECT COUNT(*) FROM events {where_clause}", params
+            ).fetchone()[0]
+            outcomes = dict(
+                connection.execute(
+                    f"SELECT outcome, COUNT(*) FROM events {where_clause} GROUP BY outcome",
+                    params,
+                ).fetchall()
+            )
+            features = dict(
+                connection.execute(
+                    f"SELECT feature, COUNT(*) FROM events {where_clause} GROUP BY feature",
+                    params,
+                ).fetchall()
+            )
+            avg_duration = connection.execute(
+                f"SELECT AVG(duration_ms) FROM events {where_clause}", params
+            ).fetchone()[0] or 0.0
+            harness_counts = dict(
+                connection.execute(
+                    f"SELECT harness, COUNT(*) FROM events {where_clause} GROUP BY harness",
+                    params,
+                ).fetchall()
+            )
+            return {
+                "total_events": total_events,
+                "outcomes": outcomes,
+                "features": features,
+                "avg_duration_ms": round(avg_duration, 2),
+                "harnesses": harness_counts,
+            }
+
     def backup_to(self, target: Path) -> None:
         self.initialize()
         target.parent.mkdir(parents=True, exist_ok=True)

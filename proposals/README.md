@@ -63,7 +63,7 @@ Applying this division of labor to agent harnesses: **Deterministic code handles
 | **22** | **[`RFC-22: OpenRouter Jev Setup Guide`](RFC-22_GUIDE_openrouter_setup.md)** | `GUIDE` | ✅ **Implemented** | [`services/client.py`](../src/jev/services/client.py) |
 | **23** | **[`RFC-23: Agent Balance & Anti-Bureaucracy`](RFC-23_PROTOCOL_system_one_balance.md)** | `PROTOCOL` | ✅ **Implemented** | [`.agents/protocols/system-one-balance-protocol.md`](../.agents/protocols/system-one-balance-protocol.md) |
 | **24** | **[`RFC-24: Shared Jev Runtime for Antigravity and Codex`](RFC-24_CORE_shared_harness_runtime.md)** | `CORE` | ✅ **Implemented** | Shared core, harness adapters, extension registry and harness-scoped database logs |
-| **25** | **[`RFC-25: Harness-Neutral Telemetry & Observability`](RFC-25_CORE_telemetry_and_observability.md)** | `CORE` | 📐 *Blueprint* | Standardized telemetry collection, SQLite spans, metrics catalog, and OTLP export |
+| **25** | **[`RFC-25: Harness-Neutral Telemetry & Observability`](RFC-25_CORE_telemetry_and_observability.md)** | `CORE` | 🟡 **Partially Implemented** | Standardized stats aggregation, SQLite event metrics, CLI inspection, and inline harness telemetry tags |
 
 ---
 

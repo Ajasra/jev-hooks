@@ -85,7 +85,11 @@ class CodexAdapter(Adapter):
         if event.kind == EventKind.TURN_BEFORE:
             if not context:
                 return {}
-            return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context}}
+            telemetry_footer = (
+                f"\n\n<!-- jev-telemetry: {len(result.context)} item(s) injected | "
+                f"outcome: {result.outcome.value} | latency: {result.duration_ms:.1f}ms -->"
+            )
+            return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context + telemetry_footer}}
         if event.kind == EventKind.SESSION_START:
             if not context:
                 return {}

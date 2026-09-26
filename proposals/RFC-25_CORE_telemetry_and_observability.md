@@ -1,7 +1,7 @@
 # RFC-25: Harness-Neutral Telemetry Module & Observability Pipeline
 
 > **Category**: CORE  
-> **Status**: Blueprint  
+> **Status**: Partially Implemented
 > **Target Lifecycle**: Harness Core / Post-Turn / Cross-Lifecycle  
 > **Scope**: Standardized telemetry collection, OpenTelemetry export, latency/cost profiling, and harness-scoped observability for Antigravity and Codex.
 
@@ -200,14 +200,14 @@ Safety Overrides:   3 confirmations requested, 0 hard denies
 
 ## 6. Implementation Rollout & Milestones
 
-1. **Phase 1: In-Memory Span Tracing & SQLite Sink**
-   - Implement `core/telemetry.py` with zero external dependencies.
-   - Extend `Storage` schema with `telemetry_spans`.
-   - Instrument `Runtime.dispatch`, `safety.evaluate`, `skills.suggest`, and `knowledge.search`.
+1. **Phase 1: In-Memory Span Tracing & SQLite Sink** (Partially Implemented)
+   - High-level telemetry aggregation added via `Storage.stats()` and event outcome tracking in `jev.sqlite3`.
+   - Lightweight telemetry footers embedded into Antigravity and Codex harness responses (`<!-- jev-telemetry: ... -->`).
+   - Detailed hierarchical `telemetry_spans` table reserved for full OpenTelemetry / profiling rollout.
 
-2. **Phase 2: Diagnostics & CLI Tooling**
-   - Add `ToolSpec("telemetry_summary", ...)` in `registry.py`.
-   - Expose `jev telemetry` CLI command in `__main__.py` and dispatch shims.
+2. **Phase 2: Diagnostics & CLI Tooling** (Partially Implemented)
+   - CLI command `jev stats` / `jev telemetry` implemented with summary and `--json` export.
+   - Cross-harness filtering (`--harness antigravity|codex`) supported.
 
-3. **Phase 3: Optional OpenTelemetry Exporter**
+3. **Phase 3: Optional OpenTelemetry Exporter** (Pending)
    - Provide non-blocking OTLP HTTP/protobuf streaming if `opentelemetry-sdk` is optionally present in the environment; fail open if absent.

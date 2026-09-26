@@ -99,6 +99,10 @@ def build_parser() -> argparse.ArgumentParser:
     authorize.add_argument("--confirm-digest")
     authorize.add_argument("--reason", default="Manual one-use authorization")
     authorize.add_argument("--cwd", default=".")
+    stats_p = sub.add_parser("stats", aliases=["telemetry"])
+    stats_p.add_argument("--harness", choices=("antigravity", "codex"), default=None)
+    stats_p.add_argument("--json", action="store_true", help="Output raw JSON")
+    stats_p.add_argument("--cwd", default=".")
     mcp = sub.add_parser("mcp")
     mcp.add_argument("--cwd", default=".")
     return parser
@@ -118,6 +122,21 @@ def main(argv: list[str] | None = None) -> int:
     settings = Settings.load(getattr(args, "cwd", "."))
     if args.command == "doctor":
         print(format_report(settings))
+        return 0
+    if args.command in {"stats", "telemetry"}:
+        storage = Storage(settings.db_path)
+        data = storage.stats(harness=args.harness)
+        if getattr(args, "json", False):
+            print(json.dumps(data, indent=2))
+        else:
+            print("Jev Reflex & Decision Telemetry")
+            print("================================")
+            print(f"Database:        {settings.db_path}")
+            print(f"Total Events:    {data['total_events']}")
+            print(f"Avg Latency:     {data['avg_duration_ms']} ms")
+            print("Harness Counts:  " + (", ".join(f"{k}: {v}" for k, v in data['harnesses'].items()) or "None"))
+            print("Decisions:       " + (", ".join(f"{k}: {v}" for k, v in data['outcomes'].items()) or "None"))
+            print("Features:        " + (", ".join(f"{k}: {v}" for k, v in data['features'].items()) or "None"))
         return 0
     if args.command == "migrate-legacy":
         storage = Storage(settings.db_path)

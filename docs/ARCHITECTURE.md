@@ -157,6 +157,15 @@ Relative roots resolve against the configuration file. Containment uses resolved
 
 Legacy imports use SQLite's backup API and mark imported rules `antigravity` with `legacy_antigravity` provenance.
 
+### Telemetry & Observability (RFC-25)
+
+The shared runtime records lightweight decision metrics directly in `events`. `Storage.stats()` aggregates:
+- Outcome distribution (`allow`, `deny`, `abstain`, `needs_confirmation`)
+- Feature participation (`safety`, `skills`, `knowledge`, `speculative`)
+- Average execution latency and per-harness event volume
+
+Adapters inject a subtle HTML comment footer into `turn.before` responses (`<!-- jev-telemetry: ... -->`), giving live visibility into injected context items, outcome, and latency without polluting user-facing prompts. CLI access is provided via `cmd /c python -m jev stats`.
+
 ## 12. Extension Contract
 
 `registry.py` is the shared extension surface.

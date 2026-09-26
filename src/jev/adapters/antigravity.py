@@ -74,7 +74,14 @@ class AntigravityAdapter(Adapter):
     def encode(self, event: Event, result: Result) -> dict[str, Any]:
         context = "\n\n".join(item.text for item in result.context)
         if event.kind == EventKind.TURN_BEFORE:
-            return {"injectSteps": [{"ephemeralMessage": context}]} if context else {}
+            if not context:
+                return {}
+            # Append lightweight Jev reflex telemetry info for transparency and performance insight
+            telemetry_footer = (
+                f"\n\n<!-- jev-telemetry: {len(result.context)} item(s) injected | "
+                f"outcome: {result.outcome.value} | latency: {result.duration_ms:.1f}ms -->"
+            )
+            return {"injectSteps": [{"ephemeralMessage": context + telemetry_footer}]}
         if event.kind == EventKind.TOOL_BEFORE:
             if result.outcome == Outcome.DENY:
                 return {"decision": "deny", "reason": result.reason}

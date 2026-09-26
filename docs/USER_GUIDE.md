@@ -98,7 +98,15 @@ The default Windows database is `%LOCALAPPDATA%\Jev\jev.sqlite3`. It contains:
 
 Prompts and commands are not stored in full by default. Diagnostic details are bounded and secret-like values are redacted.
 
-Run the compatibility database view:
+Run the telemetry and decision stats summary:
+
+```cmd
+cmd /c python -m jev stats
+cmd /c python -m jev stats --harness codex
+cmd /c python -m jev stats --json
+```
+
+Or run the compatibility database view:
 
 ```cmd
 cmd /c python .agents\hooks\safety_db.py --review --harness codex
