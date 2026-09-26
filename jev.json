@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "skill_roots": [".agents/skills"],
+  "knowledge_roots": [".agents/knowledge"],
+  "context_budget": 12000,
+  "semantic_timeout_seconds": 0.25
+}
+

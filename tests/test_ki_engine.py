@@ -17,6 +17,12 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="legacy Antigravity implementation retained only for transition coverage",
+)
+
 # Insert hooks into path
 HOOKS_DIR = Path(__file__).resolve().parent.parent / ".agents" / "hooks"
 if str(HOOKS_DIR) not in sys.path:

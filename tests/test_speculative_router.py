@@ -15,6 +15,13 @@ import json
 import time
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("JEV_RUN_LIVE_TESTS") != "1",
+    reason="legacy live-provider test; set JEV_RUN_LIVE_TESTS=1 to run",
+)
+
 # Add hook directory to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / ".agents" / "hooks"))
 import env_loader

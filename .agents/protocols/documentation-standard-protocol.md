@@ -57,7 +57,7 @@ Documentation must be strictly partitioned into two distinct audiences:
   - 60-second setup and OpenRouter / TypeSafe API key configuration.
   - Interactive IDE confirmation modals: what they mean, how to choose (Allow Once, Save for Session, Save Always).
   - CLI rule management and auditing: `safety_db.py --review`, `--list`, `--allow`, `--prune`.
-  - Knowledge Item capture: `jev_ki_engine.py --learn`.
+  - Knowledge Item capture through the shared `knowledge_learn` tool.
   - Multi-workspace directory junctions on Windows (`mklink /J`).
 * **Tone**: Developer-friendly, crisp, practical, zero unnecessary internal jargon.
 

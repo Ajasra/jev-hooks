@@ -1,179 +1,194 @@
-# Jev for Antigravity: User Guide & Operational Manual
+# Jev Shared Runtime: User Guide
 
-> **Audience**: Application Developers & Workspace Operators  
-> **Status**: Active Production Standard  
-> **Target Harness**: Google Antigravity 2.0  
+> **Audience**: developers using Google Antigravity or OpenAI Codex
+>
+> **Status**: implemented locally
+>
+> **Supported platform**: Windows, Python 3.10+
 
----
+## 1. Problem
 
-## 1. Problem: The Fragility of Generative Agents
+Agent harnesses expose different lifecycle JSON and approval behavior. Copying Jev logic into separate integrations would make safety policy, skill routing, and knowledge retrieval diverge.
 
-Autonomous coding harnesses give generative models (Gemini, Claude, GPT) direct local execution privileges: running terminal commands, editing source trees, and executing test suites.
+## 2. Inspiration
 
-However, relying exclusively on large generative models for low-level execution creates constant friction:
-* **Accidental Destructive Execution**: An innocent request like *"clean up old benchmarks"* can cause an agent to emit `cmd /c rmdir /s /q benchmarks` or `git reset --hard` before you can react.
-* **Severe Token Bloat**: Loading 50+ domain skills into the prompt consumes 5,000–25,000 tokens on *every single turn*, slowing down responses and driving up costs.
-* **Lossy Context Summaries**: When sessions grow long, generative summarization wipes out line numbers, compiler error codes, and verbatim user constraints.
+The runtime treats each harness as a transport. Both translate into one internal event contract and use the same decisions, storage, and feature catalog.
 
----
+## 3. Solution
 
-## 2. Inspiration: Reflexes & Muscle Memory
+Install one Python package. Antigravity and Codex then call the same `jev` command. Repository skills stay canonical in `.agents/skills`; audit records retain a `harness` field and can be viewed separately.
 
-In human biology, routine survival actions (pulling your hand from a hot stove or catching a falling glass) do not consult the conscious cerebral cortex. They are handled by sub-conscious, high-speed **reflex arcs** in milliseconds.
+## 4. Example
 
-Similarly, an AI coding harness should not ponder for 5 seconds using an expensive LLM whether `git status` is safe or which skill to activate. Low-level control flow belongs in a dedicated, high-speed **System One reflex layer**.
+When either harness proposes `git reset --hard`, the shared invariant shield denies it before any network request. Routine commands such as `git status` pass after deterministic checks. If the TypeSafe service is unavailable, optional routing context is omitted and deterministic safety remains active.
 
----
+## 5. Compatibility at a glance
 
-## 3. Solution: Jev Machine-Native Hooks
+The core implementation is shared. Each harness contributes only event translation and output encoding.
 
-**Jev** is TypeSafe AI's non-autoregressive System One decision model:
-* **Sub-120ms Latency**: 190x faster than LLMs, executing in parallel before the primary model even starts generation.
-* **Extreme Cost Efficiency**: **$0.042 per 1M tokens** with free unmetered outputs.
-* **Mathematical Guaranteed Typing**: Native `Choice`, `Score`, and `Noul` primitives with zero schema validation failures.
+| Capability | Antigravity | Codex | Shared implementation |
+| --- | --- | --- | --- |
+| Safety policy | `PreToolUse` | `PreToolUse` | `core/safety.py`; deterministic invariants always deny in both harnesses. |
+| Advisory context | `PreInvocation` | `SessionStart` and `UserPromptSubmit` | `core/speculative.py` and `core/knowledge.py`. |
+| Skill selection | Full body or soft-hint injection | Catalog ranking without body injection; Codex retains native skill discovery | `core/skills.py` reads `.agents/skills`. |
+| Knowledge retrieval | Advisory context at pre-invocation | Advisory context at session and prompt boundaries | `core/knowledge.py` reads `.agents/knowledge`. |
+| Callable tools | Configure the Jev stdio MCP server when the harness supports MCP | Registered through Codex MCP configuration | `tooling.py`, `registry.py`, and `transports/mcp.py`. |
+| Audit and rules | `antigravity_events` view | `codex_events` view | One `jev.sqlite3` database with a harness field. |
+| Transcript compaction | Explicit sidecar checkpoint | Explicit sidecar checkpoint | `core/compaction.py`; it does not rewrite either harness transcript. |
 
-When integrated into Antigravity, Jev operates seamlessly in the background:
-1. **Intercepts destructive actions** before shell execution and presents an interactive IDE confirmation modal.
-2. **Dynamically activates relevant skills** on the fly, keeping system prompts lean.
-3. **Speculatively prefetches git diffs and test failures** at Turn 1, eliminating wasted exploratory turns.
-4. **Prunes repetitive build logs** to 300-char receipts while preserving 100% of user discourse and code edits verbatim.
+Codex maps a conditional safety result to a denial because its `PreToolUse` hook cannot request a native approval. Native harness and sandbox approvals still apply after Jev allows an operation.
 
----
+## 6. Install for this repository
 
-## 4. Visual Walkthrough & Examples
+From the repository root:
 
-### A. The Safety Gate Intercept Modal
-When an agent attempts a destructive command (`rmdir /s`, `git reset --hard`, or unverified script deletion), Jev halts execution instantly:
-
-![Jev Safety Gate Intercept Modal](../proposals/assets/jev_safety_gate_intercept_modal.png)
-
-You can choose:
-* **Allow Once**: Authorize this specific execution.
-* **Save for Session**: Authorize this pattern for the rest of this conversation.
-* **Save Always**: Save a permanent rule to SQLite so you are never asked again.
-* **Cancel**: Abort the tool call safely.
-
-### B. Dynamic Skill Activation Badge
-When your prompt requires a specific domain skill, Jev activates it ephemerally and displays an in-chat badge:
-
-```text
-> **Activated Skill**: `app-security`
-```
-
-### C. Speculative Pre-Flight Badge
-Before primary reasoning starts, Jev speculatively evaluates the context and prefetches diffs or test logs into Turn 1:
-
-![Jev Speculative Pre-Flight Badge](../proposals/assets/jev_speculative_preflight_badge.png)
-
-```text
-> **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.77) in 266ms).
-```
-
----
-
-## 5. Getting Started (60 Seconds)
-
-### Step 1: Configure Your API Key
-Copy the template environment file:
 ```cmd
-cmd /c copy .agents\.env.example .agents\.env
+cmd /c python -m pip install --user -e ".[mcp]"
+cmd /c python -m jev doctor --cwd .
 ```
 
-Open `.agents/.env` and supply your key:
+The editable installation makes `python -m jev` available when Codex launches project hooks and its MCP server. It also lets Antigravity wrappers import the same package source. Use the same `python` executable for installation and for Codex; `cmd /c python -c "import sys; print(sys.executable)"` displays it.
 
-#### Option A: OpenRouter (Recommended)
-```ini
-OPENROUTER_API_KEY=sk-or-v1-your_openrouter_api_key_here
-```
+Configure one provider in your user environment or harness environment:
 
-#### Option B: Direct TypeSafe AI
-```ini
-TYPESAFE_API_KEY=your_typesafe_key_here
-TYPESAFE_ENDPOINT=https://api.typesafe.ai/v1/systemone
-JEV_MODEL=jev-latest
-```
-
-### Step 2: Verify Connectivity
-Run the self-diagnostic test:
 ```cmd
-cmd /c python test_jev.py
-```
-Expected output:
-```text
-[*] API Key detected: sk-or-v1-...
-[*] Endpoint: https://openrouter.ai/api/v1/systemone
-[*] Model: typesafe/jev-1.13
-[+] HTTP Status: 200
-[+] Response JSON: {"model":"typesafe/jev-1.13","answers":{"is_safe":{"type":"noul","noul":0.89}}}
+cmd /c setx TYPESAFE_API_KEY "your-typesafe-key"
 ```
 
-### Step 3: Install Globally Across All Workspaces
-To protect every project on your machine without copying files:
+Or:
+
 ```cmd
-:: Create directory junctions (no admin privileges needed)
+cmd /c setx OPENROUTER_API_KEY "your-openrouter-key"
+```
+
+Optional overrides are `TYPESAFE_ENDPOINT`, `JEV_MODEL`, `JEV_DATA_ROOT`, and `JEV_DB_PATH`. Project `jev.json` may configure skill roots, knowledge roots, context budget, and semantic timeout. It cannot redirect trusted rule storage or weaken safety policy.
+
+## 7. Enable Codex for this repository
+
+The repository includes [`.codex/hooks.json`](../.codex/hooks.json) for `SessionStart`, `UserPromptSubmit`, and `PreToolUse`. After installing the package, restart Codex and review/trust the project hook definition when prompted.
+
+Codex cannot currently request approval from `PreToolUse`. Jev therefore maps invariant and conditional safety failures to a supported denial with an explanation. A corrected or explicitly authorized operation can then be retried.
+
+## 8. Enable Antigravity
+
+Link the canonical sources into Antigravity's global configuration:
+
+```cmd
 cmd /c mklink /J "%USERPROFILE%\.gemini\config\hooks" "%CD%\.agents\hooks"
 cmd /c mklink /J "%USERPROFILE%\.gemini\config\skills" "%CD%\.agents\skills"
 cmd /c mklink /J "%USERPROFILE%\.gemini\config\protocols" "%CD%\.agents\protocols"
-
-:: Create configuration links
 cmd /c mklink "%USERPROFILE%\.gemini\config\hooks.json" "%CD%\.agents\hooks.json"
-cmd /c mklink "%USERPROFILE%\.gemini\config\.env" "%CD%\.agents\.env"
-```
-Reload Antigravity: Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $\rightarrow$ **`Developer: Reload Window`**.
-
----
-
-## 6. CLI Management & Rule Auditing
-
-All safety decisions, user overrides, and active learning statistics are stored locally in SQLite (`~/.gemini/config/safety_decisions.db`).
-
-### Inspect Security Audit & Stats
-```cmd
-cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --review
 ```
 
-### Inspect Speculative Prefetch & Ambiguity Feedback
+Reload Antigravity after creating the links. Its legacy `jev_safety_gate.py` entry point delegates to the shared runtime for compatibility.
+
+## 9. Data and Logs
+
+The default Windows database is `%LOCALAPPDATA%\Jev\jev.sqlite3`. It contains:
+
+- `events`: all feature decisions with harness, workspace, session, and tool identity.
+- `codex_events`: a view containing Codex records.
+- `antigravity_events`: a view containing Antigravity records.
+- `rules`: harness-scoped policy memory and one-use authorizations.
+- `invocations`: atomic deduplication claims and replayable decisions.
+- `session_context` and `feedback`: isolated context and exact event feedback.
+
+Prompts and commands are not stored in full by default. Diagnostic details are bounded and secret-like values are redacted.
+
+Run the compatibility database view:
+
 ```cmd
-cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --review-speculative
+cmd /c python .agents\hooks\safety_db.py --review --harness codex
+cmd /c python .agents\hooks\safety_db.py --review --harness antigravity
 ```
 
-### List All Active Saved Rules
+## 10. One-Use Authorization
+
+Invariant operations such as force push, recursive forced deletion, hard reset, disk formatting, and database destruction cannot be authorized through Jev.
+
+For a conditionally denied operation, use the manual two-step CLI outside the agent tool surface:
+
 ```cmd
-cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --list
+cmd /c jev authorize --harness codex --tool Bash --command "your command" --workspace-id WORKSPACE_ID
 ```
 
-### Add a Permanent Allow Rule
+The command prints an operation digest and saves nothing. Review the operation, then repeat with the displayed digest:
+
 ```cmd
-cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --allow "docker compose*" --tool run_command
+cmd /c jev authorize --harness codex --tool Bash --command "your command" --workspace-id WORKSPACE_ID --confirm-digest DIGEST
 ```
 
-### Test Command Resolution Against Shield & DB
+The grant is consumed atomically on the matching tool attempt. Native harness approvals and sandbox rules still apply.
+
+## 11. Skills, Knowledge, and Tools
+
+Add repository skills under `.agents/skills/<name>/SKILL.md`. Both harnesses discover the same source; Jev can also rank it for progressive disclosure.
+
+Knowledge items live under `.agents/knowledge`. Automatic reads are advisory. Writes occur only through explicit `knowledge_learn` tool calls.
+
+Install the optional MCP dependency to expose the shared tool registry:
+
 ```cmd
-cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --test-cmd "cmd /c git reset --hard"
+cmd /c python -m pip install --user -e ".[mcp]"
+cmd /c python -m jev mcp --cwd .
 ```
 
-### Prune Old Decision Logs & Expired Rules
+Codex reads the repository [`.codex/config.toml`](../.codex/config.toml) and launches this server for trusted projects. Antigravity can register the same `python -m jev mcp --cwd .` stdio command when its MCP configuration is enabled. The current tools are `knowledge_search`, `knowledge_learn`, `skills_list`, and `diagnostics_status`.
+
+## 12. New-machine and global Codex setup
+
+These steps install Jev for one Windows user. They do not modify the system Python, so no administrator account is required.
+
+1. Clone this repository and open a terminal at its root.
+2. Confirm which interpreter Codex should use:
+
+   ```cmd
+   cmd /c python -c "import sys; print(sys.executable)"
+   ```
+
+3. Install Jev and its MCP dependency into that user environment:
+
+   ```cmd
+   cmd /c python -m pip install --user -e ".[mcp]"
+   cmd /c python -m jev doctor --cwd .
+   ```
+
+4. Enable project hooks by opening the repository as a trusted Codex project, then restart Codex and accept its hook review. Project configuration is loaded only for trusted projects.
+5. To expose the Jev MCP tools in all Codex projects, add this block to `%USERPROFILE%\.codex\config.toml`. Preserve any existing configuration and MCP servers.
+
+   ```toml
+   [mcp_servers.jev]
+   command = "python"
+   args = ["-m", "jev", "mcp"]
+   startup_timeout_sec = 10
+   tool_timeout_sec = 30
+   ```
+
+   Do not set a global `cwd`: Codex starts the server in the active project so Jev can use that repository's `.agents/skills`, `.agents/knowledge`, and `jev.json` configuration.
+
+6. Restart Codex, then verify the global registration:
+
+   ```cmd
+   cmd /c codex mcp list
+   ```
+
+   Start a new Codex task and ask it to use `diagnostics_status`, then `skills_list`. New tasks reload their MCP tool catalog.
+
+Global MCP registration exposes the tools, while lifecycle hooks remain project-scoped by default. To enforce the same hooks for every local project, merge the `hooks` object from [`.codex/hooks.json`](../.codex/hooks.json) into `%USERPROFILE%\.codex\hooks.json`; do not overwrite an existing user hook file.
+
+Provider keys are optional for deterministic safety, tools, and local knowledge. Set `TYPESAFE_API_KEY` or `OPENROUTER_API_KEY` only when you want semantic skill, knowledge, or speculative ranking.
+
+## 13. Verify
+
+The default suite is offline and uses isolated temporary databases:
+
 ```cmd
-cmd /c python %USERPROFILE%\.gemini\config\hooks\safety_db.py --prune --days 30
+cmd /c python -m pytest -q
 ```
 
----
+Live TypeSafe regression tests require an explicit opt-in:
 
-## 7. Knowledge Items (KI) Workflows
-
-The Knowledge Item Engine captures repository-local architectural precedents and automatically mounts them into Turn 1 when relevant.
-
-### Capture an Invariant
 ```cmd
-cmd /c python .agents/hooks/jev_ki_engine.py --learn --title "Speculative Fan-Out Protocol" --summary "Batches 4 questions in ~110ms to prefetch git diffs." --domain "tool_harness"
-```
-
-### Distill Knowledge From Git Commits
-```cmd
-cmd /c python .agents/hooks/jev_ki_engine.py --distill
-```
-
-### List Active Knowledge Precedents
-```cmd
-cmd /c python .agents/hooks/jev_ki_engine.py --list
+cmd /c set JEV_RUN_LIVE_TESTS=1
+cmd /c python -m pytest tests\test_speculative_router.py -q
 ```

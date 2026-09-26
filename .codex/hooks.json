@@ -1,0 +1,43 @@
+{
+  "description": "Jev shared runtime hooks for Codex.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command_windows": "python -m jev hook --harness codex",
+            "statusMessage": "Loading Jev context",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command_windows": "python -m jev hook --harness codex",
+            "statusMessage": "Preparing Jev context",
+            "additionalContextLimit": 12000,
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|apply_patch|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command_windows": "python -m jev hook --harness codex",
+            "statusMessage": "Checking Jev policy",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

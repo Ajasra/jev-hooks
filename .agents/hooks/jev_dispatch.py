@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deprecated Antigravity entry point; knowledge logic lives in jev.core.knowledge."""
+"""Compatibility entry point that boots the shared Jev package from a checkout."""
 
 from __future__ import annotations
 
@@ -7,10 +7,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src"))
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 from jev.cli import main
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(["hook", "--harness", "antigravity"]))
+    raise SystemExit(main())

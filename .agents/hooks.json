@@ -1,42 +1,21 @@
 {
-  "jev-safety-gate": {
+  "jev-runtime": {
     "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_dispatch.py hook --harness antigravity"
+      }
+    ],
     "PreToolUse": [
       {
-        "matcher": "run_command|write_to_file|replace_file_content",
+        "matcher": "run_command|write_to_file|replace_file_content|multi_replace_file_content",
         "hooks": [
           {
             "type": "command",
-            "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_safety_gate.py"
+            "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_dispatch.py hook --harness antigravity"
           }
         ]
-      }
-    ]
-  },
-  "jev-skill-router": {
-    "enabled": true,
-    "PreInvocation": [
-      {
-        "type": "command",
-        "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_skill_router.py"
-      }
-    ]
-  },
-  "jev-speculative-router": {
-    "enabled": true,
-    "PreInvocation": [
-      {
-        "type": "command",
-        "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_speculative_router.py"
-      }
-    ]
-  },
-  "jev-ki-engine": {
-    "enabled": true,
-    "PreInvocation": [
-      {
-        "type": "command",
-        "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_ki_engine.py --read"
       }
     ]
   }

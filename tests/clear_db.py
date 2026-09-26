@@ -1,10 +1,10 @@
-import sqlite3, os
-from pathlib import Path
+from jev.services.paths import Settings
+from jev.services.storage import Storage
 
-db = Path(os.path.expanduser("~/.gemini/config/safety_decisions.db"))
-conn = sqlite3.connect(str(db))
-conn.execute("DROP TABLE IF EXISTS rules")
-conn.execute("DROP TABLE IF EXISTS decision_log")
-conn.commit()
-conn.close()
-print(f"[+] Cleared: {db}")
+settings = Settings.load()
+storage = Storage(settings.db_path)
+storage.initialize()
+with storage.connect() as connection:
+    rules = connection.execute("DELETE FROM rules").rowcount
+    events = connection.execute("DELETE FROM events").rowcount
+print(f"Cleared {rules} rules and {events} events from {settings.db_path}")

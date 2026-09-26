@@ -8,7 +8,7 @@ concerns: [system-one-balance]
 
 # Skill Architect Protocol
 
-The Skill Architect manages the lifecycle of agent skills across workspace ([`.agents/skills/`](../)) and global (`~/.gemini/config/skills/`) repositories.
+The Skill Architect manages the canonical skill catalog in [`.agents/skills/`](../). Antigravity and Codex both consume this source through the shared Jev runtime; harness-specific copies are not authored.
 
 ---
 
@@ -73,8 +73,8 @@ Before writing or committing any `SKILL.md`:
 
 ## Phase 4: Output Execution & Verification
 1. Save `SKILL.md` to `.agents/skills/[skill-name]/SKILL.md`.
-2. Confirm the skill is instantly accessible globally via the `~/.gemini/config/skills/` junction.
-3. Test dynamic discovery against Jev:
+2. Confirm the shared runtime discovers the skill:
    ```cmd
-   cmd /c python -c "import subprocess, json; p = subprocess.Popen(['python', '.agents/hooks/jev_skill_router.py'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True); out, _ = p.communicate(json.dumps({'prompt': 'I need to design a new agent skill'})); print(out[:300])"
+   cmd /c python -c "from pathlib import Path; from jev.core.skills import load_catalog; print([s.name for s in load_catalog((Path('.agents/skills'),))])"
    ```
+3. Run `cmd /c jev doctor --cwd .` to verify both harness registrations resolve the same catalog.
