@@ -96,7 +96,17 @@ The registry contains portable features. An adapter may expose a feature only wh
 | `compaction` | Explicit sidecar invocation | Explicit sidecar invocation | `core/compaction.py` |
 | MCP tools | Optional stdio MCP registration | `.codex/config.toml` or user `config.toml` | `tooling.py` and `transports/mcp.py` |
 
-The Codex adapter encodes `Outcome.NEEDS_CONFIRMATION` as a denial because Codex hooks support allow and deny at this boundary, not an approval request. This is a deliberate protocol translation, not a second safety policy.
+The Codex adapter encodes `Outcome.NEEDS_CONFIRMATION` as a denial because Codex hooks support allow and deny at this boundary, not an interactive approval request. In contrast, the Antigravity adapter maps `NEEDS_CONFIRMATION` to `"decision": "force_ask"`, prompting the user directly in the IDE.
+
+### Harness Behavioral Differences Matrix
+
+| Lifecycle Boundary | Google Antigravity Behavior | OpenAI Codex Behavior |
+| :--- | :--- | :--- |
+| **`PreToolUse` Conditional Confirmation** | Emits `{"decision": "force_ask"}` rendering an interactive Allow/Deny modal in the chat UI. | Emits `{"permissionDecision": "deny"}` with explanation, requiring explicit authorization or prompt refinement. |
+| **Internal Hook / Inspection Error** | **Workspace file mutations fail open** (`allow`). Shell commands emit `{"decision": "ask"}` allowing the user to approve execution in UI. Never freezes editor tools. | **Workspace file mutations fail open** (`allow`). Shell operations fail closed (`deny`) as Codex cannot prompt interactively at this hook boundary. |
+| **`PreInvocation` / `UserPromptSubmit`** | Flat handler list. Injects ephemeral context hints with markdown links to canonical `.agents/skills/`. | Structured wrapper. Progressive disclosure ranking and telemetry; context injection bounded by `additionalContextLimit`. |
+| **Transcript Context Extraction** | Reverse-parses Antigravity's `transcriptPath` JSONL stream when prompt is omitted (e.g. image/artifact uploads). | Ingests `prompt` directly; falls back to `transcript_path` when available. |
+
 
 ## 8. Safety Pipeline
 

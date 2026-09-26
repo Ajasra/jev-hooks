@@ -6,7 +6,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from jev.adapters import AntigravityAdapter, CodexAdapter
 from jev.contracts import EventKind, Outcome
@@ -33,11 +33,17 @@ def run_hook(harness: str, raw: dict[str, Any], settings: Settings | None = None
     except Exception as exc:
         is_pre_tool = str(raw.get("hook_event_name") or raw.get("hookEventName")) == "PreToolUse" or "toolCall" in raw
         if is_pre_tool:
+            tool_call = raw.get("toolCall") if isinstance(raw.get("toolCall"), Mapping) else {}
+            tool_name = str(tool_call.get("name") or raw.get("tool_name") or "")
+            # Workspace file mutations fail open so internal errors never paralyze code editing
+            if tool_name in {"write_to_file", "replace_file_content", "multi_replace_file_content"}:
+                return {"decision": "allow", "reason": f"Fail-open on inspection error: {type(exc).__name__}"}
+            # For shell operations in Antigravity, ask user confirmation rather than hard blocking
+            if harness == "antigravity":
+                return {"decision": "ask", "reason": f"Jev inspection encountered an error ({type(exc).__name__}). Allow execution?"}
             reason = f"Jev could not inspect the pending tool operation: {type(exc).__name__}."
-            if harness == "codex":
-                return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
-                                                "permissionDecisionReason": reason}}
-            return {"decision": "deny", "reason": reason}
+            return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                            "permissionDecisionReason": reason}}
         return {}
     result = Runtime(settings).dispatch(event, operation)
     return adapter.encode(event, result)

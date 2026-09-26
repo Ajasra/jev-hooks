@@ -67,7 +67,10 @@ Optional overrides are `TYPESAFE_ENDPOINT`, `JEV_MODEL`, `JEV_DATA_ROOT`, and `J
 
 The repository includes [`.codex/hooks.json`](../.codex/hooks.json) for `SessionStart`, `UserPromptSubmit`, and `PreToolUse`. After installing the package, restart Codex and review/trust the project hook definition when prompted.
 
-Codex cannot currently request approval from `PreToolUse`. Jev therefore maps invariant and conditional safety failures to a supported denial with an explanation. A corrected or explicitly authorized operation can then be retried.
+> [!NOTE]
+> **Harness Approval & Error Handling Differences**:
+> - **Google Antigravity**: Supports interactive confirmation modals (`"decision": "force_ask"` or `"ask"`). If an operation requires developer review or encounters an inspection glitch, Antigravity renders a confirmation dialog in the IDE allowing you to allow or deny it with one click. File edits (`write_to_file`, `replace_*`) always fail open so editing code is never blocked by hook inspection issues.
+> - **OpenAI Codex**: Hooks at `PreToolUse` support only `allow` or `deny` without an interactive modal. Jev therefore maps conditional reviews to a clean denial with actionable reasoning, which can be retried or authorized via `jev authorize`.
 
 ## 8. Enable Antigravity
 
