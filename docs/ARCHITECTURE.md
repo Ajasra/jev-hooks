@@ -1,22 +1,36 @@
-# Jev Shared Runtime: Architecture Specification
+# Jev Machine-Native Semantic Control: Architecture Specification
 
-> **Audience**: hook authors, systems architects, and contributors
->
-> **Status**: implemented
->
-> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Audience**: Hook authors, systems architects, and framework contributors  
+> **Status**: Production Standard (Unified Shared Runtime)  
+> **Harnesses**: Google Antigravity 2.0 and OpenAI Codex  
+> **Related Protocol**: [System One Balance Protocol](../.agents/protocols/system-one-balance-protocol.md)  
 
-## 1. Problem
+---
 
-The original hook scripts mixed Antigravity event decoding, semantic policy, HTTP requests, filesystem paths, and SQLite access. Adding another harness at that layer would duplicate every feature and allow behavior to drift.
+## 1. Problem: The System Two Cognitive Bottleneck & Harness Divergence
 
-## 2. Inspiration
+Autonomous coding agents empower generative foundation models (Gemini, Claude, GPT) with direct local execution privileges. However, delegating every micro-decision to heavy, autoregressive **System Two** models causes systematic failure modes:
+1. **Severe Token Tax**: Advertising 50+ domain skills in prompts consumes 5,000–25,000 tokens on *every turn*.
+2. **Fragile Safety Boundaries**: Autoregressive models lack deterministic safety guarantees, risking accidental destructive commands (`rmdir /s`, `git reset --hard`).
+3. **Turn-1 Latency & Amnesia**: Multi-turn sequential grep/status discovery burns 3–5 turns before code synthesis begins.
+4. **API & Citation Hallucinations**: Plausible but invented API signatures trigger costly debugging loops.
+5. **Harness Policy Drift**: Maintaining independent hook implementations across different agent harnesses (Antigravity, Codex) allows security policies, skill rankings, and verification rules to diverge.
 
-Ports and adapters provide the useful boundary: harness protocols are ports; adapters normalize events; shared feature handlers own behavior. A registry connects portable lifecycle events and callable tools to those handlers.
+## 2. Inspiration: Biological Reflex Arcs & Microkernel Ports-and-Adapters
 
-## 3. Solution
+In human cognition, routine survival checks and micro-actions do not consult conscious deliberation; fast subconscious **reflex arcs** execute in milliseconds. In operating systems, lightweight **eBPF probes** validate privileges at hardware speeds before waking up heavy userspace processes.
 
-The package under `src/jev` is the implementation. `.agents/hooks` contains transition entry points and Antigravity registration. `.codex/hooks.json` invokes the installed package. Both paths reach the same runtime, feature registry, storage service, and TypeSafe client.
+Architecturally, Jev translates this reflex layer into a clean **ports-and-adapters pattern**:
+- **System Division of Labor**: Deterministic code enforces authoritative safety, Jev handles fast semantic micro-decisions (sub-120ms), and generative foundation models focus purely on high-level reasoning and synthesis.
+- **Harness Portability**: Harness protocols act as external ports; thin adapters normalize events into an immutable contract; shared core modules own all decisions, scoring, and persistence.
+
+## 3. Solution: Shared Runtime & Typed Primitive Core
+
+The shared runtime under `src/jev/` is the single authoritative implementation:
+* **Typed System One Primitives**: Non-autoregressive `Noul` (calibrated probability), `Choice` (finite categorical selection), and `Score` (ordered rubric evaluation) with guaranteed zero schema errors.
+* **Unified Lifecycle Hook Registry**: One `FeatureSpec` registration connects portable lifecycle events (`PreInvocation`, `PreToolUse`, `Session GC`) to core handlers (`safety`, `skills`, `speculative`, `knowledge`, `verification`).
+* **Shared Tooling & Transports**: Callable tools (`verify_output`, `semantic_lint`, `knowledge_learn`) registered once in `registry.py` and exposed via MCP across both harnesses.
+* **Harness-Scoped Audit Persistence**: A single SQLite database (`jev.sqlite3`) with partitioned `antigravity_events` and `codex_events` views.
 
 ## 4. Concrete Flow
 

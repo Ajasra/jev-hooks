@@ -1,106 +1,119 @@
-# Jev Shared Harness Runtime
+# Jev: System One Semantic Control for AI Coding Harnesses
 
 [![System One](https://img.shields.io/badge/Architecture-System%20One%20Semantic%20Control-blue.svg)](https://docs.typesafe.ai)
-[![Harnesses](https://img.shields.io/badge/Harnesses-Antigravity%20%7C%20Codex-orange.svg)](./proposals/RFC-24_CORE_shared_harness_runtime.md)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](./pyproject.toml)
-[![Tests](https://img.shields.io/badge/Offline-passing-brightgreen.svg)](./tests/test_shared_runtime.py)
+[![Harnesses](https://img.shields.io/badge/Harnesses-Google%20Antigravity%20%7C%20OpenAI%20Codex-orange.svg)](./proposals/RFC-24_CORE_shared_harness_runtime.md)
+[![OpenRouter](https://img.shields.io/badge/Provider-OpenRouter%20%7C%20TypeSafe-purple.svg)](https://openrouter.ai/~typesafe/jev-latest)
+[![P95 Latency](https://img.shields.io/badge/P95%20Latency-%3C120ms-brightgreen.svg)](https://docs.typesafe.ai)
+[![Zero Pip Dependencies](https://img.shields.io/badge/Dependencies-Zero%20Pip%20Core-success.svg)](https://python.org)
 
-**One Jev implementation for Google Antigravity and OpenAI Codex.** Shared feature logic handles safety, skill routing, repository context, knowledge retrieval, semantic linting, persistence, and callable tools. Thin adapters translate each harness protocol.
+**Machine-native System One semantic control layer for Google Antigravity and OpenAI Codex.** Provides sub-120ms dynamic skill dispatch, autonomous execution safety guardrails, speculative diff prefetching, universal output verification, and verbatim context compaction powered by **TypeSafe AI's Jev model**.
 
 ---
 
-## 1. Problem
+## 1. Problem: The System Two Cognitive Bottleneck
 
-Maintaining separate hook implementations causes policy drift. A safety fix may reach one harness first, duplicated skill routers may rank differently, and shared logs cannot identify their source.
+Autonomous coding agents grant generative models (Gemini, Claude, GPT) direct local execution privileges. However, delegating routine micro-decisions exclusively to heavy, autoregressive **System Two** models causes severe friction:
+1. **Prompt Bloat & Token Waste**: Advertising 50+ domain skills in prompts burns 5,000–25,000 tokens on *every single turn*.
+2. **Accidental Destruction**: Models occasionally emit dangerous commands (`rmdir /s`, `git reset --hard`) without an authoritative deterministic barrier.
+3. **Turn-1 Latency & Amnesia**: Exploratory file grep and status discovery waste 3–5 turns before real coding begins.
+4. **Hallucinated Interfaces**: Models invent plausible but nonexistent API signatures and parameters, triggering costly debugging loops.
 
-## 2. Inspiration
+---
 
-Jev follows a ports-and-adapters design. Features consume one internal event contract. Harness adapters decode native input and encode native output while the core owns every decision.
+## 2. Inspiration: Biological Reflex Arcs & Microkernel Probes
 
-## 3. Solution
+In human biology and modern operating systems, high-frequency survival checks do not consult conscious deliberation. Sub-conscious **reflex arcs** and **eBPF probes** execute at hardware speeds in milliseconds.
 
-The shared runtime provides:
+Translating this division of labor to AI harnesses: **Deterministic code enforces safety, Jev handles fast semantic micro-decisions, and primary foundation models focus purely on deep reasoning and code synthesis.**
 
-- One typed feature registry for both harnesses.
-- Deterministic safety invariants followed by optional Jev judgments.
-- Canonical skills under `.agents/skills`.
-- One SQLite database with `codex_events` and `antigravity_events` views.
-- Configurable data, skill, knowledge, and cache roots.
-- Optional MCP tools backed by the same core services.
-- KI-style semantic lint rules with versioned SQLite decisions and feedback.
+---
 
-## 4. Concrete Example
+## 3. Solution: TypeSafe Jev System One Primitives
 
-`git reset --hard` reaches the same safety handler from either harness. The result is always `deny`; Antigravity receives its native decision JSON and Codex receives `permissionDecision: deny`. The audit record retains the originating harness.
+**Jev** is TypeSafe AI's non-autoregressive decision model:
+* **Sub-120ms P95 Latency**: Evaluates parallel questions against application state in **70ms–120ms** (190x faster than LLMs).
+* **Extreme Efficiency**: **$0.042 / 1M input tokens** with **free unmetered outputs** (440x cheaper than LLMs).
+* **Guaranteed Typing**: Zero schema validation failures across native `Choice`, `Score`, and `Noul` primitives.
+* **Unified Dual-Harness Runtime**: One shared Python implementation ([`src/jev/`](src/jev/)) powers **both Google Antigravity and OpenAI Codex** ([RFC-24](proposals/RFC-24_CORE_shared_harness_runtime.md)) with zero policy drift.
 
-## 5. Quick Start
+---
 
-Install the shared package and its MCP transport from the repository root:
+## 4. Visual Production Proof
 
+### PreToolUse Safety Gate (Intercepting Destructive Actions)
+When an agent attempts `cmd /c rmdir /s /q benchmarks\tests`, Jev evaluates blast radius in ~80ms, halting execution and rendering an interactive confirmation modal:
+
+![Jev Safety Gate Intercept Modal](./proposals/assets/jev_safety_gate_intercept_modal.png)
+
+### PreInvocation Speculative Pre-Flight (Eliminating Turn-1 Roundtrips)
+Before primary reasoning starts, Jev speculatively evaluates context and auto-prefetches git diffs or pytest diagnostics into Turn 1:
+
+![Jev Speculative Pre-Flight Badge](./proposals/assets/jev_speculative_preflight_badge.png)
+
+```text
+> **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.77) in 266ms).
+```
+
+### PreInvocation Dynamic Skill Routing (Zero Prompt Bloat)
+Jev evaluates user requests in ~95ms, selectively mounting matching canonical skills from [`.agents/skills/`](.agents/skills/) without advertising unused skills:
+
+```text
+> **Activated Skill**: `app-security`
+```
+
+---
+
+## 5. Quick Start (60 Seconds)
+
+### Step 1: Install Package & Configure API Key
 ```cmd
 cmd /c python -m pip install --user -e ".[mcp]"
+cmd /c setx OPENROUTER_API_KEY "sk-or-v1-your_openrouter_api_key_here"
 ```
 
-Set either provider key in your environment:
-
-```cmd
-cmd /c setx TYPESAFE_API_KEY "your-key"
-```
-
-Run diagnostics and offline tests:
-
+### Step 2: Verify Diagnostics & Offline Tests
 ```cmd
 cmd /c python -m jev doctor --cwd .
 cmd /c python -m pytest -q
 ```
 
-Codex reads [`.codex/hooks.json`](.codex/hooks.json) and [`.codex/config.toml`](.codex/config.toml). Restart Codex after the editable install so `python -m jev` is available to its hook and MCP processes. See the [User Guide](docs/USER_GUIDE.md#12-new-machine-and-global-codex-setup) for user-wide setup.
+### Step 3: Connect to Your Agent Harness
+* **Google Antigravity**: Link canonical hooks and skills into global user configuration:
+  ```cmd
+  cmd /c mklink /J "%USERPROFILE%\.gemini\config\hooks" "%CD%\.agents\hooks"
+  cmd /c mklink /J "%USERPROFILE%\.gemini\config\skills" "%CD%\.agents\skills"
+  cmd /c mklink "%USERPROFILE%\.gemini\config\hooks.json" "%CD%\.agents\hooks.json"
+  ```
+  Reload window (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $\rightarrow$ **`Developer: Reload Window`**).
+* **OpenAI Codex**: Configured via repository [`.codex/hooks.json`](.codex/hooks.json) and [`.codex/config.toml`](.codex/config.toml).
 
-For Antigravity, link the canonical hook directory and registration:
+---
 
-```cmd
-cmd /c mklink /J "%USERPROFILE%\.gemini\config\hooks" "%CD%\.agents\hooks"
-cmd /c mklink /J "%USERPROFILE%\.gemini\config\skills" "%CD%\.agents\skills"
-cmd /c mklink "%USERPROFILE%\.gemini\config\hooks.json" "%CD%\.agents\hooks.json"
-```
+## 6. Machine-Native Lifecycle Capabilities
 
-## 6. Architecture
+| Capability | Lifecycle Phase | Latency | Core Responsibility | Deep Spec |
+| :--- | :---: | :---: | :--- | :---: |
+| **Safety Gate** | `PreToolUse` | ~0–80ms | Invariant Shield + Jev blast radius; renders IDE modal or Codex deny. | [RFC-04](proposals/RFC-04_CORE_safety_and_tool_guardrail.md) |
+| **Speculative Arbiter** | `PreInvocation` | ~220ms | Parallel batch: prefetches git diffs / test logs; recency ambiguity triage. | [RFC-21](proposals/RFC-21_EXT_speculative_fan_out.md) |
+| **Dynamic Skill Router** | `PreInvocation` | ~95ms | Progressive disclosure: injects full body ($\ge 0.80$) or lightweight hint. | [RFC-02](proposals/RFC-02_CORE_dynamic_skill_dispatcher.md) |
+| **Knowledge Engine** | `PreInvocation` | ~70ms | Sub-70ms relevance scoring with Turn-1 auto-mounting of repository KIs. | [RFC-03](proposals/RFC-03_CORE_knowledge_item_matcher.md) |
+| **Output Verifier** | `PreToolUse` / Tool | ~90ms | Sub-100ms API symbol & citation verification; catches hallucinated methods. | [RFC-07](proposals/RFC-07_USE_CASE_output_citation_verification.md) |
+| **Semantic Code Lint** | Tool / CLI | ~120ms | KI-style architectural rule evaluation over bounded git diffs. | [RFC-08](proposals/RFC-08_USE_CASE_semantic_code_linting.md) |
+| **Context Compactor** | Session GC | ~270ms | Verbatim GC: prunes stale logs to 300ch receipts; preserves 100% of code. | [RFC-01](proposals/RFC-01_CORE_verbatim_context_compactor.md) |
 
-```text
-Antigravity JSON ─┐
-                  ├─> adapter -> Event -> registry -> shared core -> Result -> adapter
-Codex hook JSON ──┘                         │
-                                           ├─ SQLite audit and rules
-                                           └─ TypeSafe/OpenRouter client
-```
+---
 
-| Component | Responsibility |
-| --- | --- |
-| [`contracts.py`](src/jev/contracts.py) | Harness-neutral events, operations, outcomes, and aggregation |
-| [`registry.py`](src/jev/registry.py) | Single hook and tool extension surface |
-| [`runtime.py`](src/jev/runtime.py) | Deadline-aware dispatch, decision replay, and logging |
-| [`core/`](src/jev/core/) | Safety, skills, context prefetch, knowledge, and checkpoint logic |
-| [`adapters/`](src/jev/adapters/) | Native Antigravity and Codex protocol translation |
-| [`storage.py`](src/jev/services/storage.py) | Harness-tagged SQLite state and atomic invocation claims |
-| [`semantic_lint.py`](src/jev/core/semantic_lint.py) | Bounded Git-diff evaluation against `.agents/lint-rules` |
+## 7. Documentation Hub
 
-## 7. Extending Jev
+* 📖 **[User Guide & Operational Manual](docs/USER_GUIDE.md)**: Onboarding, interactive modals, CLI auditing, and dual-harness setup.
+* 🛠️ **[Architecture & Technical Specification](docs/ARCHITECTURE.md)**: Ports-and-adapters design, IPC schemas, SQLite database structures, and latency budgets.
+* 📋 **[Master Proposals & RFC Index (25 Specs)](proposals/README.md)**: Unified technical specifications and blueprints (`RFC-01` to `RFC-25`).
+* 📜 **[System One Balance Protocol](.agents/protocols/system-one-balance-protocol.md)**: Anti-bureaucracy guidelines keeping semantic micro-decisions fast and non-blocking.
 
-- Add a hook feature by writing one shared handler and adding one `FeatureSpec`.
-- Add a callable tool by writing one handler and adding one `ToolSpec`; the MCP transport registers it automatically.
-- Add a skill once under `.agents/skills/<name>/SKILL.md`.
-- Add a semantic lint rule under `.agents/lint-rules/<rule-id>/`; start it in `observe` mode and promote it from reviewed evidence.
+---
 
-Adapters change only when a harness adds a new native lifecycle capability.
+## License & Attribution
 
-## 8. Documentation
-
-- [User Guide](docs/USER_GUIDE.md)
-- [Architecture Specification](docs/ARCHITECTURE.md)
-- [RFC-24: Shared Harness Runtime](proposals/RFC-24_CORE_shared_harness_runtime.md)
-- [RFC-08: Semantic Code Linting](proposals/RFC-08_USE_CASE_semantic_code_linting.md)
-- [RFC Index](proposals/README.md)
-
-## License
-
-Jev is released under the MIT License and developed by [TypeSafe AI](https://docs.typesafe.ai).
+* Released under the [MIT License](LICENSE).
+* **Jev** is a proprietary System One foundation model developed by **TypeSafe AI** ([docs.typesafe.ai](https://docs.typesafe.ai)).
+* **Google Antigravity** & **OpenAI Codex** are supported agentic coding harnesses.
