@@ -38,11 +38,13 @@ flowchart TD
     Jev --> Decision["High-Confidence Decision (P > 0.85)<br/>Exact skill / bounded blast radius / targeted prefetch"]
 ```
 
-### Local Myopia and the 3 Horizons of Intent
+---
 
-This strikes at the central failure mode of agentic AI systems: **local myopia** (also called tactical fixation).
+## 2. Teleological Context: Steering by Compass, Not Dashboard
 
-When an agent or hook evaluates state based only on the immediate user turn ($T$), it falls into the trap of steering by the dashboard instead of the compass. For example, when asked to update documentation for dual-harness support, an agent without a preserved North Star Goal could easily treat that tactical task as the overall project objective, losing sight of the core purpose: building a fast, deterministic, calibrated Jev System One helper.
+A critical blind spot in agentic AI systems is **local myopia** (tactical fixation).
+
+When an agent or hook evaluates state based only on the immediate user turn ($T$), it falls into the trap of steering by the dashboard instead of the compass. For example, when asked to update documentation for dual-harness support, an agent without a preserved North Star Goal can easily treat that tactical task as the overall project objective, losing sight of the core purpose: building a fast, deterministic, calibrated Jev System One helper.
 
 To prevent getting lost in immediate steps, the context sent to Jev and downstream agents must represent **Three Horizons of Intent**:
 
@@ -61,7 +63,7 @@ flowchart TD
 
 ---
 
-## 2. Division of Labor: Reflexes vs. Deliberation
+## 3. Division of Labor: Reflexes vs. Deliberation
 
 Human physiology does not route high-frequency survival decisions through conscious reasoning. If you touch a scalding pan, a spinal reflex arc pulls your hand back in milliseconds. Conscious deliberation only begins seconds later.
 
@@ -79,14 +81,11 @@ flowchart LR
 
 ---
 
-## 3. Non-Autoregressive Determinism
+## 4. Non-Autoregressive Determinism
 
-Standard LLMs generate text token by token. Because every token depends probabilistically on the last, autoregressive generation creates systematic defects:
-- Schema parsing failures (broken JSON syntax).
-- Hallucinated enumeration keys.
-- Unpredictable latency variance (2 to 10 seconds).
+Standard LLMs generate text token by token. Because every token depends probabilistically on the last, autoregressive generation creates systematic defects: schema parsing failures (broken JSON syntax), hallucinated enumeration keys, and unpredictable latency spikes.
 
-**Jev** is non-autoregressive. Instead of predicting the next token, it calculates direct mathematical distributions over application state:
+Rather than asking an LLM to generate unstructured text and hoping the output parses into valid JSON, TypeSafe models compute structured decisions directly over application state using native mathematical primitives:
 - **`Noul`**: A calibrated scalar probability ($0.0$ to $1.0$).
 - **`Choice`**: Categorical selection across finite candidate sets ($\le 255$ options) with normalized logit distributions.
 - **`Score`**: Ordered rubric grading across calibrated levels.
@@ -95,7 +94,7 @@ Because outputs are structured mathematical matrices rather than generated prose
 
 ---
 
-## 4. Anti-Bureaucracy: Advice Must Not Paralyze
+## 5. Anti-Bureaucracy: Advice Must Not Paralyze
 
 A fatal trap in software safety is **confirmation fatigue**. When an agent wrapper halts on every file read or pops an interactive modal for routine commands, developers stop reading and reflexively click *"Allow All"*. At that point, safety is an illusion.
 
@@ -106,7 +105,7 @@ Jev enforces the **[System One Balance Protocol](../.agents/protocols/system-one
 
 ---
 
-## 5. Verbatim Preservation Over Lossy Summarization
+## 6. Verbatim Preservation Over Lossy Summarization
 
 When agent conversations exceed context limits, common harnesses call a generative model to "summarize" earlier turns. This introduces severe amnesia:
 - Exact line numbers in compiler errors disappear.
@@ -117,11 +116,11 @@ In Jev, context is treated as an immutable event stream ([RFC-01](../proposals/R
 
 ---
 
-## 6. Harness Portability: The Semantic Core is Independent
+## 7. Harness Portability: The Semantic Core is Independent
 
-Coding harnesses (Google Antigravity, OpenAI Codex, Claude Code, Cursor) will continue to evolve, introduce new hook formats, and alter transport protocols.
+IDEs and agent harnesses come and go—APIs change, hook payloads get reshuffled, and vendors introduce new formats. Your safety invariants, learned repository knowledge, and architectural lint rules should not be held hostage to a specific IDE.
 
-Jev treats harnesses strictly as **ports**:
+Jev treats harnesses strictly as **external ports**:
 - Native JSON messages are external inputs.
 - Thin adapters translate inputs into an immutable, harness-neutral contract ([RFC-24](../proposals/RFC-24_CORE_shared_harness_runtime.md)).
 - The semantic core (`src/jev/core/`), active learning databases, and safety rules remain **completely unified and portable**.
