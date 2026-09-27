@@ -52,10 +52,14 @@ Jev inspects user intent in ~95ms, mounting matching skills from [`.agents/skill
 
 ## 3. Quick Start (60 Seconds)
 
-### Step 1: Install Package & Set OpenRouter Key
+### Step 1: Install Package & Configure `.env`
 ```cmd
 cmd /c python -m pip install --user -e ".[mcp]"
-cmd /c setx OPENROUTER_API_KEY "sk-or-v1-your_openrouter_api_key_here"
+cmd /c copy .agents\.env.example .agents\.env
+```
+Add your OpenRouter key to `.agents/.env`:
+```ini
+OPENROUTER_API_KEY=sk-or-v1-your_openrouter_api_key_here
 ```
 
 ### Step 2: Run Diagnostics & Offline Suite

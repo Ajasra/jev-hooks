@@ -6,7 +6,28 @@ import json
 import os
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Mapping, Protocol
+
+
+def _load_env_defaults() -> None:
+    candidates = [
+        Path(".agents/.env"),
+        Path(".env"),
+        Path.home() / ".gemini" / "config" / ".env",
+    ]
+    for p in candidates:
+        if p.is_file():
+            try:
+                for line in p.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k, v = k.strip(), v.strip().strip("'\"")
+                        if k and k not in os.environ:
+                            os.environ[k] = v
+            except OSError:
+                pass
 
 
 class DecisionClient(Protocol):
@@ -21,6 +42,7 @@ class HttpDecisionClient:
 
     @classmethod
     def from_environment(cls) -> "HttpDecisionClient | None":
+        _load_env_defaults()
         typesafe_key = os.environ.get("TYPESAFE_API_KEY", "").strip()
         openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
         key = openrouter_key or typesafe_key
