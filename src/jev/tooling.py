@@ -52,6 +52,14 @@ def semantic_lint_stats(settings: Settings, rule_id: str | None = None) -> dict:
     return Storage(settings.db_path).semantic_lint_stats(rule_id)
 
 
+def verify_output(settings: Settings, code_snippet: str, reference_context: str) -> dict:
+    """Verify proposed code or citations against reference documentation."""
+    from jev.core.verification import evaluate_verification
+    from jev.services.client import HttpDecisionClient
+    client = HttpDecisionClient.from_environment()
+    return evaluate_verification(code_snippet, reference_context, client, timeout=settings.semantic_timeout_seconds)
+
+
 HANDLERS = {
     "knowledge_search": knowledge_search,
     "knowledge_learn": knowledge_learn,
@@ -60,4 +68,5 @@ HANDLERS = {
     "semantic_lint": semantic_lint,
     "semantic_lint_feedback": semantic_lint_feedback,
     "semantic_lint_stats": semantic_lint_stats,
+    "verify_output": verify_output,
 }

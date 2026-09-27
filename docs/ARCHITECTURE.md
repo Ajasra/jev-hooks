@@ -56,6 +56,7 @@ src/jev/
     knowledge.py
     compaction.py
     semantic_lint.py
+    verification.py
   adapters/
     antigravity.py
     codex.py
@@ -96,6 +97,7 @@ The registry contains portable features. An adapter may expose a feature only wh
 | `knowledge` | `PreInvocation` | `SessionStart` and `UserPromptSubmit` | `core/knowledge.py` |
 | `compaction` | Explicit sidecar invocation | Explicit sidecar invocation | `core/compaction.py` |
 | `semantic_lint` | MCP/CLI result requests a user decision without a tool lockout | MCP/CLI result warns the user without denying tools | `core/semantic_lint.py` |
+| `verification` | `PreToolUse` advisory context for file mutation tools; `verify_output` tool | `PreToolUse` `additionalContext` for `apply_patch`; `verify_output` tool | `core/verification.py` |
 | MCP tools | Optional stdio MCP registration | `.codex/config.toml` or user `config.toml` | `tooling.py` and `transports/mcp.py` |
 
 The Codex adapter encodes `Outcome.NEEDS_CONFIRMATION` as a denial because Codex hooks support allow and deny at this boundary, not an interactive approval request. In contrast, the Antigravity adapter maps `NEEDS_CONFIRMATION` to `"decision": "force_ask"`, prompting the user directly in the IDE.

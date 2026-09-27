@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 from jev.contracts import Event, EventKind, Harness, Operation, Outcome, Result, merge_results
-from jev.core import knowledge, safety, skills, speculative
+from jev.core import knowledge, safety, skills, speculative, verification
 from jev.registry import FEATURES
 from jev.services.client import DecisionClient, HttpDecisionClient
 from jev.services.paths import Settings
@@ -34,6 +34,17 @@ class Runtime:
                 continue
             if spec.handler_name == "safety":
                 results.append(self._safety(event, operation))
+            elif spec.handler_name == "verification":
+                v_res = verification.evaluate_operation(
+                    operation,
+                    event,
+                    self.settings,
+                    self.client,
+                    self.storage,
+                    self._remaining(event),
+                )
+                if v_res is not None:
+                    results.append(v_res)
             elif spec.handler_name == "speculative":
                 results.append(speculative.evaluate(
                     str(event.payload.get("prompt", "")),

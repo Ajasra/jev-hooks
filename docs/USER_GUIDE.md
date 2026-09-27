@@ -33,6 +33,7 @@ The core implementation is shared. Each harness contributes only event translati
 | Skill selection | Full body or soft-hint injection | Catalog ranking without body injection; Codex retains native skill discovery | `core/skills.py` reads `.agents/skills`. |
 | Knowledge retrieval | Advisory context at pre-invocation | Advisory context at session and prompt boundaries | `core/knowledge.py` reads `.agents/knowledge`. |
 | Semantic lint | Structured `prompt_user` finding; Antigravity decides how to render the prompt | Structured `warn_user` finding; never denies tools | `core/semantic_lint.py` reads `.agents/lint-rules` and records reviewed decisions. |
+| Output verification | `PreToolUse` advisory warning; `verify_output` tool | `PreToolUse` `additionalContext` warning; `verify_output` tool | `core/verification.py`; non-blocking API symbol and citation verification (RFC-07). |
 | Callable tools | Configure the Jev stdio MCP server when the harness supports MCP | Registered through Codex MCP configuration | `tooling.py`, `registry.py`, and `transports/mcp.py`. |
 | Audit and rules | `antigravity_events` view | `codex_events` view | One `jev.sqlite3` database with a harness field. |
 | Transcript compaction | Explicit sidecar checkpoint | Explicit sidecar checkpoint | `core/compaction.py`; it does not rewrite either harness transcript. |
@@ -160,7 +161,17 @@ cmd /c python -m pip install --user -e ".[mcp]"
 cmd /c python -m jev mcp --cwd . --harness codex
 ```
 
-Codex reads the repository [`.codex/config.toml`](../.codex/config.toml) and launches this server for trusted projects. Antigravity registers `python -m jev mcp --cwd . --harness antigravity`. Harness identity comes from the trusted launch command rather than a model argument. The additional tools are `semantic_lint`, `semantic_lint_feedback`, and `semantic_lint_stats`.
+Codex reads the repository [`.codex/config.toml`](../.codex/config.toml) and launches this server for trusted projects. Antigravity registers `python -m jev mcp --cwd . --harness antigravity`. Harness identity comes from the trusted launch command rather than a model argument. The additional tools are `semantic_lint`, `semantic_lint_feedback`, `semantic_lint_stats`, and `verify_output`.
+
+### Output & Citation Verification (RFC-07)
+
+Jev automatically intercepts file mutation operations (`replace_file_content` / `write_to_file` in Antigravity, and `apply_patch` in Codex) to verify proposed API calls and symbol usage against local file context and Knowledge Items. When an agent proposes calling an unexported method or contradicts documented APIs, Jev injects an advisory warning into context without blocking execution:
+
+```cmd
+cmd /c python -m jev verify --code "client.get_token()" --reference "API Reference: client.get_token() retrieves current token."
+```
+
+In Antigravity, advisories appear as prompt context. In Codex, advisories appear in `hookSpecificOutput.additionalContext`. Agents can also proactively call the `verify_output` MCP tool before writing large code changes.
 
 ## 12. New-machine and global Codex setup
 

@@ -104,6 +104,8 @@ class AntigravityAdapter(Adapter):
                 if cleaned and cleaned != cmd:
                     overrides.append(f"command({cleaned})")
                 output["permissionOverrides"] = overrides
+            if context:
+                output["additionalContext"] = context
             return output
         return {"injectSteps": [{"ephemeralMessage": context}]} if context else {}
 

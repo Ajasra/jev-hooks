@@ -144,7 +144,7 @@ def test_registry_is_shared_extension_surface():
     assert {feature.id for feature in FEATURES} >= {"safety", "skills", "knowledge", "speculative"}
     assert {tool.name for tool in TOOLS} == {
         "knowledge_search", "knowledge_learn", "skills_list", "diagnostics_status",
-        "semantic_lint", "semantic_lint_feedback", "semantic_lint_stats",
+        "semantic_lint", "semantic_lint_feedback", "semantic_lint_stats", "verify_output",
     }
 
 

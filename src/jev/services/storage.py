@@ -15,7 +15,7 @@ from typing import Any
 
 from jev.contracts import Event, Outcome, Result
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 SECRET_PATTERN = re.compile(
     r"(?i)(api[_-]?key|authorization|token|password|secret)(\s*[:=]\s*)([^\s,;]+)"
 )
@@ -171,6 +171,22 @@ class Storage:
                     source TEXT NOT NULL DEFAULT 'user',
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS verification_decisions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id TEXT NOT NULL,
+                    session_id TEXT NOT NULL,
+                    harness TEXT NOT NULL,
+                    target_path TEXT NOT NULL DEFAULT '',
+                    code_snippet TEXT NOT NULL DEFAULT '',
+                    method_supported REAL NOT NULL DEFAULT 0.5,
+                    arguments_match REAL NOT NULL DEFAULT 0.5,
+                    support_level TEXT NOT NULL DEFAULT 'extrapolated',
+                    advisory_emitted INTEGER NOT NULL DEFAULT 0,
+                    duration_ms REAL NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS verification_session_time
+                    ON verification_decisions(session_id, created_at);
                 CREATE VIEW IF NOT EXISTS codex_events AS
                     SELECT * FROM events WHERE harness = 'codex';
                 CREATE VIEW IF NOT EXISTS antigravity_events AS
@@ -183,7 +199,11 @@ class Storage:
             )
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
-                (SCHEMA_VERSION, "semantic-lint-v2"),
+                (2, "semantic-lint-v2"),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
+                (SCHEMA_VERSION, "verification-v3"),
             )
 
     def record_semantic_lint_decision(self, decision: dict[str, Any]) -> int:
@@ -203,6 +223,30 @@ class Storage:
                 )),
             )
             return int(cursor.lastrowid)
+
+    def record_verification_decision(self, decision: Mapping[str, Any]) -> int:
+        self.initialize()
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """INSERT INTO verification_decisions(
+                    event_id, session_id, harness, target_path, code_snippet,
+                    method_supported, arguments_match, support_level,
+                    advisory_emitted, duration_ms
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    str(decision.get("event_id", "")),
+                    str(decision.get("session_id", "")),
+                    str(decision.get("harness", "")),
+                    str(decision.get("target_path", "")),
+                    str(decision.get("code_snippet", "")),
+                    float(decision.get("method_supported", 0.5)),
+                    float(decision.get("arguments_match", 0.5)),
+                    str(decision.get("support_level", "extrapolated")),
+                    int(decision.get("advisory_emitted", 0)),
+                    float(decision.get("duration_ms", 0.0)),
+                ),
+            )
+            return int(cursor.lastrowid or 0)
 
     def record_semantic_lint_feedback(self, decision_id: int, label: str, reason: str = "") -> None:
         allowed = {"confirmed_violation", "false_positive", "missed_violation", "acceptable_exception", "rule_unclear", "fixed", "dismissed"}

@@ -121,6 +121,10 @@ def build_parser() -> argparse.ArgumentParser:
     lint_stats = sub.add_parser("lint-stats")
     lint_stats.add_argument("--rule")
     lint_stats.add_argument("--cwd", default=".")
+    verify_p = sub.add_parser("verify", help="Verify proposed code or citation against reference docs.")
+    verify_p.add_argument("--code", required=True, help="Proposed code snippet or claim to verify.")
+    verify_p.add_argument("--reference", required=True, help="Reference context, documentation, or types.")
+    verify_p.add_argument("--cwd", default=".")
     return parser
 
 
@@ -183,6 +187,11 @@ def main(argv: list[str] | None = None) -> int:
         from jev.tooling import semantic_lint_stats
         print(json.dumps(semantic_lint_stats(settings, args.rule), indent=2))
         return 0
+    if args.command == "verify":
+        from jev.tooling import verify_output
+        output = verify_output(settings, args.code, args.reference)
+        print(json.dumps(output, indent=2))
+        return 0 if output.get("verified", True) else 1
     return 2
 
 

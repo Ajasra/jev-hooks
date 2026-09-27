@@ -45,7 +45,7 @@ Applying this division of labor to agent harnesses: **Deterministic code handles
 | **04** | **[`RFC-04: Safety & Tool Guardrail Gate`](RFC-04_CORE_safety_and_tool_guardrail.md)** | `CORE` | ✅ **Implemented** | [`core/safety.py`](../src/jev/core/safety.py) |
 | **05** | **[`RFC-05: Additional Industry Use Cases`](RFC-05_CATALOG_industry_use_cases.md)** | `CATALOG` | 📚 *Catalog* | Reference patterns for 10 enterprise domains |
 | **06** | **[`RFC-06: Intelligent Model Routing`](RFC-06_USE_CASE_model_routing.md)** | `USE_CASE` | 📐 *Blueprint* | Harness model tiering (Flash/Haiku vs Pro/Opus) |
-| **07** | **[`RFC-07: Output & Citation Verification`](RFC-07_USE_CASE_output_citation_verification.md)** | `USE_CASE` | 📐 *Blueprint* | `PreToolUse` AST & API signature verifier |
+| **07** | **[`RFC-07: Output & Citation Verification`](RFC-07_USE_CASE_output_citation_verification.md)** | `USE_CASE` | ✅ **Implemented** | [`core/verification.py`](../src/jev/core/verification.py) & [`tooling.py`](../src/jev/tooling.py) |
 | **08** | **[`RFC-08: Semantic Code Linting`](RFC-08_USE_CASE_semantic_code_linting.md)** | `USE_CASE` | ✅ **Implemented MVP** | KI-style rules, shared CLI/MCP evaluation, and decision feedback |
 | **09** | **[`RFC-09: SDE Cascades`](RFC-09_USE_CASE_sde_cascades.md)** | `USE_CASE` | 📐 *Blueprint* | Regex candidate extraction + Jev Choice selection |
 | **10** | **[`RFC-10: RAG Re-Ranking & Filtering`](RFC-10_USE_CASE_rag_reranking_filtering.md)** | `USE_CASE` | 📐 *Blueprint* | Parallel vector passage scoring pruning 85% distractor noise |
