@@ -82,25 +82,25 @@ cmd /c python -m pytest -q
 
 ## 4. Lifecycle Capabilities at a Glance
 
-| Capability | Lifecycle Phase | Latency | Core Responsibility | Deep Spec |
+| Capability | Lifecycle Phase | Latency | What It Does | Deep Spec |
 | :--- | :---: | :---: | :--- | :---: |
-| **Safety Gate** | `PreToolUse` | ~0–80ms | Invariant Shield + Jev blast radius; renders IDE modal or Codex deny. | [RFC-04](proposals/RFC-04_CORE_safety_and_tool_guardrail.md) |
-| **Speculative Arbiter** | `PreInvocation` | ~220ms | Parallel batch: prefetches git diffs / test logs into Turn 1. | [RFC-21](proposals/RFC-21_EXT_speculative_fan_out.md) |
-| **Dynamic Skill Router** | `PreInvocation` | ~95ms | Progressive disclosure: injects full body ($\ge 0.80$) or lightweight hint. | [RFC-02](proposals/RFC-02_CORE_dynamic_skill_dispatcher.md) |
-| **Knowledge Engine** | `PreInvocation` | ~70ms | Sub-70ms relevance scoring with Turn-1 auto-mounting of repository KIs. | [RFC-03](proposals/RFC-03_CORE_knowledge_item_matcher.md) |
-| **Output Verifier** | `PreToolUse` / Tool | ~90ms | Sub-100ms API symbol & citation verification; catches hallucinated methods. | [RFC-07](proposals/RFC-07_USE_CASE_output_citation_verification.md) |
-| **Semantic Code Lint** | Tool / CLI | ~120ms | Architectural rule evaluation over bounded git diffs. | [RFC-08](proposals/RFC-08_USE_CASE_semantic_code_linting.md) |
-| **Context Compactor** | Session GC | ~270ms | Verbatim GC: prunes stale logs to receipts; preserves 100% of code. | [RFC-01](proposals/RFC-01_CORE_verbatim_context_compactor.md) |
+| **Safety Gate** | `PreToolUse` | ~0–80ms | Intercepts dangerous shell commands and destructive file deletions before execution, opening a confirmation popup in your editor. | [RFC-04](proposals/RFC-04_CORE_safety_and_tool_guardrail.md) |
+| **Speculative Arbiter** | `PreInvocation` | ~220ms | Automatically inspects your recent git changes and broken test logs, attaching them to Turn 1 so the agent doesn't waste turns discovering state. | [RFC-21](proposals/RFC-21_EXT_speculative_fan_out.md) |
+| **Dynamic Skill Router** | `PreInvocation` | ~95ms | Mounts only the relevant project skills for the active task into the prompt, preventing thousands of unused skill tokens from bloating every turn. | [RFC-02](proposals/RFC-02_CORE_dynamic_skill_dispatcher.md) |
+| **Knowledge Engine** | `PreInvocation` | ~70ms | Finds and injects repository-specific conventions and past problem resolutions directly into the prompt when relevant. | [RFC-03](proposals/RFC-03_CORE_knowledge_item_matcher.md) |
+| **Output Verifier** | `PreToolUse` / Tool | ~90ms | Checks proposed code edits against your documentation and type signatures to catch hallucinated methods before changes are written. | [RFC-07](proposals/RFC-07_USE_CASE_output_citation_verification.md) |
+| **Semantic Code Lint** | Tool / CLI | ~120ms | Inspects staged diffs against architectural rules (such as layer boundaries and repository patterns) that traditional syntax linters miss. | [RFC-08](proposals/RFC-08_USE_CASE_semantic_code_linting.md) |
+| **Context Compactor** | Session GC | ~270ms | Truncates long terminal outputs and build logs into compact receipts when conversations grow long, preserving 100% of code edits verbatim. | [RFC-01](proposals/RFC-01_CORE_verbatim_context_compactor.md) |
 
 ---
 
 ## 5. Documentation Hub
 
-- 🧠 **[The Philosophy of Jev](docs/PHILOSOPHY.md)**: Meaning in context, the 4-layer Context Envelope, and non-autoregressive primitives.
-- 📖 **[User Guide & Operational Manual](docs/USER_GUIDE.md)**: Daily developer workflows, interactive IDE modals, and CLI rule management.
-- 🛠️ **[Architecture Specification](docs/ARCHITECTURE.md)**: Machine-native contracts, ports-and-adapters runtime, SQLite schemas, and latency budgets.
-- 📋 **[Master Proposals Index (26 Specs)](proposals/README.md)**: Unified architectural RFCs from `RFC-01` through `RFC-26`.
-- 📜 **[System One Balance Protocol](.agents/protocols/system-one-balance-protocol.md)**: Operational rules keeping semantic micro-decisions fast and non-blocking.
+- **[The Philosophy of Jev](docs/PHILOSOPHY.md)**: Meaning in context, the 4-layer Context Envelope, and non-autoregressive primitives.
+- **[User Guide & Operational Manual](docs/USER_GUIDE.md)**: Daily developer workflows, interactive IDE modals, and CLI rule management.
+- **[Architecture Specification](docs/ARCHITECTURE.md)**: Machine-native contracts, ports-and-adapters runtime, SQLite schemas, and latency budgets.
+- **[Master Proposals Index (26 Specs)](proposals/README.md)**: Unified architectural RFCs from `RFC-01` through `RFC-26`.
+- **[System One Balance Protocol](.agents/protocols/system-one-balance-protocol.md)**: Operational rules keeping semantic micro-decisions fast and non-blocking.
 
 ---
 
@@ -108,4 +108,3 @@ cmd /c python -m pytest -q
 
 - Released under the [MIT License](LICENSE).
 - **Jev** is a proprietary System One foundation model developed by **TypeSafe AI** ([docs.typesafe.ai](https://docs.typesafe.ai)).
-- **Google Antigravity** & **OpenAI Codex** are supported agentic coding harnesses.
