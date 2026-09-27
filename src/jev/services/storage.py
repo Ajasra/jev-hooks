@@ -8,14 +8,14 @@ import json
 import re
 import sqlite3
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from jev.contracts import Event, Outcome, Result
 
-
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SECRET_PATTERN = re.compile(
     r"(?i)(api[_-]?key|authorization|token|password|secret)(\s*[:=]\s*)([^\s,;]+)"
 )
@@ -141,6 +141,36 @@ class Storage:
                     content TEXT NOT NULL DEFAULT '',
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS semantic_lint_decisions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id TEXT NOT NULL,
+                    harness TEXT NOT NULL,
+                    workspace_id TEXT NOT NULL,
+                    rule_id TEXT NOT NULL,
+                    rule_version INTEGER NOT NULL,
+                    rule_digest TEXT NOT NULL,
+                    diff_digest TEXT NOT NULL,
+                    path TEXT NOT NULL,
+                    hunk_start INTEGER NOT NULL DEFAULT 0,
+                    hunk_end INTEGER NOT NULL DEFAULT 0,
+                    probability REAL NOT NULL,
+                    classification TEXT NOT NULL,
+                    mode TEXT NOT NULL,
+                    duration_ms REAL NOT NULL DEFAULT 0,
+                    redacted INTEGER NOT NULL DEFAULT 0,
+                    truncated INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS semantic_lint_rule_time
+                    ON semantic_lint_decisions(rule_id, rule_version, created_at);
+                CREATE TABLE IF NOT EXISTS semantic_lint_feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    decision_id INTEGER NOT NULL REFERENCES semantic_lint_decisions(id),
+                    label TEXT NOT NULL,
+                    reason TEXT NOT NULL DEFAULT '',
+                    source TEXT NOT NULL DEFAULT 'user',
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
                 CREATE VIEW IF NOT EXISTS codex_events AS
                     SELECT * FROM events WHERE harness = 'codex';
                 CREATE VIEW IF NOT EXISTS antigravity_events AS
@@ -149,8 +179,63 @@ class Storage:
             )
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
-                (SCHEMA_VERSION, "shared-harness-runtime-v1"),
+                (1, "shared-harness-runtime-v1"),
             )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
+                (SCHEMA_VERSION, "semantic-lint-v2"),
+            )
+
+    def record_semantic_lint_decision(self, decision: dict[str, Any]) -> int:
+        self.initialize()
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """INSERT INTO semantic_lint_decisions(
+                    event_id, harness, workspace_id, rule_id, rule_version, rule_digest,
+                    diff_digest, path, hunk_start, hunk_end, probability, classification,
+                    mode, duration_ms, redacted, truncated
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                tuple(decision[key] for key in (
+                    "event_id", "harness", "workspace_id", "rule_id", "rule_version",
+                    "rule_digest", "diff_digest", "path", "hunk_start", "hunk_end",
+                    "probability", "classification", "mode", "duration_ms", "redacted",
+                    "truncated",
+                )),
+            )
+            return int(cursor.lastrowid)
+
+    def record_semantic_lint_feedback(self, decision_id: int, label: str, reason: str = "") -> None:
+        allowed = {"confirmed_violation", "false_positive", "missed_violation", "acceptable_exception", "rule_unclear", "fixed", "dismissed"}
+        if label not in allowed:
+            raise ValueError(f"Unsupported semantic lint feedback label: {label}")
+        self.initialize()
+        with self.connect() as connection:
+            exists = connection.execute(
+                "SELECT 1 FROM semantic_lint_decisions WHERE id=?", (decision_id,)
+            ).fetchone()
+            if not exists:
+                raise ValueError(f"Unknown semantic lint decision: {decision_id}")
+            connection.execute(
+                "INSERT INTO semantic_lint_feedback(decision_id, label, reason) VALUES (?, ?, ?)",
+                (decision_id, label, redact(reason)),
+            )
+
+    def semantic_lint_stats(self, rule_id: str | None = None) -> dict[str, Any]:
+        self.initialize()
+        where = "WHERE d.rule_id=?" if rule_id else ""
+        params: tuple[Any, ...] = (rule_id,) if rule_id else ()
+        with self.connect() as connection:
+            rows = connection.execute(
+                f"""SELECT d.rule_id, d.rule_version, COUNT(DISTINCT d.id) evaluations,
+                    SUM(CASE WHEN f.label='confirmed_violation' THEN 1 ELSE 0 END) confirmed,
+                    SUM(CASE WHEN f.label='false_positive' THEN 1 ELSE 0 END) false_positives,
+                    SUM(CASE WHEN f.id IS NULL THEN 1 ELSE 0 END) unreviewed
+                    FROM semantic_lint_decisions d
+                    LEFT JOIN semantic_lint_feedback f ON f.decision_id=d.id
+                    {where} GROUP BY d.rule_id, d.rule_version ORDER BY d.rule_id, d.rule_version""",
+                params,
+            ).fetchall()
+            return {"rules": [dict(row) for row in rows]}
 
     def record_event(self, event: Event, result: Result) -> None:
         self.initialize()
@@ -390,9 +475,11 @@ class Storage:
     def backup_existing(source_path: Path, target: Path) -> None:
         """Back up an existing SQLite database without initializing or mutating it."""
         target.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(f"file:{source_path.resolve().as_posix()}?mode=ro", uri=True) as source:
-            with sqlite3.connect(str(target)) as destination:
-                source.backup(destination)
+        with (
+            sqlite3.connect(f"file:{source_path.resolve().as_posix()}?mode=ro", uri=True) as source,
+            sqlite3.connect(str(target)) as destination,
+        ):
+            source.backup(destination)
 
     def import_legacy(self, legacy_path: Path) -> int:
         """Import legacy rules as Antigravity-only records without widening scope."""

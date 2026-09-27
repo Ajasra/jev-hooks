@@ -1,9 +1,10 @@
 # RFC-25: Harness-Neutral Telemetry Module & Observability Pipeline
 
 > **Category**: CORE  
-> **Status**: Partially Implemented
+> **Status**: Partially Implemented — Postponed
 > **Target Lifecycle**: Harness Core / Post-Turn / Cross-Lifecycle  
 > **Scope**: Standardized telemetry collection, OpenTelemetry export, latency/cost profiling, and harness-scoped observability for Antigravity and Codex.
+> **Planning Decision**: The existing SQLite event statistics and CLI summary are sufficient for the current project stage. Do not select this RFC during implementation-candidate reviews unless the user explicitly reactivates telemetry work.
 
 ---
 
@@ -199,6 +200,8 @@ Safety Overrides:   3 confirmations requested, 0 hard denies
 ---
 
 ## 6. Implementation Rollout & Milestones
+
+> **Postponed**: Further telemetry spans, exporters, percentile reporting, and observability tooling are intentionally out of scope. Preserve the implemented event statistics and CLI commands; resume the remaining milestones only after an explicit project decision.
 
 1. **Phase 1: In-Memory Span Tracing & SQLite Sink** (Partially Implemented)
    - High-level telemetry aggregation added via `Storage.stats()` and event outcome tracking in `jev.sqlite3`.

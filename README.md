@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](./pyproject.toml)
 [![Tests](https://img.shields.io/badge/Offline-passing-brightgreen.svg)](./tests/test_shared_runtime.py)
 
-**One Jev implementation for Google Antigravity and OpenAI Codex.** Shared feature logic handles safety, skill routing, repository context, knowledge retrieval, persistence, and callable tools. Thin adapters translate each harness protocol.
+**One Jev implementation for Google Antigravity and OpenAI Codex.** Shared feature logic handles safety, skill routing, repository context, knowledge retrieval, semantic linting, persistence, and callable tools. Thin adapters translate each harness protocol.
 
 ---
 
@@ -27,6 +27,7 @@ The shared runtime provides:
 - One SQLite database with `codex_events` and `antigravity_events` views.
 - Configurable data, skill, knowledge, and cache roots.
 - Optional MCP tools backed by the same core services.
+- KI-style semantic lint rules with versioned SQLite decisions and feedback.
 
 ## 4. Concrete Example
 
@@ -81,12 +82,14 @@ Codex hook JSON ──┘                         │
 | [`core/`](src/jev/core/) | Safety, skills, context prefetch, knowledge, and checkpoint logic |
 | [`adapters/`](src/jev/adapters/) | Native Antigravity and Codex protocol translation |
 | [`storage.py`](src/jev/services/storage.py) | Harness-tagged SQLite state and atomic invocation claims |
+| [`semantic_lint.py`](src/jev/core/semantic_lint.py) | Bounded Git-diff evaluation against `.agents/lint-rules` |
 
 ## 7. Extending Jev
 
 - Add a hook feature by writing one shared handler and adding one `FeatureSpec`.
 - Add a callable tool by writing one handler and adding one `ToolSpec`; the MCP transport registers it automatically.
 - Add a skill once under `.agents/skills/<name>/SKILL.md`.
+- Add a semantic lint rule under `.agents/lint-rules/<rule-id>/`; start it in `observe` mode and promote it from reviewed evidence.
 
 Adapters change only when a harness adds a new native lifecycle capability.
 
@@ -95,8 +98,9 @@ Adapters change only when a harness adds a new native lifecycle capability.
 - [User Guide](docs/USER_GUIDE.md)
 - [Architecture Specification](docs/ARCHITECTURE.md)
 - [RFC-24: Shared Harness Runtime](proposals/RFC-24_CORE_shared_harness_runtime.md)
+- [RFC-08: Semantic Code Linting](proposals/RFC-08_USE_CASE_semantic_code_linting.md)
 - [RFC Index](proposals/README.md)
 
 ## License
 
-Released under the [MIT License](LICENSE). Jev is developed by [TypeSafe AI](https://docs.typesafe.ai).
+Jev is released under the MIT License and developed by [TypeSafe AI](https://docs.typesafe.ai).

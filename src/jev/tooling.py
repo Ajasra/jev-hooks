@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from jev.core import knowledge, skills
+from jev.core import semantic_lint as semantic_lint_core
 from jev.install.doctor import report
 from jev.services.paths import Settings
 
@@ -29,10 +30,34 @@ def diagnostics_status(settings: Settings) -> dict:
     return report(settings)
 
 
+def semantic_lint(settings: Settings, staged: bool = True, base_ref: str | None = None) -> dict:
+    from jev.services.client import HttpDecisionClient
+    from jev.services.storage import Storage
+    return semantic_lint_core.evaluate(
+        workspace=settings.workspace_root, roots=settings.lint_rule_roots,
+        storage=Storage(settings.db_path), client=HttpDecisionClient.from_environment(),
+        harness=settings.harness_identity, workspace_id=str(settings.workspace_root),
+        staged=staged, base_ref=base_ref, timeout=settings.semantic_timeout_seconds,
+    )
+
+
+def semantic_lint_feedback(settings: Settings, decision_id: int, label: str, reason: str = "") -> dict:
+    from jev.services.storage import Storage
+    Storage(settings.db_path).record_semantic_lint_feedback(decision_id, label, reason)
+    return {"success": True, "decision_id": decision_id, "label": label}
+
+
+def semantic_lint_stats(settings: Settings, rule_id: str | None = None) -> dict:
+    from jev.services.storage import Storage
+    return Storage(settings.db_path).semantic_lint_stats(rule_id)
+
+
 HANDLERS = {
     "knowledge_search": knowledge_search,
     "knowledge_learn": knowledge_learn,
     "skills_list": skills_list,
     "diagnostics_status": diagnostics_status,
+    "semantic_lint": semantic_lint,
+    "semantic_lint_feedback": semantic_lint_feedback,
+    "semantic_lint_stats": semantic_lint_stats,
 }
-

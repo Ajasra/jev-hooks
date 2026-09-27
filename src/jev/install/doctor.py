@@ -21,6 +21,8 @@ def report(settings: Settings) -> dict[str, Any]:
         "db_path": str(settings.db_path),
         "skill_roots": [str(path) for path in settings.skill_roots],
         "knowledge_roots": [str(path) for path in settings.knowledge_roots],
+        "lint_rule_roots": [str(path) for path in settings.lint_rule_roots],
+        "harness_identity": settings.harness_identity,
         "rejected_project_keys": list(settings.rejected_project_keys),
         "capabilities": capability_manifest(),
     }
@@ -28,4 +30,3 @@ def report(settings: Settings) -> dict[str, Any]:
 
 def format_report(settings: Settings) -> str:
     return json.dumps(report(settings), indent=2, sort_keys=True)
-

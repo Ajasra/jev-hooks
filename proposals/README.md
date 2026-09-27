@@ -3,7 +3,7 @@
 [![RFC Standards](https://img.shields.io/badge/Standard-RFC--01%20to%20RFC--25-purple.svg)](../.agents/protocols/documentation-standard-protocol.md)
 [![Status](https://img.shields.io/badge/Coverage-100%25%20Synchronized-brightgreen.svg)](./)
 
-This directory houses 25 technical architecture proposals, blueprints, case studies, and operational protocols for **TypeSafe AI Jev (System One)**. Existing work targets Google Antigravity; RFC-24 plans a shared runtime for Antigravity and OpenAI Codex; RFC-25 defines the shared telemetry and observability pipeline.
+This directory houses 25 technical architecture proposals, blueprints, case studies, and operational protocols for **TypeSafe AI Jev (System One)**. Existing work targets Google Antigravity; RFC-24 defines the shared runtime for Antigravity and OpenAI Codex. RFC-25 is partially implemented and postponed; exclude it from implementation-candidate reviews unless telemetry work is explicitly reactivated.
 
 All specifications follow the unified taxonomy defined in [`.agents/protocols/documentation-standard-protocol.md`](../.agents/protocols/documentation-standard-protocol.md).
 
@@ -46,7 +46,7 @@ Applying this division of labor to agent harnesses: **Deterministic code handles
 | **05** | **[`RFC-05: Additional Industry Use Cases`](RFC-05_CATALOG_industry_use_cases.md)** | `CATALOG` | 📚 *Catalog* | Reference patterns for 10 enterprise domains |
 | **06** | **[`RFC-06: Intelligent Model Routing`](RFC-06_USE_CASE_model_routing.md)** | `USE_CASE` | 📐 *Blueprint* | Harness model tiering (Flash/Haiku vs Pro/Opus) |
 | **07** | **[`RFC-07: Output & Citation Verification`](RFC-07_USE_CASE_output_citation_verification.md)** | `USE_CASE` | 📐 *Blueprint* | `PreToolUse` AST & API signature verifier |
-| **08** | **[`RFC-08: Semantic Code Linting`](RFC-08_USE_CASE_semantic_code_linting.md)** | `USE_CASE` | 📐 *Blueprint* | CI/CD git hook evaluating PR diffs against architectural rules |
+| **08** | **[`RFC-08: Semantic Code Linting`](RFC-08_USE_CASE_semantic_code_linting.md)** | `USE_CASE` | ✅ **Implemented MVP** | KI-style rules, shared CLI/MCP evaluation, and decision feedback |
 | **09** | **[`RFC-09: SDE Cascades`](RFC-09_USE_CASE_sde_cascades.md)** | `USE_CASE` | 📐 *Blueprint* | Regex candidate extraction + Jev Choice selection |
 | **10** | **[`RFC-10: RAG Re-Ranking & Filtering`](RFC-10_USE_CASE_rag_reranking_filtering.md)** | `USE_CASE` | 📐 *Blueprint* | Parallel vector passage scoring pruning 85% distractor noise |
 | **11** | **[`RFC-11: Line-by-Line Semantic Search`](RFC-11_USE_CASE_line_by_line_search.md)** | `USE_CASE` | 📐 *Blueprint* | Parallel line-level scoring for massive source files |
@@ -63,7 +63,7 @@ Applying this division of labor to agent harnesses: **Deterministic code handles
 | **22** | **[`RFC-22: OpenRouter Jev Setup Guide`](RFC-22_GUIDE_openrouter_setup.md)** | `GUIDE` | ✅ **Implemented** | [`services/client.py`](../src/jev/services/client.py) |
 | **23** | **[`RFC-23: Agent Balance & Anti-Bureaucracy`](RFC-23_PROTOCOL_system_one_balance.md)** | `PROTOCOL` | ✅ **Implemented** | [`.agents/protocols/system-one-balance-protocol.md`](../.agents/protocols/system-one-balance-protocol.md) |
 | **24** | **[`RFC-24: Shared Jev Runtime for Antigravity and Codex`](RFC-24_CORE_shared_harness_runtime.md)** | `CORE` | ✅ **Implemented** | Shared core, harness adapters, extension registry and harness-scoped database logs |
-| **25** | **[`RFC-25: Harness-Neutral Telemetry & Observability`](RFC-25_CORE_telemetry_and_observability.md)** | `CORE` | 🟡 **Partially Implemented** | Standardized stats aggregation, SQLite event metrics, CLI inspection, and inline harness telemetry tags |
+| **25** | **[`RFC-25: Harness-Neutral Telemetry & Observability`](RFC-25_CORE_telemetry_and_observability.md)** | `CORE` | ⏸️ **Partially Implemented — Postponed** | Existing stats remain supported; exclude from candidate analysis until explicitly reactivated |
 
 ---
 

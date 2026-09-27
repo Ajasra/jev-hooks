@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_ALLOWED = {
     "skill_roots",
     "knowledge_roots",
@@ -71,12 +70,14 @@ class Settings:
     db_path: Path
     skill_roots: tuple[Path, ...]
     knowledge_roots: tuple[Path, ...]
+    lint_rule_roots: tuple[Path, ...] = ()
+    harness_identity: str = ""
     context_budget: int = 12_000
     semantic_timeout_seconds: float = 0.25
     rejected_project_keys: tuple[str, ...] = ()
 
     @classmethod
-    def load(cls, cwd: str | Path | None = None) -> "Settings":
+    def load(cls, cwd: str | Path | None = None) -> Settings:
         workspace = find_workspace_root(cwd)
         package_root = Path(__file__).resolve().parents[3]
         config_root = _user_config_root().resolve()
@@ -98,6 +99,7 @@ class Settings:
             knowledge_value = os.environ["JEV_KNOWLEDGE_ROOTS"].split(os.pathsep)
         skill_roots = _resolve_list(skill_value, workspace)
         knowledge_roots = _resolve_list(knowledge_value, workspace)
+        lint_rule_roots = ((workspace / ".agents/lint-rules").resolve(),)
         context_budget = os.environ.get("JEV_CONTEXT_BUDGET", ordinary.get("context_budget", 12_000))
         semantic_timeout = os.environ.get(
             "JEV_SEMANTIC_TIMEOUT_SECONDS", ordinary.get("semantic_timeout_seconds", 0.25)
@@ -111,6 +113,8 @@ class Settings:
             db_path=db_path,
             skill_roots=skill_roots,
             knowledge_roots=knowledge_roots,
+            lint_rule_roots=lint_rule_roots,
+            harness_identity=str(os.environ.get("JEV_HARNESS_IDENTITY") or user.get("harness_identity") or ""),
             context_budget=max(0, int(context_budget)),
             semantic_timeout_seconds=max(0.05, float(semantic_timeout)),
             rejected_project_keys=rejected,

@@ -2,7 +2,7 @@
 
 [mcp_servers.jev]
 command = "python"
-args = ["-m", "jev", "mcp", "--cwd", "."]
+args = ["-m", "jev", "mcp", "--cwd", ".", "--harness", "codex"]
 cwd = "."
 startup_timeout_sec = 10
 tool_timeout_sec = 30

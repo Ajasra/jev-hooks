@@ -55,6 +55,7 @@ src/jev/
     speculative.py
     knowledge.py
     compaction.py
+    semantic_lint.py
   adapters/
     antigravity.py
     codex.py
@@ -94,6 +95,7 @@ The registry contains portable features. An adapter may expose a feature only wh
 | `skills` | `PreInvocation`, with progressive disclosure context | `UserPromptSubmit`, ranking and telemetry only | `core/skills.py` |
 | `knowledge` | `PreInvocation` | `SessionStart` and `UserPromptSubmit` | `core/knowledge.py` |
 | `compaction` | Explicit sidecar invocation | Explicit sidecar invocation | `core/compaction.py` |
+| `semantic_lint` | MCP/CLI result requests a user decision without a tool lockout | MCP/CLI result warns the user without denying tools | `core/semantic_lint.py` |
 | MCP tools | Optional stdio MCP registration | `.codex/config.toml` or user `config.toml` | `tooling.py` and `transports/mcp.py` |
 
 The Codex adapter encodes `Outcome.NEEDS_CONFIRMATION` as a denial because Codex hooks support allow and deny at this boundary, not an interactive approval request. In contrast, the Antigravity adapter maps `NEEDS_CONFIRMATION` to `"decision": "force_ask"`, prompting the user directly in the IDE.
@@ -154,6 +156,8 @@ Relative roots resolve against the configuration file. Containment uses resolved
 | `invocations` | Atomic claims and result replay |
 | `session_context` | Harness-isolated checkpoint state |
 | `feedback` | Feedback tied to an exact event |
+| `semantic_lint_decisions` | Versioned rule evaluations, diff identity, confidence, and harness presentation |
+| `semantic_lint_feedback` | Human outcomes tied to an exact semantic lint decision |
 
 Legacy imports use SQLite's backup API and mark imported rules `antigravity` with `legacy_antigravity` provenance.
 
@@ -184,6 +188,8 @@ To add a tool:
 2. Add one `ToolSpec` to `registry.py`.
 
 The MCP transport loops over the registry, so it requires no per-tool edit. A skill needs only one canonical `.agents/skills/<name>/SKILL.md` source.
+
+Semantic lint rules follow the knowledge-item layout under `.agents/lint-rules/<rule-id>/`. Git owns rule definitions and promotion state; SQLite owns evaluation evidence and feedback. `observe`, `advisory`, and `ci_enforced` modes prevent an uncalibrated new rule from immediately constraining work. Semantic findings never participate in lifecycle outcome aggregation and cannot deny tools.
 
 MCP is the shared tool transport. Codex exposes registered tools when its project or user configuration starts `python -m jev mcp`; Antigravity can expose the same tool catalog through its MCP registration. Tool handlers must not inspect native harness payloads.
 

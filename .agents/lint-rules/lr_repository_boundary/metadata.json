@@ -1,0 +1,20 @@
+{
+  "id": "lr_repository_boundary",
+  "version": 1,
+  "title": "Repository boundary",
+  "domain": "architecture",
+  "status": "active",
+  "mode": "observe",
+  "level": "error",
+  "question": "Does this diff introduce direct database queries or raw SQL/persistence access outside of src/jev/services/storage.py or dedicated repository modules?",
+  "review_threshold": 0.6,
+  "violation_threshold": 0.82,
+  "include": [
+    "src/jev/**/*.py"
+  ],
+  "exclude": [
+    "src/jev/services/storage.py",
+    "tests/**"
+  ],
+  "updated_at": "2026-09-26"
+}

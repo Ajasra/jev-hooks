@@ -5,11 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from jev.adapters import AntigravityAdapter, CodexAdapter
-from jev.contracts import EventKind, Outcome
 from jev.core import safety
 from jev.install.doctor import format_report
 from jev.runtime import Runtime
@@ -30,7 +31,7 @@ def run_hook(harness: str, raw: dict[str, Any], settings: Settings | None = None
     settings = settings or Settings.load(raw.get("cwd") or None)
     try:
         event, operation = adapter.decode(raw)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - hook boundary must translate malformed native input
         is_pre_tool = str(raw.get("hook_event_name") or raw.get("hookEventName")) == "PreToolUse" or "toolCall" in raw
         if is_pre_tool:
             tool_call = raw.get("toolCall") if isinstance(raw.get("toolCall"), Mapping) else {}
@@ -105,6 +106,21 @@ def build_parser() -> argparse.ArgumentParser:
     stats_p.add_argument("--cwd", default=".")
     mcp = sub.add_parser("mcp")
     mcp.add_argument("--cwd", default=".")
+    mcp.add_argument("--harness", choices=("antigravity", "codex"), default="")
+    lint = sub.add_parser("lint")
+    lint_mode = lint.add_mutually_exclusive_group()
+    lint_mode.add_argument("--staged", action="store_true")
+    lint_mode.add_argument("--base")
+    lint.add_argument("--harness", choices=("antigravity", "codex"), default="codex")
+    lint.add_argument("--cwd", default=".")
+    lint_feedback = sub.add_parser("lint-feedback")
+    lint_feedback.add_argument("decision_id", type=int)
+    lint_feedback.add_argument("label")
+    lint_feedback.add_argument("--reason", default="")
+    lint_feedback.add_argument("--cwd", default=".")
+    lint_stats = sub.add_parser("lint-stats")
+    lint_stats.add_argument("--rule")
+    lint_stats.add_argument("--cwd", default=".")
     return parser
 
 
@@ -116,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
             output = run_hook(args.harness, raw)
             sys.stdout.write(json.dumps(output, separators=(",", ":")))
             return 0
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - CLI boundary must keep hook stdout valid
             print(f"Jev hook failed: {type(exc).__name__}", file=sys.stderr)
             return 1
     settings = Settings.load(getattr(args, "cwd", "."))
@@ -148,7 +164,24 @@ def main(argv: list[str] | None = None) -> int:
         return _manual_authorize(args, settings)
     if args.command == "mcp":
         from jev.transports.mcp import create_server
+        if args.harness:
+            settings = replace(settings, harness_identity=args.harness)
         create_server(settings).run(transport="stdio")
+        return 0
+    if args.command == "lint":
+        from jev.tooling import semantic_lint
+        settings = replace(settings, harness_identity=args.harness)
+        output = semantic_lint(settings, staged=bool(args.staged or not args.base), base_ref=args.base)
+        print(json.dumps(output, indent=2))
+        return 1 if any(item["mode"] == "ci_enforced" and item["classification"] == "violation"
+                        for item in output["findings"]) else 0
+    if args.command == "lint-feedback":
+        from jev.tooling import semantic_lint_feedback
+        print(json.dumps(semantic_lint_feedback(settings, args.decision_id, args.label, args.reason)))
+        return 0
+    if args.command == "lint-stats":
+        from jev.tooling import semantic_lint_stats
+        print(json.dumps(semantic_lint_stats(settings, args.rule), indent=2))
         return 0
     return 2
 

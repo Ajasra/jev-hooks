@@ -1,0 +1,19 @@
+{
+  "id": "lr_system_one_balance",
+  "version": 1,
+  "title": "System One non-blocking balance",
+  "domain": "safety_balance",
+  "status": "active",
+  "mode": "observe",
+  "level": "error",
+  "question": "Does this diff use semantic judgments or LLM outcomes to block execution, deny tools, or trigger hard exits instead of deterministic safety gates?",
+  "review_threshold": 0.6,
+  "violation_threshold": 0.82,
+  "include": [
+    "src/jev/**/*.py"
+  ],
+  "exclude": [
+    "tests/**"
+  ],
+  "updated_at": "2026-09-26"
+}

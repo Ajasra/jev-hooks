@@ -1,0 +1,20 @@
+{
+  "id": "lr_shared_runtime",
+  "version": 1,
+  "title": "Shared runtime implementation boundary",
+  "domain": "tool_harness",
+  "status": "active",
+  "mode": "observe",
+  "level": "error",
+  "question": "Does this diff add feature logic to a harness adapter, hook bootstrap, or compatibility entry point instead of the shared src/jev core and registry?",
+  "review_threshold": 0.6,
+  "violation_threshold": 0.82,
+  "include": [
+    "src/jev/**/*.py",
+    ".agents/hooks/**/*.py"
+  ],
+  "exclude": [
+    "tests/**"
+  ],
+  "updated_at": "2026-09-26"
+}

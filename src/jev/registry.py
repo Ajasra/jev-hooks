@@ -41,5 +41,7 @@ TOOLS = (
     ToolSpec("knowledge_learn", "knowledge_learn", True, "Explicitly save a repository knowledge item."),
     ToolSpec("skills_list", "skills_list", False, "List skills from the canonical catalog."),
     ToolSpec("diagnostics_status", "diagnostics_status", False, "Report Jev runtime paths and capabilities."),
+    ToolSpec("semantic_lint", "semantic_lint", False, "Evaluate a Git diff against repository semantic rules."),
+    ToolSpec("semantic_lint_feedback", "semantic_lint_feedback", True, "Record user feedback for a semantic lint decision."),
+    ToolSpec("semantic_lint_stats", "semantic_lint_stats", False, "Summarize semantic lint effectiveness by rule and version."),
 )
-

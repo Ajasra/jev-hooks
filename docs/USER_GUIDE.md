@@ -32,6 +32,7 @@ The core implementation is shared. Each harness contributes only event translati
 | Advisory context | `PreInvocation` | `SessionStart` and `UserPromptSubmit` | `core/speculative.py` and `core/knowledge.py`. |
 | Skill selection | Full body or soft-hint injection | Catalog ranking without body injection; Codex retains native skill discovery | `core/skills.py` reads `.agents/skills`. |
 | Knowledge retrieval | Advisory context at pre-invocation | Advisory context at session and prompt boundaries | `core/knowledge.py` reads `.agents/knowledge`. |
+| Semantic lint | Structured `prompt_user` finding; Antigravity decides how to render the prompt | Structured `warn_user` finding; never denies tools | `core/semantic_lint.py` reads `.agents/lint-rules` and records reviewed decisions. |
 | Callable tools | Configure the Jev stdio MCP server when the harness supports MCP | Registered through Codex MCP configuration | `tooling.py`, `registry.py`, and `transports/mcp.py`. |
 | Audit and rules | `antigravity_events` view | `codex_events` view | One `jev.sqlite3` database with a harness field. |
 | Transcript compaction | Explicit sidecar checkpoint | Explicit sidecar checkpoint | `core/compaction.py`; it does not rewrite either harness transcript. |
@@ -95,6 +96,8 @@ The default Windows database is `%LOCALAPPDATA%\Jev\jev.sqlite3`. It contains:
 - `rules`: harness-scoped policy memory and one-use authorizations.
 - `invocations`: atomic deduplication claims and replayable decisions.
 - `session_context` and `feedback`: isolated context and exact event feedback.
+- `semantic_lint_decisions`: rule version, diff identity, probability, classification, and harness presentation.
+- `semantic_lint_feedback`: reviewed outcomes tied to exact decisions.
 
 Prompts and commands are not stored in full by default. Diagnostic details are bounded and secret-like values are redacted.
 
@@ -137,14 +140,27 @@ Add repository skills under `.agents/skills/<name>/SKILL.md`. Both harnesses dis
 
 Knowledge items live under `.agents/knowledge`. Automatic reads are advisory. Writes occur only through explicit `knowledge_learn` tool calls.
 
+Semantic lint rules use the same item layout under `.agents/lint-rules/<rule-id>/`: `metadata.json` contains the versioned machine contract and `artifacts/policy.md` explains the policy. New rules start in `observe`; reviewed evidence supports an explicit Git change to `advisory` or `ci_enforced`.
+
+```cmd
+cmd /c python -m jev lint --staged --harness codex
+cmd /c python -m jev lint --base origin/main --harness antigravity
+cmd /c python -m jev lint-feedback 42 false_positive --reason "Approved generated adapter"
+cmd /c python -m jev lint-stats --rule lr_shared_runtime
+```
+
+Antigravity findings request a user decision through `presentation: prompt_user`. Codex findings use `presentation: warn_user`. Neither presentation denies tools or instructs the primary model to stop. Only a committed `ci_enforced` rule can make `jev lint` exit with code 1.
+
+Use the `lint-architect` skill (`.agents/skills/lint-architect/SKILL.md`) to audit existing rules, analyze telemetry, and author project-specific architectural rules that complement RFC-08 without competing with deterministic linters or safety gates.
+
 Install the optional MCP dependency to expose the shared tool registry:
 
 ```cmd
 cmd /c python -m pip install --user -e ".[mcp]"
-cmd /c python -m jev mcp --cwd .
+cmd /c python -m jev mcp --cwd . --harness codex
 ```
 
-Codex reads the repository [`.codex/config.toml`](../.codex/config.toml) and launches this server for trusted projects. Antigravity can register the same `python -m jev mcp --cwd .` stdio command when its MCP configuration is enabled. The current tools are `knowledge_search`, `knowledge_learn`, `skills_list`, and `diagnostics_status`.
+Codex reads the repository [`.codex/config.toml`](../.codex/config.toml) and launches this server for trusted projects. Antigravity registers `python -m jev mcp --cwd . --harness antigravity`. Harness identity comes from the trusted launch command rather than a model argument. The additional tools are `semantic_lint`, `semantic_lint_feedback`, and `semantic_lint_stats`.
 
 ## 12. New-machine and global Codex setup
 
@@ -170,12 +186,12 @@ These steps install Jev for one Windows user. They do not modify the system Pyth
    ```toml
    [mcp_servers.jev]
    command = "python"
-   args = ["-m", "jev", "mcp"]
+   args = ["-m", "jev", "mcp", "--harness", "codex"]
    startup_timeout_sec = 10
    tool_timeout_sec = 30
    ```
 
-   Do not set a global `cwd`: Codex starts the server in the active project so Jev can use that repository's `.agents/skills`, `.agents/knowledge`, and `jev.json` configuration.
+   Do not set a global `cwd`: Codex starts the server in the active project so Jev can use that repository's `.agents/skills`, `.agents/knowledge`, `.agents/lint-rules`, and `jev.json` configuration.
 
 6. Restart Codex, then verify the global registration:
 
