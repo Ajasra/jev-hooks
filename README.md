@@ -6,22 +6,22 @@
 [![P95 Latency](https://img.shields.io/badge/P95%20Latency-%3C120ms-brightgreen.svg)](https://docs.typesafe.ai)
 [![Zero Pip Dependencies](https://img.shields.io/badge/Dependencies-Zero%20Pip%20Core-success.svg)](https://python.org)
 
-**Subconscious reflexes for autonomous coding agents.** Fast, sub-120ms semantic micro-decisions and deterministic safety boundaries for Google Antigravity and OpenAI Codex, powered by TypeSafe AI's non-autoregressive Jev model.
+**A local safety guard and smart router for your AI coding assistant (Google Antigravity, OpenAI Codex).**
 
 ---
 
-## 1. The Friction: Pondering What Should Be Reflex
+## 1. What Jev Does
 
-Autonomous coding agents hand powerful foundation models (Gemini, Claude, GPT) direct execution privileges in your terminal and workspace. But asking a massive autoregressive model to deliberate on every minor micro-decision introduces immediate friction:
+When you let AI coding assistants (like Google Antigravity or OpenAI Codex) run in your project, they have access to your terminal and files. Two things go wrong all the time:
 
-- **Accidental Destruction**: A casual prompt like *"clean old benchmarks"* leads to `cmd /c rmdir /s /q benchmarks` before you can intervene.
-- **The Prompt Tax**: Listing 50 domain skills in prompt instructions burns 5,000 to 25,000 tokens on every single turn.
-- **Turn-1 Stalling**: Multi-turn file grepping and `git status` discovery waste 3 to 5 roundtrips before writing a line of code.
-- **Hallucinated Signatures**: Models invent plausible API methods that fail during runtime, triggering expensive debugging loops.
+- **Dangerous commands**: The AI tries to wipe a folder, discard your uncommitted git changes, or run destructive scripts before you can stop it.
+- **Waste & lag**: The AI dumps 50 skill files into its prompt on every turn (burning tokens and money), or wastes several turns fumbling around before finding the right files.
 
-In human physiology, you pull your hand off a hot stove via a spinal reflex arc long before conscious thought registers heat. Operating systems rely on lightweight eBPF probes rather than waking user-space processes for routine checks.
-
-Jev introduces this subconscious reflex layer to coding agents: **deterministic code guards your filesystem, Jev executes semantic micro-decisions in under 120ms, and primary foundation models focus entirely on deep reasoning and code synthesis.**
+**Jev sits between your agent and your machine as a lightweight safety guard and smart router:**
+- **Catches dangerous commands** before they execute and asks for your approval in an IDE popup.
+- **Loads only the skills your agent needs** for the current task, keeping prompts small, cheap, and fast.
+- **Prefetches relevant git diffs and test results**, so the agent gets to work on Turn 1 without wandering around.
+- **Verifies code edits** against your project docs to catch hallucinated APIs before they break your build.
 
 ---
 
