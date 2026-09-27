@@ -68,6 +68,27 @@ flowchart TD
 3. **Historical Trajectory**: The causal trigger of the current turn: the immediate prior error, failed test assertion, or tool receipt (bounded to 400 chars).
 4. **Normative Precedents**: Relevant Knowledge Items and library signature stubs.
 
+### Mitigating Local Myopia: The 3 Horizons of Intent
+
+This architecture strikes at the central failure mode of agentic AI systems: **local myopia** (also called tactical fixation).
+
+When an agent or hook evaluates state based only on the immediate user turn ($T$), it falls into the trap of steering by the dashboard instead of the compass. For example, when asked to update documentation for dual-harness support, an agent without a preserved North Star Goal could easily treat that tactical task as the overall project objective, losing sight of the core purpose: building a fast, deterministic, calibrated Jev System One helper.
+
+To prevent getting lost in immediate steps, the context sent to Jev and downstream agents must represent **Three Horizons of Intent**:
+
+```mermaid
+flowchart TD
+    subgraph Horizons ["The Three Horizons of Teleological Intent"]
+        H1["Horizon 1: Tactical Turn (T)<br/><i>The immediate prompt: 'make it work' or 'fix docs'</i>"]
+        H2["Horizon 2: Operational Milestone<br/><i>The active refactor, issue, or feature branch goal</i>"]
+        H3["Horizon 3: North Star Invariant<br/><i>Core architectural identity: sub-120ms latency, zero-dependency safety, calibrated System One balance</i>"]
+    end
+
+    H3 --> H2
+    H2 --> H1
+    H1 --> Action["Calibrated Action Grounded in the Whole System"]
+```
+
 ---
 
 ## 4. Concrete Example & Impact
