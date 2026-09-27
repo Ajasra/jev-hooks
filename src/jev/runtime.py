@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 from jev.contracts import Event, EventKind, Harness, Operation, Outcome, Result, merge_results
-from jev.core import knowledge, safety, skills, speculative, verification
+from jev.core import context, knowledge, safety, skills, speculative, verification
 from jev.registry import FEATURES
 from jev.services.client import DecisionClient, HttpDecisionClient
 from jev.services.paths import Settings
@@ -26,6 +26,10 @@ class Runtime:
 
     def dispatch(self, event: Event, operation: Operation | None = None) -> Result:
         results: list[Result] = []
+        envelope = None
+        if event.kind in {EventKind.TURN_BEFORE, EventKind.SESSION_START}:
+            envelope = context.assemble_envelope(event, Path(event.cwd))
+
         for spec in sorted(FEATURES, key=lambda item: -item.priority):
             if event.kind not in spec.triggers:
                 continue
@@ -47,23 +51,25 @@ class Runtime:
                     results.append(v_res)
             elif spec.handler_name == "speculative":
                 results.append(speculative.evaluate(
-                    str(event.payload.get("prompt", "")),
+                    envelope.prompt if envelope else str(event.payload.get("prompt", "")),
                     Path(event.cwd),
-                    str(event.payload.get("prior_context", "")),
+                    envelope.prior_context if envelope else str(event.payload.get("prior_context", "")),
                     self.client,
                     self._remaining(event),
                 ))
             elif spec.handler_name == "skills":
+                semantic_prompt = envelope.to_semantic_string() if envelope else str(event.payload.get("prompt", ""))
                 results.append(skills.suggest(
-                    str(event.payload.get("prompt", "")),
+                    semantic_prompt,
                     self.settings.skill_roots,
                     self.client,
                     self._remaining(event),
                     inject_body=event.harness != Harness.CODEX,
                 ))
             elif spec.handler_name == "knowledge":
+                semantic_prompt = envelope.to_semantic_string() if envelope else str(event.payload.get("prompt", ""))
                 results.append(knowledge.search(
-                    str(event.payload.get("prompt", "")),
+                    semantic_prompt,
                     self.settings.knowledge_roots,
                     self.client,
                     self._remaining(event),

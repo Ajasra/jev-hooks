@@ -26,6 +26,8 @@ In human biology, routine survival checks (pulling your hand from a hot stove or
 
 An AI coding harness should not spend 5 seconds and 2,000 tokens pondering whether `git status` is safe or whether a method signature exists. Routine control flow, safety barriers, and semantic triage belong in a dedicated, high-speed **System One reflex layer**.
 
+> **The Context Axiom**: *Meaning is in the context, not in the message.* Decisions cannot be made accurately on bare prompt strings alone. High-confidence System One micro-decisions require a situated **Context Envelope** assembling user intent, active editor file state, recent test/compiler receipts, and normative repository precedents. For the complete foundational rationale, see **[The Philosophy of Jev](PHILOSOPHY.md)**.
+
 ---
 
 ## 3. Solution: TypeSafe Jev Machine-Native Hooks

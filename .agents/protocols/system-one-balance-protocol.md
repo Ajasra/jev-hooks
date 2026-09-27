@@ -62,15 +62,25 @@ They MUST NEVER treat the foundation model like a prisoner or a toddler.
   2. **Safe Fast-Path**: Workspace file modifications (`write_to_file`, `replace_*`) and standard developer tools (`git status`, `git commit`, `pytest`, `npm test`) execute with zero interactive confirmation.
   3. **Persistent SQLite Memory**: Developers can save permanent or session-scoped rules (`always` / `session`) to permanently suppress prompts for their specific workflows.
 
+### Invariant 5: The Context Envelope Principle (Meaning Is in the Context)
+* **Requirement**: Meaning and decisions reside in the situated Context Envelope, not in isolated message strings. Every Jev System One evaluation state must systematically assemble:
+  1. *Epistemic Intent*: User request / current prompt.
+  2. *Environmental State*: Active editor file path, git branch, and modified diff hunks.
+  3. *Historical Trajectory*: Immediate prior error receipt / test failure.
+  4. *Normative Precedents*: Active Knowledge Items, architectural lint rules, and type exports.
+* **Invariant**: Never evaluate Jev semantic decisions on bare message strings alone when environmental state is available. Avoid both **Context Starvation** (bare strings causing low confidence) and **Context Flooding** (unbounded transcript dumps causing latency drag).
+* **Reference**: Grounded in [`docs/PHILOSOPHY.md`](../../docs/PHILOSOPHY.md) and operationalized via [`context-architect`](../skills/context-architect/SKILL.md).
+
 ---
 
 ## 3. Protocol Verification Checklist
 
-Before deploying any new lifecycle hook or proposal:
+Before deploying any new lifecycle hook, tool, or proposal:
 
 - [ ] Does the hook complete in $\le 300\text{ms}$ (P95)?
 - [ ] Does the hook fail open safely if the API or network stalls?
 - [ ] Does the hook ingest conversational recency before scoring ambiguity?
+- [ ] Does the hook assemble a calibrated 4-layer Context Envelope (avoiding bare strings and raw flooding)?
 - [ ] Does the hook allow the foundation model to use read-only discovery tools?
 - [ ] Does the skill router provide soft hints for moderate-confidence matches?
 - [ ] Are safety confirmations reserved exclusively for irreversible actions?

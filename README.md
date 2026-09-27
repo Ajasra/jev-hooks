@@ -26,6 +26,8 @@ In human biology and modern operating systems, high-frequency survival checks do
 
 Translating this division of labor to AI harnesses: **Deterministic code enforces safety, Jev handles fast semantic micro-decisions, and primary foundation models focus purely on deep reasoning and code synthesis.**
 
+> **Grounding Axiom**: *Meaning is in the context, not in the message.* Decisions require a situated 4-layer **Context Envelope** (intent, environment, history, precedents) rather than bare prompt strings. See **[docs/PHILOSOPHY.md](docs/PHILOSOPHY.md)**.
+
 ---
 
 ## 3. Solution: TypeSafe Jev System One Primitives
@@ -106,6 +108,7 @@ cmd /c python -m pytest -q
 ## 7. Documentation Hub
 
 * 📖 **[User Guide & Operational Manual](docs/USER_GUIDE.md)**: Onboarding, interactive modals, CLI auditing, and dual-harness setup.
+* 🧠 **[Philosophy & Grounding Axioms](docs/PHILOSOPHY.md)**: Meaning in context, System One division of labor, and the Context Envelope.
 * 🛠️ **[Architecture & Technical Specification](docs/ARCHITECTURE.md)**: Ports-and-adapters design, IPC schemas, SQLite database structures, and latency budgets.
 * 📋 **[Master Proposals & RFC Index (25 Specs)](proposals/README.md)**: Unified technical specifications and blueprints (`RFC-01` to `RFC-25`).
 * 📜 **[System One Balance Protocol](.agents/protocols/system-one-balance-protocol.md)**: Anti-bureaucracy guidelines keeping semantic micro-decisions fast and non-blocking.

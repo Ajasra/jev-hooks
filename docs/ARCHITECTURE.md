@@ -3,6 +3,7 @@
 > **Audience**: Hook authors, systems architects, and framework contributors  
 > **Status**: Production Standard (Unified Shared Runtime)  
 > **Harnesses**: Google Antigravity 2.0 and OpenAI Codex  
+> **Foundational Philosophy**: [The Philosophy of Jev](PHILOSOPHY.md)  
 > **Related Protocol**: [System One Balance Protocol](../.agents/protocols/system-one-balance-protocol.md)  
 
 ---
@@ -22,6 +23,7 @@ In human cognition, routine survival checks and micro-actions do not consult con
 
 Architecturally, Jev translates this reflex layer into a clean **ports-and-adapters pattern**:
 - **System Division of Labor**: Deterministic code enforces authoritative safety, Jev handles fast semantic micro-decisions (sub-120ms), and generative foundation models focus purely on high-level reasoning and synthesis.
+- **The Context Envelope Invariant**: Grounded in [The Philosophy of Jev](PHILOSOPHY.md), *meaning and decisions reside in the situated context rather than isolated message strings*. State assembly across lifecycle hooks systematically constructs a compact, high-signal 4-layer Context Envelope (intent, environment, trajectory, precedents).
 - **Harness Portability**: Harness protocols act as external ports; thin adapters normalize events into an immutable contract; shared core modules own all decisions, scoring, and persistence.
 
 ## 3. Solution: Shared Runtime & Typed Primitive Core
