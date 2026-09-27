@@ -40,16 +40,60 @@ def extract_turn_context(transcript_path: str | Path | None) -> dict[str, str]:
         return {}
     current_prompt = ""
     prior_prompt = ""
+    session_objective = ""
+    active_file = ""
+    last_error = ""
     found_current = False
     try:
-        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
-        for line in reversed(lines):
+        raw_lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        # Find session objective from first non-empty user input
+        for line in raw_lines:
             if not line.strip():
                 continue
             try:
                 step = json.loads(line)
             except Exception:
                 continue
+            is_user = step.get("type") in {"USER_INPUT", "user"} or step.get("source") in {"USER_EXPLICIT", "user"}
+            content = step.get("content", "")
+            if not content and isinstance(step.get("message"), Mapping):
+                content = step["message"].get("content", "")
+            if is_user and isinstance(content, str) and content.strip():
+                clean = content
+                if "<USER_REQUEST>" in clean:
+                    match = re.search(r"<USER_REQUEST>(.*?)</USER_REQUEST>", clean, re.DOTALL)
+                    if match:
+                        clean = match.group(1).strip()
+                session_objective = clean.strip()[:300]
+                break
+
+        # Scan backwards for current/prior prompts, active file, and last error
+        for line in reversed(raw_lines):
+            if not line.strip():
+                continue
+            try:
+                step = json.loads(line)
+            except Exception:
+                continue
+
+            # Check for active file
+            if not active_file:
+                tool_calls = step.get("tool_calls") or []
+                for tc in tool_calls:
+                    args = tc.get("args") or {}
+                    cand = str(args.get("TargetFile") or args.get("file_path") or args.get("path") or "")
+                    if cand:
+                        active_file = cand
+                        break
+
+            # Check for recent error
+            if not last_error:
+                status = str(step.get("status") or "")
+                if status in {"ERROR", "error", "failed"}:
+                    last_error = str(step.get("content") or step.get("message") or "")[:400]
+                elif "error" in str(step.get("content", "")).lower()[:200]:
+                    last_error = str(step.get("content", ""))[:400]
+
             is_user = step.get("type") in {"USER_INPUT", "user"} or step.get("source") in {"USER_EXPLICIT", "user"}
             content = step.get("content", "")
             if not content and isinstance(step.get("message"), Mapping):
@@ -70,10 +114,18 @@ def extract_turn_context(transcript_path: str | Path | None) -> dict[str, str]:
                 continue
             if is_user and found_current and not prior_prompt:
                 prior_prompt = clean
+
+            if found_current and prior_prompt and active_file and last_error:
                 break
     except Exception:
         pass
-    return {"current_prompt": current_prompt, "prior_prompt": prior_prompt}
+    return {
+        "current_prompt": current_prompt,
+        "prior_prompt": prior_prompt,
+        "session_objective": session_objective,
+        "active_file": active_file,
+        "last_error": last_error,
+    }
 
 
 class Adapter(ABC):

@@ -39,6 +39,9 @@ class AntigravityAdapter(Adapter):
         payload = {
             "prompt": prompt,
             "prior_context": prior_context,
+            "session_objective": str(raw.get("session_objective") or transcript_context.get("session_objective") or ""),
+            "active_path": str(raw.get("active_path") or transcript_context.get("active_file") or ""),
+            "last_error": str(raw.get("last_error") or transcript_context.get("last_error") or ""),
             "transcript_path": str(transcript_path or ""),
             "native": dict(raw),
         }

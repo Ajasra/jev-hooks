@@ -38,6 +38,15 @@ flowchart LR
 - **Fail-open on advisory timeouts**: Advisory checks have bounded deadlines (3.5s). If a semantic call times out or fails, workspace mutations proceed unblocked.
 - **Zero policy drift**: A single shared SQLite database (`jev.sqlite3`) and identical safety rules govern both Antigravity and Codex.
 
+### Machine-Native IPC Wire Contract
+The hook interface executes as a standard child process communicating via Unix/Windows pipes:
+- **`stdin` (JSON)**: Ingests the native hook envelope (`hookEventName`, `toolCall`, `workspacePaths`, `conversationId`).
+- **`stdout` (JSON)**: Emits normalized response payloads:
+  - Antigravity: `{"decision": "allow" | "deny" | "force_ask", "reason": "...", "additionalContext": "..."}` or `{"injectSteps": [{"ephemeralMessage": "..."}]}`.
+  - Codex: `{"hookSpecificOutput": {"hookEventName": "...", "permissionDecision": "allow" | "deny", "additionalContext": "..."}}`.
+- **`stderr` (Plain Text)**: Strictly reserved for diagnostic telemetry, timing receipts, and emergency exceptions; never emits response JSON.
+- **Process Exit Codes**: Code `0` indicates successful hook evaluation (even if the outcome is `deny`). Non-zero exit codes signal runtime crashes or CLI authorization errors.
+
 ---
 
 ## 2. Package Layout
@@ -108,18 +117,33 @@ Unknown or malformed inputs to safety hooks fail closed. Advisory hook errors fa
 
 ---
 
-## 5. Safety Pipeline
+## 5. Safety Pipeline & Deterministic Invariants
 
 When an agent proposes an action, the safety engine evaluates risks in strict order:
 
-1. **Classification**: Identify operation type (file mutation, shell command, or structured tool invocation).
-2. **Deterministic Shield**: Evaluate hard regex invariants (recursive deletion, force push, hard reset, disk partition commands). If violated, deny immediately without model invocation.
+1. **Classification**: Identify operation type (`file_mutation`, `shell`, or `tool`). Path inputs are validated for containment against the workspace root and checked against sensitive system markers (`/.ssh/`, `/.aws/`, `id_rsa`, `system32`).
+2. **Deterministic Invariant Shield**: Evaluated locally in $<1\text{ms}$ before any model call. If a pattern matches, execution is unconditionally denied:
+   - `recursive_delete`: `rmdir /s`, `rd /s`, `rm -rf`, `rm --recursive`
+   - `git_hard_reset`: `git reset --hard`
+   - `git_force_clean`: `git clean -f`
+   - `git_force_push`: `git push --force`, `git push -f`
+   - `git_discard_all`: `git checkout -- .`, `git restore .`
+   - `disk_destroy`: `format c:`, `diskpart`, `fdisk`, `mkfs`
+   - `remote_pipe_shell`: `curl ... | bash`, `wget ... | sh`, `powershell | pwsh`
+   - `database_destroy`: `DROP DATABASE`, `DROP SCHEMA`, `TRUNCATE TABLE`
 3. **Rule Database Lookup**: Check SQLite for existing workspace-, session-, or pattern-scoped authorizations.
-4. **Semantic Blast Radius**: If unclassified and client is available, evaluate two parallel `Noul` questions (routine intent vs irreversible risk).
-5. **Outcome Mapping**: Aggregate results via precedence:
+4. **Semantic Blast Radius**: If unclassified and client is configured, evaluate two parallel non-autoregressive `Noul` questions (routine intent vs irreversible risk).
+5. **Outcome Mapping**: Aggregate results via strict precedence:
    $$\mathbf{Deny} > \mathbf{NeedsConfirmation} > \mathbf{Allow} > \mathbf{Abstain}$$
 
 Semantic advice cannot override a deterministic denial.
+
+### Atomic Claims & Replay Idempotency
+To prevent race conditions, repeated execution loops, and double-spending of single-use grants:
+- **Claim Key Construction**: Evaluated across `(harness, workspace_id, session_id, invocation_id, feature, phase)`.
+- **Claim Leases**: A pending execution acquires an atomic lease in `invocations` with status `active` and a monotonic timestamp.
+- **Duplicate Delivery**: Completed executions return the cached `result_json` immediately without re-running checks. Active duplicates yield a temporary safety denial rather than a race condition allowance.
+- **Single-Use Atomicity**: Consuming a CLI authorization (`single_use` rule) and committing the decision completion occur within a single SQLite transaction.
 
 ---
 

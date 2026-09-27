@@ -47,7 +47,7 @@ Whenever designing state for a Jev feature (`skills`, `knowledge`, `verification
 
 ```mermaid
 flowchart TD
-    L1["1. Epistemic Intent (100–300 tokens)<br/>User prompt, active goal, explicit flags"]
+    L1["1. Epistemic Intent & Teleology (100–400 tokens)<br/>Horizon 3: Project North Star (Goal / Manifest)<br/>Horizon 2: Active Session Objective (Genesis prompt)<br/>Horizon 1: Current Request"]
     L2["2. Environmental State (500–1,500 tokens)<br/>Active file path, git branch, modified diff hunks"]
     L3["3. Historical Trajectory (200–500 tokens)<br/>Immediate prior error receipt, exit code, prior command"]
     L4["4. Normative Precedents (300–800 tokens)<br/>Active Knowledge Items, architectural rules, type exports"]
@@ -59,7 +59,10 @@ flowchart TD
 ```
 
 ### Layer Details:
-1. **Epistemic Intent**: The raw user request stripped of redundant template boilerplate.
+1. **Epistemic Intent & Teleology**: Structured into **Three Horizons of Intent** to prevent tactical fixation and goal drift:
+   - **Horizon 3 (Project North Star)**: Automated discovery of project mission (from `.agents/GOAL.md`, `GEMINI.md`, `pyproject.toml`, or `README.md`). Prevents confusing tactical subtasks with overall repository architecture.
+   - **Horizon 2 (Session Objective)**: The foundational goal from Turn 1 (genesis prompt) preserved across multi-turn trajectories, keeping the agent steered even during terse follow-ups.
+   - **Horizon 1 (Current Request)**: The raw user request stripped of redundant template boilerplate.
 2. **Environmental State**: What is physically open or modified right now:
    - File path: `src/auth/service.py`
    - Touched symbols / modified hunks (lines with `+` / `-`).

@@ -37,10 +37,6 @@ Before primary reasoning begins, Jev evaluates context state and prefetches git 
 
 ![Jev Speculative Pre-Flight Badge](./proposals/assets/jev_speculative_preflight_badge.png)
 
-```text
-> **Jev Speculative Pre-Flight**: Attached speculative evidence (git_prefetch (P=0.77) in 266ms).
-```
-
 ### PreInvocation Dynamic Skill Routing (Zero Prompt Bloat)
 Jev inspects user intent in ~95ms, mounting matching skills from [`.agents/skills/`](.agents/skills/) without advertising unused skills:
 
