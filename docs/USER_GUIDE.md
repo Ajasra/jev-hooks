@@ -93,7 +93,7 @@ When an agent proposes an action with high blast radius (`rmdir /s`, unverified 
 ### Antigravity Interactive Modals
 In Antigravity, Jev renders an interactive dialog directly in your IDE:
 
-![Jev Safety Gate Intercept Modal](../proposals/assets/jev_safety_gate_intercept_modal.png)
+![Jev Safety Gate Intercept Modal](./proposals/assets/jev_safety_gate_intercept_modal.png)
 
 You can select:
 - **Allow Once**: Authorizes this single execution.

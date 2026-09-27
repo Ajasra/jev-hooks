@@ -4,7 +4,7 @@
 **Scope**: Universal Protocol for Machine-Native System One Semantic Decision Models (TypeSafe AI Jev, Google Antigravity 2.0 Hooks)  
 **Location**: `.agents/protocols/system-one-balance-protocol.md`  
 **Referencing Skill**: [`.agents/skills/system-one-balance-protocol/SKILL.md`](../skills/system-one-balance-protocol/SKILL.md)  
-**Related Proposals**: [Proposal 02](../../proposals/02_PROPOSAL_B_DYNAMIC_SKILL_DISPATCHER.md), [Proposal 04](../../proposals/04_PROPOSAL_D_SAFETY_AND_TOOL_ROUTER.md), [Proposal 21](../../proposals/21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md), [Proposal 23](../../proposals/23_PROTOCOL_SYSTEM_ONE_AGENT_BALANCE_AND_ANTI_BUREAUCRACY.md)
+**Related Proposals**: [RFC-02: Dynamic Skill Dispatcher](../../docs/proposals/RFC-02_USE_CASE_dynamic_skill_dispatcher.md), [RFC-04: Safety & Tool Router](../../docs/proposals/RFC-04_CORE_safety_and_tool_router.md), [RFC-21: Speculative Fan-Out & Confidence Arbitration](../../docs/proposals/RFC-21_EXPERIMENT_speculative_fan_out.md), [RFC-23: System One Agent Balance](../../docs/proposals/RFC-23_PROTOCOL_system_one_balance.md)
 
 ---
 

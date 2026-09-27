@@ -76,4 +76,4 @@ When designing a new hook, tool router, or System One evaluation:
 The full architectural protocol, design spectrum, and formal telemetry schemas are maintained in:
 * **Workspace Protocol**: [`.agents/protocols/system-one-balance-protocol.md`](../../protocols/system-one-balance-protocol.md)
 * **Global Linked Protocol**: `~/.gemini/config/protocols/system-one-balance-protocol.md`
-* **Architectural Blueprint**: [`proposals/RFC-23_PROTOCOL_system_one_balance.md`](../../../proposals/RFC-23_PROTOCOL_system_one_balance.md)
+* **Architectural Blueprint**: [`docs/proposals/RFC-23_PROTOCOL_system_one_balance.md`](../../../docs/proposals/RFC-23_PROTOCOL_system_one_balance.md)

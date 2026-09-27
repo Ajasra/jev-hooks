@@ -107,7 +107,7 @@ def test_agent_context_injection():
 def test_active_document_ambiguity_calibration():
     print("\n--- Test 6: Active Document Context Ambiguity Calibration ---")
     prompt = "lets review our Knowledge item proposal. Analyze it once more."
-    active_doc = str(Path(CWD) / "proposals" / "03_PROPOSAL_C_KNOWLEDGE_ITEM_MATCHER.md")
+    active_doc = str(Path(CWD) / "docs" / "proposals" / "RFC-03_USE_CASE_knowledge_item_matcher.md")
     
     # Without active doc (simulating previous bug)
     answers_without = jev_speculative_router.evaluate_speculative_batch(prompt, CWD)
@@ -131,7 +131,7 @@ def test_active_document_ambiguity_calibration():
 
 def test_semantic_continuation_detection():
     print("\n--- Test 7: Jev Machine-Native Continuation Detection ---")
-    active_doc = str(Path(CWD) / "proposals" / "03_PROPOSAL_C_KNOWLEDGE_ITEM_MATCHER.md")
+    active_doc = str(Path(CWD) / "docs" / "proposals" / "RFC-03_USE_CASE_knowledge_item_matcher.md")
 
     # Follow-up continuation
     ans_cont = jev_speculative_router.evaluate_speculative_batch(

@@ -112,7 +112,7 @@ When agent conversations exceed context limits, common harnesses call a generati
 - Crucial shell flags and options get smoothed over.
 - Explicit developer constraints are quietly rewritten into generic summaries.
 
-In Jev, context is treated as an immutable event stream ([RFC-01](../proposals/RFC-01_CORE_verbatim_context_compactor.md)). Compaction works by **pruning transient execution debris** (collapsing 5,000 lines of raw compiler or test output into 300-character receipts) while preserving **100% of user dialogue, file edits, and architectural decisions verbatim**.
+In Jev, context is treated as an immutable event stream ([RFC-01](./proposals/RFC-01_CORE_verbatim_context_compactor.md)). Compaction works by **pruning transient execution debris** (collapsing 5,000 lines of raw compiler or test output into 300-character receipts) while preserving **100% of user dialogue, file edits, and architectural decisions verbatim**.
 
 ---
 
@@ -122,7 +122,7 @@ IDEs and agent harnesses come and go—APIs change, hook payloads get reshuffled
 
 Jev treats harnesses strictly as **external ports**:
 - Native JSON messages are external inputs.
-- Thin adapters translate inputs into an immutable, harness-neutral contract ([RFC-24](../proposals/RFC-24_CORE_shared_harness_runtime.md)).
+- Thin adapters translate inputs into an immutable, harness-neutral contract ([RFC-24](./proposals/RFC-24_CORE_shared_harness_runtime.md)).
 - The semantic core (`src/jev/core/`), active learning databases, and safety rules remain **completely unified and portable**.
 
 Whether working in Google Antigravity or OpenAI Codex, your safety floor, learned Knowledge Items, and architectural lint rules remain identical, persistent, and local to your environment.

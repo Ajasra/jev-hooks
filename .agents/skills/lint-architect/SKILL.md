@@ -8,14 +8,14 @@ concerns: [system-one-balance]
 
 # Lint Architect Protocol
 
-The Lint Architect manages project-specific semantic lint rules in [`.agents/lint-rules/`](../../lint-rules/). It complements [RFC-08: Semantic Code Linting](../../../proposals/RFC-08_USE_CASE_semantic_code_linting.md) by ensuring rules stay lean, high-leverage, non-redundant, and non-blocking.
+The Lint Architect manages project-specific semantic lint rules in [`.agents/lint-rules/`](../../lint-rules/). It complements [RFC-08: Semantic Code Linting](../../../docs/proposals/RFC-08_USE_CASE_semantic_code_linting.md) by ensuring rules stay lean, high-leverage, non-redundant, and non-blocking.
 
 ---
 
 ## Phase 0: Setup and Protocols
 1. Review referenced protocols:
    - [System One Balance Protocol](../../protocols/system-one-balance-protocol.md)
-   - [RFC-08: Semantic Code Linting](../../../proposals/RFC-08_USE_CASE_semantic_code_linting.md)
+   - [RFC-08: Semantic Code Linting](../../../docs/proposals/RFC-08_USE_CASE_semantic_code_linting.md)
 2. Ensure working rules follow the Knowledge Item directory layout:
    ```text
    .agents/lint-rules/<rule-id>/
