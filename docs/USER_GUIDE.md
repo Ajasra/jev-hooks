@@ -81,6 +81,9 @@ flowchart TD
     SafetyGate -->|Destructive / Ambiguous| InterceptModal["Interactive IDE Modal (Antigravity)<br/>or Policy Denial (Codex)"]
 ```
 
+> **Grounding Tip: Preserving Your Project's Compass**
+> Create `.agents/GOAL.md` (or `.agents/project.md`) with 1–2 sentences defining your project's North Star. Jev automatically incorporates this into every Context Envelope, preventing the agent from suffering local myopia or losing sight of core architecture on multi-turn refactors.
+
 ---
 
 ## 4. Safety Gate Modals & Rule Authorizations
@@ -98,6 +101,14 @@ You can select:
 - **Save Always**: Writes a permanent grant to SQLite so you are not interrupted for this pattern again.
 - **Cancel**: Aborts the operation safely.
 
+### Managing & Auditing Saved Approvals
+To maintain full sovereignty over permanent rules created via "Save Always", inspect and prune them at any time:
+
+```cmd
+cmd /c python .agents\hooks\safety_db.py --list
+cmd /c python .agents\hooks\safety_db.py --delete <rule_id>
+```
+
 ### Codex Permissions
 In Codex, high-risk actions receive a clean policy denial explaining the exact blast radius. You can authorize a one-time execution via the CLI:
 
@@ -111,8 +122,9 @@ cmd /c python -m jev authorize --harness codex --tool Bash --command "your comma
 
 ---
 
-## 5. Output & Citation Verification
+## 5. Output Verification & Knowledge Capture
 
+### A. Output & Citation Verification
 To prevent models from inventing unexported API symbols or hallucinating method parameters, Jev verifies proposed edits against local files and Knowledge Items:
 
 ```cmd
@@ -123,15 +135,33 @@ cmd /c python -m jev verify --code "client.get_token()" --reference "API Referen
 - In **Codex**, warnings appear in `hookSpecificOutput.additionalContext`.
 - Agents can also call the `verify_output` MCP tool before writing complex diffs.
 
+### B. Capturing Precedents (`knowledge_learn`)
+When you establish a project-specific pattern or resolve a tricky convention, teach it to Jev so future turns auto-mount it:
+
+```cmd
+cmd /c python -m jev learn --title "API Client Timeout" --content "Always set timeout=10 on HTTP requests in services/client.py"
+```
+Or instruct your agent: *"Save this convention using `knowledge_learn`."*
+
 ---
 
-## 6. Semantic Code Linting
+## 6. Semantic Code Linting & Rule Lifecycle
 
-Semantic lint rules inspect staged code changes against architectural standards that traditional linters miss (repository boundaries, error handling, layer discipline).
+Semantic lint rules inspect staged code changes against architectural standards that traditional syntax linters miss (layer boundaries, repository patterns, abstraction leaks).
 
 Rules live under `.agents/lint-rules/<rule-id>/`:
-- `metadata.json`: defines the machine contract and target files.
+- `metadata.json`: defines the machine contract and target glob patterns.
 - `artifacts/policy.md`: documents the architectural rationale.
+
+### Setting Up Rules with `lint-architect`
+You can invoke the built-in **`lint-architect`** skill ([`.agents/skills/lint-architect/SKILL.md`](../.agents/skills/lint-architect/SKILL.md)) to scan your tech stack and author initial architectural rules tailored to your project.
+
+### Rule Promotion Lifecycle
+To ensure rules do not paralyze developer flow:
+1. **`observe`**: New rules always start in observe mode. They run silently, recording predictions and latency without notifying the user.
+2. **Review Telemetry**: Inspect false-positive rates with `cmd /c python -m jev lint-stats`.
+3. **`advisory`**: Once validated, promote the rule to advisory mode in `metadata.json`. Findings inject non-blocking advice into context (`prompt_user` or `warn_user`).
+4. **`ci_enforced`**: Optional strict mode for CI/CD gates (`python -m jev lint` exits with code 1 on confirmed violations).
 
 ### Running the Linter
 ```cmd
@@ -140,8 +170,6 @@ cmd /c python -m jev lint --base origin/main --harness codex
 cmd /c python -m jev lint-feedback 42 confirmed_violation
 cmd /c python -m jev lint-stats --rule lr_repository_boundary
 ```
-
-Semantic lint findings inject non-blocking advice into the agent context (`prompt_user` or `warn_user`). They never freeze tools unless a rule is explicitly committed as `ci_enforced`.
 
 ---
 
