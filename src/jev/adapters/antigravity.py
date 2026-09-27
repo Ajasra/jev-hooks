@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 from jev.adapters.base import Adapter, extract_turn_context, stable_event_id, workspace_id
 from jev.contracts import Event, EventKind, Harness, Operation, Outcome, Result
+from jev.core.safety import clean_command
 
 
 TURN_EVENTS = {"PreInvocation": EventKind.TURN_BEFORE}
@@ -87,6 +88,22 @@ class AntigravityAdapter(Adapter):
                 return {"decision": "deny", "reason": result.reason}
             if result.outcome == Outcome.NEEDS_CONFIRMATION:
                 return {"decision": "force_ask", "reason": result.reason}
-            return {"decision": "allow", "reason": result.reason}
+            output: dict[str, Any] = {"decision": "allow", "reason": result.reason}
+            native_args: Mapping[str, Any] = {}
+            native = event.payload.get("native")
+            if isinstance(native, Mapping):
+                tool_call = native.get("toolCall")
+                if isinstance(tool_call, Mapping) and isinstance(tool_call.get("args"), Mapping):
+                    native_args = tool_call["args"]
+                elif isinstance(native.get("args"), Mapping):
+                    native_args = native["args"]
+            cmd = str(native_args.get("CommandLine") or native_args.get("command") or "").strip()
+            if cmd:
+                overrides = [f"command({cmd})"]
+                cleaned = clean_command(cmd)
+                if cleaned and cleaned != cmd:
+                    overrides.append(f"command({cleaned})")
+                output["permissionOverrides"] = overrides
+            return output
         return {"injectSteps": [{"ephemeralMessage": context}]} if context else {}
 
