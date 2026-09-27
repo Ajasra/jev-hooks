@@ -65,6 +65,11 @@ def test_project_goal_discovery_cascade(tmp_path: Path):
     env2 = assemble_envelope(event, tmp_path)
     assert env2.project_goal == "Build reliable agent hooks with zero latency overhead."
 
+    # Test root PRD.md / GOAL.md precedence over .agents/GOAL.md
+    (tmp_path / "PRD.md").write_text("# Master PRD\nUniversal Autonomous Assistant Operating System.\n", encoding="utf-8")
+    env3 = assemble_envelope(event, tmp_path)
+    assert env3.project_goal == "Universal Autonomous Assistant Operating System."
+
 
 def test_assemble_envelope_git_integration(tmp_path: Path):
     _git(tmp_path, "init")

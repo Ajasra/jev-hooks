@@ -27,6 +27,18 @@ class ContextEnvelope:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+    def to_telemetry(self) -> dict[str, Any]:
+        """Returns compact, privacy-preserving context telemetry for SQLite auditing."""
+        return {
+            "has_project_goal": bool(self.project_goal),
+            "has_session_objective": bool(self.session_objective),
+            "has_error_anchor": bool(self.last_error),
+            "has_git_status": bool(self.git_status_summary),
+            "branch": self.git_branch,
+            "active_file": Path(self.active_path).name if self.active_path else "",
+            "semantic_prompt_chars": len(self.to_semantic_string()),
+        }
+
     def to_semantic_string(self) -> str:
         """Renders a compact, high-signal prompt representation capped at 4,000 chars."""
         clean_prompt = self.prompt.strip()
@@ -95,8 +107,17 @@ def _git_status_summary(cwd: Path) -> str:
 
 def _project_goal(cwd: Path) -> str:
     """Fast, cascading discovery of project purpose (Horizon 3)."""
-    # 1. Dedicated agent goal or PRD
-    for candidate in (".agents/GOAL.md", ".agents/project.md", ".agents/PRD.md"):
+    # 1. Dedicated goal, PRD, vision, or product specification files (workspace root, docs, .agents, .github)
+    candidates = (
+        "GOAL.md", "goal.md", "GOAL",
+        "PRD.md", "prd.md",
+        "VISION.md", "vision.md",
+        "PROJECT.md", "project.md",
+        ".agents/GOAL.md", ".agents/project.md", ".agents/PRD.md",
+        "docs/GOAL.md", "docs/PRD.md", "docs/VISION.md", "docs/project.md",
+        ".github/GOAL.md",
+    )
+    for candidate in candidates:
         path = cwd / candidate
         if path.exists() and path.is_file():
             try:

@@ -75,6 +75,12 @@ class Runtime:
                     self._remaining(event),
                 ))
         merged = merge_results(results, self.settings.context_budget)
+        if envelope:
+            envelope_telemetry = envelope.to_telemetry()
+            merged.data["context_telemetry"] = envelope_telemetry
+            for result in results:
+                result.data["context_telemetry"] = envelope_telemetry
+
         for result in results:
             try:
                 self.storage.record_event(event, result)

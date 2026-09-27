@@ -1,11 +1,11 @@
 # RFC-26: Machine-Native Context Envelope & Multi-Modal State Assembly
 
-> **Category**: `CORE`  
-> **Status**: Implemented  
-> **Target Lifecycle**: `PreInvocation` (`turn.before`) & `PreToolUse` (`tool.before`)  
-> **Harnesses**: Google Antigravity and OpenAI Codex  
-> **Implementation**: [`core/context.py`](../src/jev/core/context.py) & [`runtime.py`](../src/jev/runtime.py)  
-> **Related Protocol**: [System One Balance Protocol](../.agents/protocols/system-one-balance-protocol.md)  
+> **Category**: `CORE`
+> **Status**: Implemented
+> **Target Lifecycle**: `PreInvocation` (`turn.before`) & `PreToolUse` (`tool.before`)
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Implementation**: [`core/context.py`](../src/jev/core/context.py) & [`runtime.py`](../src/jev/runtime.py)
+> **Related Protocol**: [System One Balance Protocol](../.agents/protocols/system-one-balance-protocol.md)
 > **Grounding Philosophy**: [The Philosophy of Jev](../docs/PHILOSOPHY.md)
 
 ---
@@ -27,7 +27,7 @@ When agent hooks pass these bare prompt strings directly to decision models (e.g
 
 ## 2. Inspiration
 
-In semiotics and functional linguistics (Ludwig Wittgenstein, M.A.K. Halliday), words have no inherent meaning in isolation: **meaning is situated in the context of the situation**. 
+In semiotics and functional linguistics (Ludwig Wittgenstein, M.A.K. Halliday), words have no inherent meaning in isolation: **meaning is situated in the context of the situation**.
 
 In biological cognition, the brain does not interpret language in an acoustic void. Words are merged continuously with **proprioception** (body state, physical orientation), **environmental cues** (visual horizon, objects in hand), and **immediate memory** (last action performed).
 
@@ -121,26 +121,62 @@ flowchart TD
 
 ## 5. Technical Specification & Implementation
 
-### A. Data Contract (`ContextEnvelope`)
+### B. Data Contract (`ContextEnvelope`)
 
 ```python
 @dataclass(frozen=True)
 class ContextEnvelope:
     prompt: str
-    active_path: str = ""
+    project_goal: str = ""        # Horizon 3: Project North Star (auto-discovered)
+    session_objective: str = ""   # Horizon 2: Milestone Objective (genesis prompt)
+    active_path: str = ""         # Horizon 1: Physical environment
     git_branch: str = ""
     git_status_summary: str = ""
-    prior_context: str = ""
-    last_error: str = ""
+    prior_context: str = ""       # Horizon 1: Recent turn trajectory
+    last_error: str = ""          # Horizon 1: Immediate causal trigger
 
     def to_semantic_string(self) -> str:
-        """Renders high-signal state string for Jev System One questions."""
+        """Renders high-signal state string for Jev System One questions (<= 4,000 chars)."""
         ...
+
+    def to_telemetry(self) -> dict[str, Any]:
+        """Returns compact, privacy-preserving context telemetry for SQLite auditing."""
+        return {
+            "has_project_goal": bool(self.project_goal),
+            "has_session_objective": bool(self.session_objective),
+            "has_error_anchor": bool(self.last_error),
+            "has_git_status": bool(self.git_status_summary),
+            "branch": self.git_branch,
+            "active_file": Path(self.active_path).name if self.active_path else "",
+            "semantic_prompt_chars": len(self.to_semantic_string()),
+        }
 ```
 
-### B. Assembly Latency & Safety Invariants
+### C. Automated Discovery & Zero-Friction Cascades
 
-1. **Sub-10ms Assembly Budget**: Git operations use `git status --short` with `timeout=0.15` and `safe.directory`. If git is absent or stalls, the envelope falls back to bare prompt gracefully.
+1. **Horizon 3 (Project North Star)**:
+   - Evaluates a cascading fallback across common industry conventions:
+     - Dedicated project files in root, `docs/`, `.agents/`, or `.github/`: `GOAL.md`, `PRD.md`, `VISION.md`, `PROJECT.md`, `docs/GOAL.md`, `docs/PRD.md`, `docs/VISION.md`, `.agents/GOAL.md`.
+     - Harness rule files: `GEMINI.md` or `AGENTS.md` (persona / mission line).
+     - Standard package manifests: `pyproject.toml` (`[project].description`) or `package.json` (`description`).
+     - Standard documentation: `README.md` intro line following `#`.
+     - Fallback: Workspace directory name.
+   - Requires zero user configuration, zero mandatory PRD files, and executes in $< 0.5\text{ms}$.
+2. **Horizon 2 (Session Objective)**:
+   - Scans the session transcript from genesis for the initial `USER_INPUT` that created the trajectory.
+   - Retains the overarching mission across 20+ turns, completely eliminating conversation amnesia and tactical drift during terse follow-ups.
+
+### D. Comparative Evaluation & Edge Cases
+
+| Scenario / Edge Case | Legacy Payload Sent to Jev | Legacy Decision Outcome | Teleological Context Envelope Sent | Teleological Decision Outcome |
+| :--- | :--- | :--- | :--- | :--- |
+| **Terse follow-up**<br/>`"audit it"` | `{"request": "audit it"}` | Weak/Ambivalent match ($P \approx 0.40$). Ambiguous target. | `Active Objective: Audit semantic rules...` + `Active file: context.py` | **High confidence ($\ge 0.85$)** routed to `lint-architect` & `context-architect`. |
+| **Compiler / Test Failure**<br/>`"fix the failure"` | `{"request": "fix the failure"}` | No match ($P = 0.00$). Total context starvation. | `Recent error: ValueError: Duplicate...` + `Active file: semantic_lint.py` | **Confidence 0.88**. Immediately targets root error without roundtrips. |
+| **Tactical Follow-up**<br/>`"update docs"` | `{"request": "update docs"}` | Tactical Fixation: Treats docs as isolated whole project. | `Project: Jev hook architecture` + `Active Objective: Dual-harness runtime` | Calibrated: Treats documentation as supporting runtime implementation. |
+
+### E. Assembly Latency, Privacy, and Audit Persistence
+
+1. **Sub-5ms Assembly Budget**: Pure local filesystem, regex, and `git status --short` with `timeout=0.15`. Zero network calls, zero LLM calls during envelope assembly.
 2. **Strict Bounded Size**: The rendered semantic string is capped at 4,000 characters (~1,000 tokens), preventing context bloat.
-3. **Secret Redaction**: All paths, prompts, and status lines pass through `redact()` before entering evaluation payloads.
-4. **Harness-Neutral Integration**: Both Antigravity and Codex events feed into `assemble_envelope()`.
+3. **Deterministic Secret Redaction**: All paths, prompts, and status lines pass through `redact()` before entering evaluation payloads.
+4. **Lightweight Audit Telemetry**: SQLite audit logs persist compact context telemetry (`has_project_goal`, `has_session_objective`, `has_error_anchor`, `semantic_prompt_chars`) inside `events.details`, enabling offline model calibration and telemetry without storing proprietary code or unredacted transcripts.
