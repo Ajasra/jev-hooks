@@ -1,4 +1,11 @@
-# Use Case: Predictive ML Feature Extraction (Converting Free Text to Continuous Signals)
+# RFC-15: Predictive ML Feature Extraction
+
+> **Category**: `USE_CASE`
+> **Status**: 📐 Blueprint
+> **Target Lifecycle**: ML Pipelines & Feature Engineering
+> **Harnesses**: Cross-Platform / Tooling
+
+---
 
 ## 1. Problem Statement
 
@@ -23,7 +30,7 @@ Jev outputs continuous probabilities ($0.0$ to $1.0$) from `Noul` questions and 
 ```mermaid
 flowchart LR
     RawText["Unstructured Text<br/>(e.g., Git commit message + PR comments)"] --> JevFeatureExtractor["Jev Feature Extractor (~70ms)"]
-    
+
     subgraph JevSignals ["Calibrated Continuous Features"]
         F1["feat_urgency: Noul (0.0 - 1.0)"]
         F2["feat_scope_risk: Score (1 - 5)"]
@@ -31,9 +38,9 @@ flowchart LR
         F4["feat_sentiment_frustration: Score (1 - 5)"]
     end
     JevFeatureExtractor --> JevSignals
-    
+
     JevSignals --> TabularRow["Enriched Feature Row:<br/>[lines_changed, num_files, feat_urgency, feat_scope_risk, ...]"]
-    
+
     TabularRow --> MLModel["CatBoost / XGBoost Predictive Regressor<br/>(Predicts: Bug Regression Risk / Churn Probability)"]
 ```
 

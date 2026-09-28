@@ -1,4 +1,11 @@
-# Use Case: Structured Data Extraction (SDE) Cascades
+# RFC-09: Structured Data Extraction (SDE) Cascades
+
+> **Category**: `USE_CASE`
+> **Status**: 📐 Blueprint
+> **Target Lifecycle**: Shared Tooling & Data Extraction
+> **Harnesses**: Google Antigravity and OpenAI Codex
+
+---
 
 ## 1. Problem Statement
 
@@ -21,19 +28,19 @@ This pattern combines the speed and precision of regex extraction with Jev's sem
 ```mermaid
 flowchart TD
     RawText["Unstructured Free Text Input<br/>(e.g., commit log, issue body, invoice)"] --> Stage1["Stage 1: Deterministic Candidate Extraction (Regex / Heuristic)"]
-    
+
     Stage1 --> Candidates["Extracted Candidate Spans<br/>[Span A, Span B, Span C]"]
-    
+
     Candidates --> Stage2["Stage 2: Jev Semantic Selection (System One ~50ms)"]
-    
+
     subgraph JevSDE ["Jev Evaluation"]
         SelectChoice["Choice: Which extracted span matches the target role?"]
         PresentNoul["Noul: Is the requested field actually present in the text?"]
     end
     Stage2 --> JevSDE
-    
+
     JevSDE --> DecisionCheck{"Confidence ≥ 0.80?"}
-    
+
     DecisionCheck -->|Yes| OutputTyped["Output 100% Verbatim & Validated Field<br/>(Zero JSON parsing errors)"]
     DecisionCheck -->|No| FallbackReasoning["Escalate to Frontier Reasoning LLM<br/>(Only ~5% of ambiguous cases)"]
 ```
@@ -68,11 +75,11 @@ async function extractProductionUrl(
   // Stage 1: Regex candidate extraction
   const urlRegex = /https?:\/\/[^\s"'<>]+/g;
   const candidates = Array.from(new Set(text.match(urlRegex) || []));
-  
+
   if (candidates.length === 0) {
     return { value: null, confidence: 1.0, extractedVerbatim: false };
   }
-  
+
   if (candidates.length === 1) {
     // Quick single-candidate confirmation
     const verify = await client.systemOne({

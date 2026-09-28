@@ -1,14 +1,16 @@
-# RFC-01: Verbatim Context Compactor for Antigravity
+# RFC-01: Verbatim Context Compactor
 
-> **Category**: `CORE`  
-> **Status**: ✅ Implemented  
-> **Target Lifecycle**: `Session GC` / `PostToolUse`  
+> **Category**: `CORE`
+> **Status**: ✅ Implemented
+> **Target Lifecycle**: `Session GC` & Sidecar Storage
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Implementation**: [`core/compaction.py`](../../src/jev/core/compaction.py)
 
 ---
 
 ## 1. Problem Statement
 
-Long-running agent workflows (e.g., refactoring large codebases, running `/goal` tasks, iterative test/fix cycles) generate immense conversation transcripts. 
+Long-running agent workflows (e.g., refactoring large codebases, running `/goal` tasks, iterative test/fix cycles) generate immense conversation transcripts.
 
 Traditional context management approaches exhibit critical flaws:
 1. **Sliding Window Truncation**: Older turns drop off entirely, losing original requirements, user constraints, and architectural plans established at the start.
@@ -29,25 +31,25 @@ Adapted from [tamaratran/fast-jev-compaction](https://github.com/tamaratran/fast
 ```mermaid
 flowchart TD
     RawHistory["Full Transcript (Messages + Tool Calls)"] --> PinFilter["Pin Boundary:<br/>- First user prompt & plan<br/>- Last N recent turns (e.g. 6 turns)"]
-    
+
     PinFilter --> CandidateCalls["Historical Candidate Tool Calls<br/>(e.g., view_file, grep_search, run_command)"]
-    
+
     CandidateCalls --> StatePrep["Prepare Jev State:<br/>Full conversation with tool outputs masked to<br/>'ok, 4120 chars (omitted)'"]
-    
+
     StatePrep --> JevBatch["Dispatch Parallel Noul Questions to Jev"]
-    
+
     subgraph JevQuestions ["Per-Call Jev Evaluation"]
         N1["call_{id}: Does knowing this call was made still matter?"]
         N2["result_{id}: Is the verbatim output still needed?"]
     end
-    
+
     JevBatch --> JevQuestions
     JevQuestions --> PruneLogic{"Compare against keepThreshold (0.5)"}
-    
+
     PruneLogic -->|keepResult ≥ 0.5| KeepFull["Keep Tool Call + Complete Output"]
     PruneLogic -->|keepCall ≥ 0.5| KeepStub["Keep Call Metadata + Truncate Output to 300ch stub"]
     PruneLogic -->|Both < 0.5| DropAll["Prune Call and Result Entirely"]
-    
+
     KeepFull --> ReconstructedHistory["Compact History (100% Verbatim Prose)"]
     KeepStub --> ReconstructedHistory
     DropAll --> ReconstructedHistory
@@ -113,7 +115,7 @@ const questions = {
 
 ## 6. Live Production Verification & Benchmark Results
 
-The compactor engine is implemented in [`.agents/hooks/jev_compactor.py`](../.agents/hooks/jev_compactor.py) and validated via an automated test harness ([`tests/test_compactor.py`](../tests/test_compactor.py)).
+The compactor engine is implemented in [`.agents/hooks/jev_compactor.py`](../../.agents/hooks/jev_compactor.py) and validated via an automated test harness ([`tests/test_compactor.py`](../../tests/test_compactor.py)).
 
 ### 6.1 Test Execution & Benchmark Metrics
 

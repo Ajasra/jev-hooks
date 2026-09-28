@@ -1,4 +1,11 @@
-# Use Case: RAG Re-Ranking & Context Noise Elimination
+# RFC-10: RAG Re-Ranking & Context Noise Elimination
+
+> **Category**: `USE_CASE`
+> **Status**: 📐 Blueprint
+> **Target Lifecycle**: Retrieval & Context Pipeline
+> **Harnesses**: Google Antigravity and OpenAI Codex
+
+---
 
 ## 1. Problem Statement
 
@@ -26,22 +33,22 @@ In a single fast API call (~100–180ms), Jev evaluates all retrieved candidate 
 ```mermaid
 flowchart TD
     UserQuery["User Query: 'How is JWT signature verified in auth service?'"] --> VectorDB["Vector DB Retrieval (Top 20 Chunks by Embedding)"]
-    
+
     VectorDB --> JevFilter["Jev RAG Filter & Re-Ranker (~120ms)"]
-    
+
     subgraph JevBatch ["Parallel Evaluation over 20 Candidates"]
         S_Scores["Score: 1-5 Relevance per Chunk"]
         N_HasAnswer["Noul: Does this candidate set contain the actual answer?"]
         N_Contradictions["Noul: Do any chunks contain contradictory instructions?"]
     end
     JevFilter --> JevBatch
-    
+
     JevBatch --> TriageDecision{"Relevance Filtering in Code"}
-    
+
     TriageDecision -->|HasAnswer < 0.40| AbortSearch["Inform Agent: No relevant context found in vector store.<br/>Proceed with ripgrep or file search."]
-    
+
     TriageDecision -->|Filter: Score ≥ 4| CuratedChunks["Top 2-3 High-Relevance Chunks Only<br/>(Pruned 85% of noise)"]
-    
+
     CuratedChunks --> PromptContext["Clean, Focused Context into LLM Prompt"]
 ```
 

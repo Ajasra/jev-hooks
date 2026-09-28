@@ -1,4 +1,12 @@
-# Proposal 21: Speculative Fan-Out & Dual-Axis Confidence Arbitration
+# RFC-21: Speculative Fan-Out & Dual-Axis Confidence Arbitration
+
+> **Category**: `EXT`
+> **Status**: ✅ Implemented
+> **Target Lifecycle**: `PreInvocation` (`turn.before`)
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Implementation**: [`core/speculative.py`](../../src/jev/core/speculative.py)
+
+---
 
 ## 1. Executive Summary
 
@@ -26,7 +34,7 @@ $$\text{Cost}(\text{1 Question}) \approx \$0.000042 \quad \text{vs} \quad \text{
 ```mermaid
 flowchart TD
     UserTurn["Developer Instruction Received"] --> FanOutEngine["PreInvocation Hook: Speculative Fan-Out (~110ms)"]
-    
+
     subgraph MultiQuestionBatch ["Single Parallel Jev Request (12 Questions)"]
         Q1["Noul: Needs recent git diff?"]
         Q2["Noul: Involves failing unit tests?"]
@@ -35,17 +43,17 @@ flowchart TD
         Q5["Choice: Primary subsystem target (UI, Core, DB, Hooks)"]
         Q6["Choice: Likely required tool (grep_search, run_command, replace)"]
     end
-    
+
     FanOutEngine --> MultiQuestionBatch
     MultiQuestionBatch --> Arbiter["Deterministic Confidence Arbiter (Python)"]
-    
+
     Arbiter -->|Ambiguity = High & Conf ≥ 0.80| DirectModal["Short-Circuit to ask_question Modal:<br/>Clarify ambiguous intent without burning LLM turn"]
     Arbiter -->|Git Diff Noul ≥ 0.70| PrefetchGit["Prefetch git diff --stat & recent commits"]
     Arbiter -->|Test Noul ≥ 0.70| PrefetchTests["Prefetch last test failure logs"]
-    
+
     PrefetchGit --> EnrichedContext["Enriched Prompt Context"]
     PrefetchTests --> EnrichedContext
-    
+
     EnrichedContext --> GeminiPrimary["Primary Gemini Model (System 2)"]
     GeminiPrimary --> ZeroRoundtripPlan["Generates Exact Code Solution on Turn 1<br/>(Zero Intermediate Tool Stalls)"]
 ```
@@ -127,7 +135,7 @@ fan_out_payload = {
 ---
 
 ## 4. Benchmark & Impact Analysis
- 
+
 | Metric | Traditional Sequential Flow | Jev Speculative Fan-Out | Net Impact |
 | :--- | :--- | :--- | :--- |
 | **Initial Context Assembly** | 0ms | ~110ms | +110ms upfront |
@@ -141,9 +149,9 @@ fan_out_payload = {
 ## 5. Live Implementation Reference & Concrete Examples
 
 ### 5.1 Active Implementation Artifacts
-- **PreInvocation Hook**: [`jev_speculative_router.py`](../.agents/hooks/jev_speculative_router.py) (mirrored to `~/.gemini/config/hooks/jev_speculative_router.py`)
-- **Hook Registration**: Registered under `PreInvocation` in [`hooks.json`](../.agents/hooks.json)
-- **Integration Test Suite**: [`tests/test_speculative_router.py`](../tests/test_speculative_router.py)
+- **PreInvocation Hook**: [`jev_speculative_router.py`](../../.agents/hooks/jev_speculative_router.py) (mirrored to `~/.gemini/config/hooks/jev_speculative_router.py`)
+- **Hook Registration**: Registered under `PreInvocation` in [`hooks.json`](../../.agents/hooks.json)
+- **Integration Test Suite**: [`tests/test_speculative_router.py`](../../tests/test_speculative_router.py)
 
 ### 5.2 Real-World Invocation Examples
 
@@ -308,9 +316,9 @@ Active Agent: Security & Code Hygiene Auditor
 Developer Prompt: audit this codebase
 ```
 
-- **Project Identity**: Compact 1-line project summary dynamically extracted from [`README.md`](../README.md), `package.json`, or `pyproject.toml`.
+- **Project Identity**: Compact 1-line project summary dynamically extracted from [`README.md`](../../README.md), `package.json`, or `pyproject.toml`.
 - **Git Branch**: Direct zero-cost read from `.git/HEAD` (0ms overhead) informing Jev whether work is on a feature branch, hotfix, or main branch.
-- **Active Agent Persona**: Multi-tiered discovery via invocation context metadata (`context["agent"]`, `context["role"]`, etc.) or workspace specification files ([`AGENTS.md`](../AGENTS.md), [`AGENT.md`](../AGENT.md), [`GEMINI.md`](../GEMINI.md)).
+- **Active Agent Persona**: Multi-tiered discovery via invocation context metadata (`context["agent"]`, `context["role"]`, etc.) or workspace specification files ([`AGENTS.md`](../../AGENTS.md) or [`GEMINI.md`](../../GEMINI.md)).
 - **Domain Specialization**: Specializes prefetching behavior based on persona (e.g. Code Auditors get git diffs, Test Engineers get pytest diagnostics, Curators get link extraction). When no custom agent is active, the field is omitted to save tokens.
 
 

@@ -1,9 +1,12 @@
 # RFC-03: Autonomous Dual-Engine Knowledge Item (KI) Lifecycle
 ## Self-Distilling Synthesizer (Write) & Calibrated Pre-Flight Triage (Read)
 
-> **Category**: `CORE`  
-> **Status**: 📐 Blueprint (Active Implementation)  
-> **Target Lifecycle**: `PreInvocation` (Read) + Post-Session/Commit (Write)  
+> **Category**: `CORE`
+> **Status**: ✅ Implemented
+> **Target Lifecycle**: `PreInvocation` (Read) + Post-Session / Commit / CLI (Write)
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Implementation**: [`core/knowledge.py`](../../src/jev/core/knowledge.py) and [`tooling.py`](../../src/jev/tooling.py)
+> **Related Protocol**: [System One Balance Protocol](../../.agents/protocols/system-one-balance-protocol.md)
 
 ---
 
@@ -151,7 +154,7 @@ When `is_reusable_pattern >= 0.75` and `novelty_score >= 1.5`:
   "reusability": 0.88,
   "created_at": "2026-09-25T12:20:00Z",
   "references": [
-    "proposals/21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md",
+    "docs/proposals/RFC-21_EXT_speculative_fan_out.md",
     ".agents/hooks/jev_speculative_router.py"
   ]
 }
@@ -450,7 +453,7 @@ if __name__ == "__main__":
 
 ## 7. System One Balance Protocol Conformance
 
-This architecture strictly implements the balance invariants codified in [`.agents/protocols/system-one-balance-protocol.md`](../.agents/protocols/system-one-balance-protocol.md):
+This architecture strictly implements the balance invariants codified in [`.agents/protocols/system-one-balance-protocol.md`](../../.agents/protocols/system-one-balance-protocol.md):
 
 1. **Conversational Trajectory Recency (Pillar 1)**: The Read Engine evaluates both the developer prompt and `activeDocument` context, preventing false-negative non-matches on compact follow-ups (*"apply the invariant"*, *"refine the router"*).
 2. **Calibrated Advisories, Not Lockouts (Pillar 2)**: When no KIs apply ($P < 0.40$), the engine injects a clean informational confirmation (`<system_preflight_hook name='jev_ki_engine'>`) saving hesitation without locking out tools or second-guessing exploratory searches.

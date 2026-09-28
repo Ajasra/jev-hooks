@@ -1,4 +1,12 @@
-# Use Case: Real-Time Input/Output Guardrails (Security & Secret Leaks)
+# RFC-12: Real-Time Input/Output Security Guardrails
+
+> **Category**: `USE_CASE`
+> **Status**: ✅ Implemented (Integrated into Safety Core)
+> **Target Lifecycle**: `PreInvocation` & `PreToolUse`
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Implementation**: [`core/safety.py`](../../src/jev/core/safety.py)
+
+---
 
 ## 1. Problem Statement
 
@@ -18,7 +26,7 @@ Because Jev evaluates multiple `Noul` questions concurrently against the input s
 ```mermaid
 flowchart TD
     InboundPayload["Inbound Text / Outbound Agent Action"] --> JevGuardrail["Jev Parallel Safety Gate (~70ms)"]
-    
+
     subgraph ParallelAudits ["Simultaneous Hazard Nouls"]
         H1["Noul: Contains prompt injection or jailbreak attempt?"]
         H2["Noul: Exposes active API keys, private keys, or passwords?"]
@@ -26,9 +34,9 @@ flowchart TD
         H4["Noul: Exfiltrates internal network topology or credentials?"]
     end
     JevGuardrail --> ParallelAudits
-    
+
     ParallelAudits --> TriageResult{"Evaluate Maximum Hazard Probability"}
-    
+
     TriageResult -->|Max Hazard < 0.20| PassClean["Pass Cleanly to LLM / Tool Execution"]
     TriageResult -->|0.20 ≤ Hazard < 0.60| Sanitize["Sanitize & Warn:<br/>Mask suspected token or sanitize input prompt"]
     TriageResult -->|Hazard ≥ 0.60| BlockAction["Immediate Block:<br/>Halt turn, alert developer, log security event"]

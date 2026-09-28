@@ -1,10 +1,12 @@
-# Proposal 23: System One Agent Balance, Anti-Bureaucracy & Anti-Stupidity Protocol
+# RFC-23: System One Agent Balance & Anti-Bureaucracy Protocol
 
-**Status**: Implemented & Standardized  
-**Target Harness**: Google Antigravity 2.0 / Universal Lifecycle Hooks  
-**Core Model**: TypeSafe AI Jev (System One Semantic Decision Layer)  
-**Related Proposals**: [Proposal 02](02_PROPOSAL_B_DYNAMIC_SKILL_DISPATCHER.md), [Proposal 04](04_PROPOSAL_D_SAFETY_AND_TOOL_ROUTER.md), [Proposal 18](18_ARCHITECTURAL_TREATISE_SYSTEM_ONE_ANTIGRAVITY.md), [Proposal 21](21_PROPOSAL_SPECULATIVE_FAN_OUT_AND_CONFIDENCE_ARBITRATION.md)  
-**Standardized Skill**: [`system-one-balance-protocol`](../.agents/skills/system-one-balance-protocol/SKILL.md)
+> **Category**: `PROTOCOL`
+> **Status**: Implemented & Standardized
+> **Target Lifecycle**: `PreInvocation` & `PreToolUse` (Cross-Lifecycle)
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Related Proposals**: [RFC-02: Dynamic Skill Dispatcher](RFC-02_CORE_dynamic_skill_dispatcher.md), [RFC-04: Safety & Tool Guardrails](RFC-04_CORE_safety_and_tool_guardrail.md), [RFC-18: System One Treatise](RFC-18_FOUNDATION_system_one_treatise.md), [RFC-21: Speculative Fan-Out](RFC-21_EXT_speculative_fan_out.md)
+> **Standardized Skill**: [`system-one-balance-protocol`](../../.agents/skills/system-one-balance-protocol/SKILL.md)
+> **Governing Protocol**: [`.agents/protocols/system-one-balance-protocol.md`](../../.agents/protocols/system-one-balance-protocol.md)
 
 ---
 
@@ -67,7 +69,7 @@ Instead of a single binary threshold, the dynamic skill router employs a two-tie
    <skill_hint name='system-one-balance-protocol'>
    > [!TIP]
    > **Available Skill Hint**: `system-one-balance-protocol` may be relevant to this task (Confidence: 0.51).
-   > If specialized workflows are needed, view its instructions at [system-one-balance-protocol](path/to/SKILL.md).
+   > If specialized workflows are needed, view its instructions at [system-one-balance-protocol](../../.agents/skills/system-one-balance-protocol/SKILL.md).
    </skill_hint>
    ```
 
@@ -80,7 +82,7 @@ Instead of a single binary threshold, the dynamic skill router employs a two-tie
 
 ## 4. Verification and Compliance
 
-All existing and future proposals must adhere to the checklist codified in [`.agents/skills/system-one-balance-protocol/SKILL.md`](../.agents/skills/system-one-balance-protocol/SKILL.md). Tests must explicitly verify that:
+All existing and future proposals must adhere to the checklist codified in [`.agents/skills/system-one-balance-protocol/SKILL.md`](../../.agents/skills/system-one-balance-protocol/SKILL.md). Tests must explicitly verify that:
 1. Routine follow-up turns do not trigger false ambiguity modals.
 2. Moderate-confidence skills are surfaced as hints rather than dropped.
 3. Hook latency remains $\le 300\text{ms}$ on P95.

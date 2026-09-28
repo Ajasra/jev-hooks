@@ -1,4 +1,11 @@
-# Case Study: Shapeshift (Dynamic Real-Time UI Morphing)
+# RFC-16: Shapeshift Real-Time UI Morphing Case Study
+
+> **Category**: `FOUNDATION`
+> **Status**: 💡 Case Study
+> **Target Lifecycle**: Interactive UI & Real-Time Ingestion
+> **Harnesses**: Web / Mobile / Application Clients
+
+---
 
 ## 1. Overview
 
@@ -24,7 +31,7 @@ Shapeshift demonstrates the optimal division of labor between AI and determinist
 ```mermaid
 flowchart TD
     UserInput["User Types in Text Box:<br/>'dinner with priya friday 8pm on zoom'"] --> JevFanout["Jev Parallel Intent Call (~120ms)"]
-    
+
     subgraph JevDecisions ["One Jev Call Answers 14 Questions Simultaneously"]
         Q_Card["Choice: Which card type?<br/>(event / reminder / checklist / split / color)"]
         Q_Video["Noul: Is this a video call? (True)"]
@@ -32,19 +39,19 @@ flowchart TD
         Q_Recur["Noul: Is this a recurring event? (False)"]
     end
     JevFanout --> JevDecisions
-    
+
     UserInput --> LocalParser["Local Deterministic Parser (Regex / Date-fns / Math)"]
-    
+
     subgraph DeterministicEngine ["Code Computes (Instant, Zero LLM)"]
         P_Date["Extract Date/Time: Friday 8:00 PM"]
         P_Person["Extract Name: Priya"]
         P_Math["Math Engine: 2400 / 3 = 800"]
     end
     LocalParser --> DeterministicEngine
-    
+
     JevDecisions --> MergeLayer["Merge Layer (Jev Decisions + Parsed Values)"]
     DeterministicEngine --> MergeLayer
-    
+
     MergeLayer --> DynamicUI["Render Live Event Card with Pre-Filled Fields"]
 ```
 

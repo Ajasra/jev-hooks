@@ -1,10 +1,19 @@
-# Additional Use Cases & Industry Patterns for Jev (TypeSafe AI)
+# RFC-05: Catalog of Industry Use Cases & Architectural Patterns
 
-This document catalogs other high-leverage use cases for Jev across **Agent Harness Engineering**, **Software Development**, **Universal Verification**, **RAG / Search**, and **Enterprise Automation**, based on TypeSafe AI's architecture, cookbooks, and community implementations.
+> **Category**: `CATALOG`
+> **Status**: Reference Catalog
+> **Target Lifecycle**: Cross-Lifecycle / Application Level
+> **Harnesses**: Google Antigravity and OpenAI Codex
 
 ---
 
-## 1. Harness Engineering & Coding Agent Use Cases
+## 1. Overview & Problem Scope
+
+This document catalogs high-leverage application patterns for TypeSafe AI's **Jev** across **Agent Harness Engineering**, **Software Development**, **Universal Verification**, **RAG / Search**, and **Enterprise Automation**, grounded in TypeSafe AI's System One architecture and verified community cookbooks.
+
+---
+
+## 2. Harness Engineering & Coding Agent Use Cases
 
 Beyond context compaction and skill selection, Jev addresses several core bottlenecks in agent architectures:
 
@@ -37,9 +46,9 @@ Beyond context compaction and skill selection, Jev addresses several core bottle
 
 ---
 
-## 2. Search, Retrieval & RAG Use Cases
+## 3. Search, Retrieval & RAG Use Cases
 
-### 2.1 Pass-Through RAG Filter & Re-Ranking
+### 3.1 Pass-Through RAG Filter & Re-Ranking
 - **Problem**: Vector databases return top-K passages by cosine similarity, which frequently includes irrelevant or outdated passages that poison agent context.
 - **Jev Solution**:
   - Instead of cross-encoders or generative LLM re-rankers, Jev evaluates all candidate chunks in one request.
@@ -48,7 +57,7 @@ Beyond context compaction and skill selection, Jev addresses several core bottle
     - `Noul`: *"Does this passage contain facts necessary to answer the question?"*
   - Filters out 70% of retrieved noise before the primary model ever sees it.
 
-### 2.2 Line-by-Line Semantic Document Search
+### 3.2 Line-by-Line Semantic Document Search
 - **Problem**: Finding specific clauses or lines in massive documents (e.g., legal agreements, 10,000-line log files, server configurations).
 - **Jev Solution**:
   - In a single API call, Jev scores hundreds of line IDs against a natural-language query using a wide `Choice` primitive.
@@ -56,9 +65,9 @@ Beyond context compaction and skill selection, Jev addresses several core bottle
 
 ---
 
-## 3. Real-Time Application & System Safety Use Cases
+## 4. Real-Time Application & System Safety Use Cases
 
-### 3.1 Real-Time Input/Output Guardrails (Jailbreak & Secret Leak Detection)
+### 4.1 Real-Time Input/Output Guardrails (Jailbreak & Secret Leak Detection)
 - **Problem**: Checking inputs and outputs using LLM guardrails (like Llama Guard) adds 1–3 seconds of latency and substantial token cost.
 - **Jev Solution**:
   - In 70–120ms, Jev evaluates parallel `Noul` questions across standard hazard categories:
@@ -67,7 +76,7 @@ Beyond context compaction and skill selection, Jev addresses several core bottle
     - `harmful_code_or_destructive_command`
   - Blocks unsafe requests before the primary LLM is invoked, saving token costs and reducing attack surface.
 
-### 3.2 Real-Time Autonomous UI Navigation
+### 4.2 Real-Time Autonomous UI Navigation
 - **Problem**: Autonomous browser agents (like `browser_subagent`) stall when deciding which interactive element (button, link, input) corresponds to the user's intent.
 - **Jev Solution**:
   - Given a sanitized list of interactive element IDs and the user's current goal, Jev executes a `Choice` primitive to select the target selector in 100ms.
@@ -75,7 +84,7 @@ Beyond context compaction and skill selection, Jev addresses several core bottle
 
 ---
 
-## 4. Big Data & Enterprise Automation Use Cases
+## 5. Big Data & Enterprise Automation Use Cases
 
 | Domain | Decision Task | Jev Primitive Used | Workflow Benefit |
 | :--- | :--- | :--- | :--- |
@@ -87,9 +96,9 @@ Beyond context compaction and skill selection, Jev addresses several core bottle
 
 ---
 
-## 5. Summary Matrix for Antigravity
+## 6. Summary Matrix for Harness Engineering
 
-For our Antigravity harness, the most immediate extensions beyond the core proposals are:
+For agent harnesses like Antigravity and Codex, the most immediate extensions beyond the core proposals are:
 
 1. **RAG Re-ranking on Documentation / Repositories**: Cleans up grep/search context before injecting into turns.
 2. **Pre-flight LLM Router**: Automatically chooses between fast models (`Gemini 1.5 Flash`) and deep models (`Gemini 1.5 Pro` / `Gemini 2.0`) per prompt.

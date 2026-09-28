@@ -1,11 +1,11 @@
 # RFC-07: Universal Output Verification & Citation Checking
 
-> **Category**: `USE_CASE`  
-> **Status**: Implemented  
-> **Target Lifecycle**: `PreToolUse` (`tool.before`) & Shared Tooling (`verify_output`)  
-> **Harnesses**: Google Antigravity and OpenAI Codex  
-> **Implementation**: [`core/verification.py`](../src/jev/core/verification.py), [`tooling.py`](../src/jev/tooling.py), and [`services/storage.py`](../src/jev/services/storage.py)  
-> **Related Protocol**: [System One Balance Protocol](../.agents/protocols/system-one-balance-protocol.md)
+> **Category**: `USE_CASE`
+> **Status**: Implemented
+> **Target Lifecycle**: `PreToolUse` (`tool.before`) & Shared Tooling (`verify_output`)
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Implementation**: [`core/verification.py`](../../src/jev/core/verification.py), [`tooling.py`](../../src/jev/tooling.py), and [`services/storage.py`](../../src/jev/services/storage.py)
+> **Related Protocol**: [System One Balance Protocol](../../.agents/protocols/system-one-balance-protocol.md)
 
 ---
 
@@ -36,10 +36,10 @@ RFC-07 establishes dual-surface verification across both Google Antigravity and 
    - Intercepts file mutation operations: `replace_file_content` / `write_to_file` in Antigravity, and `apply_patch` in Codex.
    - Extracts added code blocks and matches them against active Knowledge Items, docstrings, or type definitions.
    - Evaluates three parallel Jev questions in ~90ms.
-   - In accordance with the [System One Balance Protocol](../.agents/protocols/system-one-balance-protocol.md), verification is **advisory and non-blocking**. Detected discrepancies inject high-signal warnings into context without denying tools or triggering confirmation fatigue.
+   - In accordance with the [System One Balance Protocol](../../.agents/protocols/system-one-balance-protocol.md), verification is **advisory and non-blocking**. Detected discrepancies inject high-signal warnings into context without denying tools or triggering confirmation fatigue.
 
 2. **Proactive Callable Tool (`verify_output`)**:
-   - Registered once in [`src/jev/tooling.py`](../src/jev/tooling.py) and exposed as a shared MCP tool.
+   - Registered once in [`src/jev/tooling.py`](../../src/jev/tooling.py) and exposed as a shared MCP tool.
    - Enables agents to explicitly test candidate code snippets or citations before embarking on multi-file refactors.
 
 ```mermaid
@@ -150,7 +150,7 @@ Auditable logs are recorded in `verification_decisions`:
 
 ### E. Shared Callable Tool (`verify_output`)
 
-Registered in [`src/jev/registry.py`](../src/jev/registry.py) and [`src/jev/tooling.py`](../src/jev/tooling.py):
+Registered in [`src/jev/registry.py`](../../src/jev/registry.py) and [`src/jev/tooling.py`](../../src/jev/tooling.py):
 - **Inputs**: `code_snippet` (str), `reference_context` (str)
 - **Output**:
   ```json

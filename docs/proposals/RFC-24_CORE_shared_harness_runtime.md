@@ -1,8 +1,8 @@
 # RFC-24: Shared Jev Runtime for Antigravity and Codex
 
-> **Category**: CORE  
-> **Status**: Implemented  
-> **Target Lifecycle**: Harness Core  
+> **Category**: CORE
+> **Status**: Implemented
+> **Target Lifecycle**: Harness Core
 > **Scope**: One implementation of each Jev feature, delivered to both harnesses.
 
 ## 1. Problem
@@ -220,13 +220,13 @@ The implementation chooses shared source, thin adapters, a registry, configurabl
 
 Repository evidence:
 
-- [Current registration](../.agents/hooks.json): Antigravity tool matchers, event names and global paths.
-- [Safety gate](../.agents/hooks/jev_safety_gate.py): mixed event decoding, policy, HTTP and output encoding.
-- [Database](../.agents/hooks/safety_db.py): shared Gemini path; rules and feedback lack harness identity.
-- [Skill router](../.agents/hooks/jev_skill_router.py): duplicated catalog call and global debounce state.
-- [Speculative router](../.agents/hooks/jev_speculative_router.py): transcript assumptions and synchronous pytest prefetch.
-- [Compactor](../.agents/hooks/jev_compactor.py): in-place trajectory writes.
-- [Integration tests](../tests/test_gate_integration.py): real default rules database mutation.
+- [Current registration](../../.agents/hooks.json): Antigravity tool matchers, event names and global paths.
+- [Safety gate](../../.agents/hooks/jev_safety_gate.py): mixed event decoding, policy, HTTP and output encoding.
+- [Database](../../.agents/hooks/safety_db.py): shared Gemini path; rules and feedback lack harness identity.
+- [Skill router](../../.agents/hooks/jev_skill_router.py): duplicated catalog call and global debounce state.
+- [Speculative router](../../.agents/hooks/jev_speculative_router.py): transcript assumptions and synchronous pytest prefetch.
+- [Compactor](../../.agents/hooks/jev_compactor.py): in-place trajectory writes.
+- [Integration tests](../../tests/test_gate_integration.py): real default rules database mutation.
 
 Codex sources checked on 2026-09-26: [hook contracts](https://learn.chatgpt.com/docs/hooks), [native skill discovery](https://learn.chatgpt.com/docs/build-skills), and [plugin packaging](https://developers.openai.com/plugins/build/plugins). Existing Antigravity code describes the intended integration; M0 must verify it against the installed harness before claiming runtime compatibility.
 

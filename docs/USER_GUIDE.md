@@ -81,8 +81,8 @@ flowchart TD
     SafetyGate -->|Destructive / Ambiguous| InterceptModal["Interactive IDE Modal (Antigravity)<br/>or Policy Denial (Codex)"]
 ```
 
-> **Grounding Tip: Preserving Your Project's Compass**
-> Create `.agents/GOAL.md` (or `.agents/project.md`) with 1–2 sentences defining your project's North Star. Jev automatically incorporates this into every Context Envelope, preventing the agent from suffering local myopia or losing sight of core architecture on multi-turn refactors.
+> **Grounding Tip: Preserving Your Project's Compass (Horizon 3)**
+> Jev automatically discovers your project's North Star by checking common file conventions (`docs/GOAL.md`, `GOAL.md`, `PRD.md`, `docs/PRD.md`, or `.agents/GOAL.md`). It also falls back gracefully to `GEMINI.md` / `AGENTS.md`, `pyproject.toml` / `package.json` descriptions, or `README.md`. Having a clear 1–2 sentence goal statement grounds every System One micro-decision, preventing local myopia and goal drift across multi-turn sessions.
 
 ---
 

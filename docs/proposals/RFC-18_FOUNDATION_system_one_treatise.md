@@ -1,4 +1,13 @@
-# Machine-Native Semantic Control: Evaluating TypeSafe Jev for Skill Routing, Tool Optimization, and Context Compaction in Google Antigravity
+# RFC-18: System One Architectural Treatise
+
+> **Category**: `FOUNDATION`
+> **Status**: 📜 Master Architecture Treatise
+> **Target Lifecycle**: Harness Core / Universal Control Plane
+> **Harnesses**: Google Antigravity and OpenAI Codex
+
+---
+
+## 1. Executive Abstract
 
 Language model harnesses have historically relied on monolithic autoregressive decoders to execute both deliberative planning and low-level control flow. In long-horizon agentic workflows, this reliance introduces operational fragility: autoregressive models are computationally expensive, exhibit stochastic output formatting, and suffer from severe context degradation during multi-turn task execution. The introduction of TypeSafe AI's **Jev** marks a structural pivot toward machine-native **"System One"** decision models. Rather than generating conversational prose token-by-token, Jev evaluates unstructured state against typed schemas and emits calibrated probabilities in a single forward pass.
 
@@ -6,7 +15,7 @@ Concurrently, open-source implementations such as Tamara Tran's `fast-jev-compac
 
 ---
 
-## 1. Architecture of System One Decision Models and TypeSafe Jev
+## 2. Architecture of System One Decision Models and TypeSafe Jev
 
 TypeSafe AI—founded by former OpenAI researcher Diogo Almeida, Erik Gafni, and Sasha Sheng—developed Jev to resolve an impedance mismatch in AI software design: while frontier models excel at human-facing prose, production software requires deterministic, low-latency, and strictly typed branching logic. Drawing a conceptual parallel to Daniel Kahneman’s dual-process theory, Jev is engineered as an artificial **"System One"**: a fast, non-generative, heuristic judgment engine, leaving slow, deliberative, generative reasoning (**"System Two"**) to frontier autoregressive models. The model's moniker derives from the 19th-century economist William Stanley Jevons; the Jevons paradox suggests that radical efficiency gains in machine judgment will exponentially expand the deployment frequency of semantic evaluations in code.
 

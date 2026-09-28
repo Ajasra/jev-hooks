@@ -1,8 +1,11 @@
 # RFC-04: Pre-Execution Safety Guardrail & Tool Disambiguation
 
-> **Category**: `CORE`  
-> **Status**: ✅ Implemented  
-> **Target Lifecycle**: `PreToolUse`  
+> **Category**: `CORE`
+> **Status**: ✅ Implemented
+> **Target Lifecycle**: `PreToolUse` (`tool.before`)
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Implementation**: [`core/safety.py`](../../src/jev/core/safety.py) & [`services/storage.py`](../../src/jev/services/storage.py)
+> **Related Protocol**: [System One Balance Protocol](../../.agents/protocols/system-one-balance-protocol.md)
 
 ---
 
@@ -203,7 +206,7 @@ Zero Jev API calls needed for any of the above — all resolved via deterministi
 
 | File | Purpose |
 |:--- |:--- |
-| [`jev_safety_gate.py`](../.agents/hooks/jev_safety_gate.py) | Main hook — 3-stage pipeline entry point |
-| [`safety_db.py`](../.agents/hooks/safety_db.py) | Decision DB + Critical Shield — standalone module |
-| [`tests/test_gate_integration.py`](../tests/test_gate_integration.py) | End-to-end pipeline integration test |
-| [`tests/test_gate_eval.py`](../tests/test_gate_eval.py) | Jev blast-radius scoring evaluation harness |
+| [`jev_safety_gate.py`](../../.agents/hooks/jev_safety_gate.py) | Main hook — 3-stage pipeline entry point |
+| [`safety_db.py`](../../.agents/hooks/safety_db.py) | Decision DB + Critical Shield — standalone module |
+| [`tests/test_gate_integration.py`](../../tests/test_gate_integration.py) | End-to-end pipeline integration test |
+| [`tests/test_gate_eval.py`](../../tests/test_gate_eval.py) | Jev blast-radius scoring evaluation harness |

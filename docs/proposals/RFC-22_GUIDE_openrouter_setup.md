@@ -1,6 +1,14 @@
-# Using TypeSafe Jev via OpenRouter (`typesafe/jev-latest`)
+# RFC-22: OpenRouter Jev Integration & Environment Setup
 
-## Overview
+> **Category**: `GUIDE`
+> **Status**: ✅ Implemented
+> **Target Lifecycle**: Infrastructure & Provider Client
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Implementation**: [`services/client.py`](../../src/jev/services/client.py)
+
+---
+
+## 1. Overview
 
 TypeSafe AI's **Jev** is available on OpenRouter under the model slug:
 👉 **[`typesafe/jev-latest`](https://openrouter.ai/~typesafe/jev-latest)** (and pinned version `typesafe/jev-1.13`).
@@ -9,7 +17,7 @@ Routing Jev through OpenRouter allows teams and autonomous harnesses like **Goog
 
 ---
 
-## 1. Why Use Jev via OpenRouter?
+## 2. Why Use Jev via OpenRouter?
 
 | Advantage | Direct TypeSafe AI | OpenRouter (`typesafe/jev-latest`) |
 | :--- | :--- | :--- |
@@ -46,7 +54,7 @@ X-Title: Antigravity Jev Integration
 
 ## 3. How the Antigravity Hooks Handle OpenRouter Automatically
 
-The repository's [`.agents/hooks/env_loader.py`](../.agents/hooks/env_loader.py) includes automated provider detection.
+The repository's [`.agents/hooks/env_loader.py`](../../.agents/hooks/env_loader.py) includes automated provider detection.
 
 If you set `OPENROUTER_API_KEY` in `.agents/.env` (or project root `.env`), the hooks:
 1. Detect that `OPENROUTER_API_KEY` is present.
@@ -56,7 +64,7 @@ If you set `OPENROUTER_API_KEY` in `.agents/.env` (or project root `.env`), the 
 
 ### Minimal Configuration
 
-Simply copy [`.agents/.env.example`](../.agents/.env.example) to `.agents/.env`:
+Simply copy [`.agents/.env.example`](../../.agents/.env.example) to `.agents/.env`:
 
 ```bash
 # In .agents/.env

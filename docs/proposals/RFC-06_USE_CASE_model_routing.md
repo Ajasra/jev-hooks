@@ -1,4 +1,11 @@
-# Use Case: Intelligent Model Routing & Escalation (Cost & Latency Tiering)
+# RFC-06: Intelligent Model Routing & Cost-Latency Tiering
+
+> **Category**: `USE_CASE`
+> **Status**: 📐 Blueprint
+> **Target Lifecycle**: `PreInvocation` (`turn.before`)
+> **Harnesses**: Google Antigravity and OpenAI Codex
+
+---
 
 ## 1. Problem Statement
 
@@ -19,20 +26,20 @@ In 70–120ms ($0.042/1M input tokens), Jev evaluates the prompt and immediate w
 ```mermaid
 flowchart TD
     UserPrompt["Incoming User Request + File Context"] --> JevRouter["Jev System One Router (~80ms)"]
-    
+
     subgraph JevEvaluations ["Parallel Jev Primitives"]
         ComplexityScore["Score: 1-5 Complexity Scale"]
         RiskNoul["Noul: Does this involve high-risk architectural changes?"]
         AmbiguityNoul["Noul: Is the prompt ambiguous or underspecified?"]
     end
     JevRouter --> JevEvaluations
-    
+
     JevEvaluations --> RouteLogic{"Evaluate Tier & Confidence"}
-    
+
     RouteLogic -->|Tier 1-2 (Score ≤ 2)| FastModel["Tier 1: Fast/Sub-Second LLM<br/>(Gemini Flash / Claude Haiku)<br/>~10x cheaper, ~3x faster"]
     RouteLogic -->|Tier 3 (Score = 3)| StandardModel["Tier 2: Standard Coding LLM<br/>(Mid-tier model)"]
     RouteLogic -->|Tier 4-5 or High Risk| FrontierModel["Tier 3: Frontier Reasoning Model<br/>(Gemini Pro / Claude Sonnet / Opus)"]
-    
+
     FastModel --> AgentResponse["Agent Response to User"]
     StandardModel --> AgentResponse
     FrontierModel --> AgentResponse

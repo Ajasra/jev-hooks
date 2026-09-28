@@ -1,4 +1,11 @@
-# Use Case: Line-by-Line Semantic Document Search
+# RFC-11: Line-by-Line Semantic Document Search
+
+> **Category**: `USE_CASE`
+> **Status**: 📐 Blueprint
+> **Target Lifecycle**: Shared Tooling & Search
+> **Harnesses**: Google Antigravity and OpenAI Codex
+
+---
 
 ## 1. Problem Statement
 
@@ -25,11 +32,11 @@ In a single request, Jev can score hundreds of line IDs against a natural langua
 flowchart LR
     Doc["Large Document / Log File<br/>(Numbered Line IDs)"] --> JevSearch["Jev Semantic Find (~150ms)"]
     Query["Natural Language Query"] --> JevSearch
-    
+
     JevSearch --> JevParallel["Wide Choice Primitive over Line IDs + Presence Noul"]
-    
+
     JevParallel --> ResultMatrix["Ranked Line Probability Distribution"]
-    
+
     ResultMatrix --> TargetLines["Extract Exact Line IDs (e.g. Lines 142-148)<br/>Pinpoint precision without chunking boundaries"]
 ```
 
@@ -53,7 +60,7 @@ async function semanticFindLine(
   // Split into numbered lines or line blocks
   const lines = documentText.split('\n');
   const lineCriteria: Record<string, string> = {};
-  
+
   lines.forEach((line, idx) => {
     const lineId = `L${idx + 1}`;
     lineCriteria[lineId] = line.slice(0, 120); // snippet

@@ -63,6 +63,7 @@ src/jev/
     skills.py        # Dynamic skill relevance ranking
     speculative.py   # Turn-1 diff and test log prefetching
     knowledge.py     # Repository Knowledge Item matching
+    context.py       # Teleological 4-layer Context Envelope assembly (RFC-26)
     compaction.py    # Verbatim receipt context compactor
     semantic_lint.py # Architectural rule evaluation over git diffs
     verification.py  # API symbol and citation verification
@@ -106,6 +107,7 @@ Unknown or malformed inputs to safety hooks fail closed. Advisory hook errors fa
 | **Speculative Prefetch** | `PreInvocation` (injects prompt context) | `UserPromptSubmit` (`additionalContext`) | `core/speculative.py` |
 | **Dynamic Skills** | Injects full body ($\ge 0.80$) or markdown link | Injects catalog ranking and hints | `core/skills.py` |
 | **Knowledge Engine** | `PreInvocation` prompt injection | `SessionStart` & `UserPromptSubmit` | `core/knowledge.py` |
+| **Context Envelope** | `PreInvocation` (assembles 4-layer state) | `UserPromptSubmit` (`additionalContext`) | `core/context.py` |
 | **Output Verification** | `PreToolUse` non-blocking advisory context | `PreToolUse` `additionalContext` | `core/verification.py` |
 | **Semantic Linting** | `prompt_user` advisory finding | `warn_user` advisory finding | `core/semantic_lint.py` |
 | **Context Compactor** | Sidecar execution | Sidecar execution | `core/compaction.py` |

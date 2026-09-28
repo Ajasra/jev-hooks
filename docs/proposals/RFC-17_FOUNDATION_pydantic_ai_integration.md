@@ -1,4 +1,11 @@
-# Framework Reference: Pydantic AI's Native TypeSafe (Jev) Integration
+# RFC-17: Pydantic AI Native TypeSafe Integration Reference
+
+> **Category**: `FOUNDATION`
+> **Status**: 📐 Blueprint & Reference
+> **Target Lifecycle**: Framework Adapters & Type Systems
+> **Harnesses**: Python / Pydantic AI
+
+---
 
 ## 1. Overview
 

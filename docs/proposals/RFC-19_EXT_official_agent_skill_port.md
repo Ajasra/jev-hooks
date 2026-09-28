@@ -1,12 +1,20 @@
-# Proposal 19: Official TypeSafe Agent Skill Integration & Progressive Harness Dispatch
+# RFC-19: Official Agent Skill Port & Progressive Harness Dispatch
+
+> **Category**: `EXT`
+> **Status**: ✅ Implemented
+> **Target Lifecycle**: Skill Ecosystem & Developer Assistance
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Skill Source**: [`.agents/skills/typesafe-ai/SKILL.md`](../../.agents/skills/typesafe-ai/SKILL.md)
+
+---
 
 ## 1. Executive Summary
 
-TypeSafe AI has released an official agent skill ([`typesafe-ai`](https://github.com/typesafe-ai/skills)) for Claude Code, Codex, and modern AI coding agents. 
+TypeSafe AI has released an official agent skill ([`typesafe-ai`](https://github.com/typesafe-ai/skills)) for Claude Code, Codex, and modern AI coding agents.
 
 This proposal details the architectural integration of the official TypeSafe agent skill directly into the **Google Antigravity** runtime:
-1. **Local Vendoring**: Deploying the official skill at [`.agents/skills/typesafe-ai/SKILL.md`](../.agents/skills/typesafe-ai/SKILL.md).
-2. **Hook Synergy**: Connecting the skill to Antigravity's `PreInvocation` lifecycle hook ([`jev_skill_router.py`](../.agents/hooks/jev_skill_router.py)) for sub-100ms automatic skill hydration.
+1. **Local Vendoring**: Deploying the official skill at [`.agents/skills/typesafe-ai/SKILL.md`](../../.agents/skills/typesafe-ai/SKILL.md).
+2. **Hook Synergy**: Connecting the skill to Antigravity's `PreInvocation` lifecycle hook ([`jev_skill_router.py`](../../.agents/hooks/jev_skill_router.py)) for sub-100ms automatic skill hydration.
 3. **Live Documentation Access**: Equipping the primary agent with fast index navigation via `https://docs.typesafe.ai/llms.txt`.
 4. **Side-by-Side Verification**: Comparing native Jev primitive dispatch against traditional generative prompt-and-parse patterns.
 
@@ -29,20 +37,20 @@ While Claude Code users install this via `claude plugin install typesafe@typesaf
 ```mermaid
 flowchart TD
     UserQuery["User Request:<br/>'Add semantic search and re-ranking to our doc search'"] --> Hook_PreInv["PreInvocation Hook<br/>(jev_skill_router.py)"]
-    
+
     subgraph JevSystemOne ["TypeSafe System One Gating (~80ms)"]
         RequiresSkill["Noul: Requires specialized domain skill? (P ≥ 0.70)"]
         SelectedSkill["Choice: Which skill? -> 'typesafe-ai' (Conf ≥ 0.70)"]
     end
-    
+
     Hook_PreInv --> JevSystemOne
     JevSystemOne -->|Gated Activation| HydrateSkill["Hydrate .agents/skills/typesafe-ai/SKILL.md"]
-    
+
     subgraph AntigravityContext ["Assembled Antigravity Prompt"]
         HydrateSkill --> InjectedGuide["TypeSafe Primitives Guide<br/>(Choice, Score, Noul + Live Docs Pointer)"]
         UserQuery --> ActiveTask["Active Task Execution"]
     end
-    
+
     InjectedGuide --> PrimaryPlanner["Antigravity Primary Agent (Gemini / System 2)"]
     PrimaryPlanner --> LiveDocs["Live Docs Probe<br/>(docs.typesafe.ai/llms.txt)"]
     LiveDocs --> CodeGeneration["Generates Pure Jev Integration Code<br/>(Zero JSON Hallucinations)"]

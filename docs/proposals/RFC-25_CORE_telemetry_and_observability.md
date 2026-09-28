@@ -1,8 +1,8 @@
 # RFC-25: Harness-Neutral Telemetry Module & Observability Pipeline
 
-> **Category**: CORE  
+> **Category**: CORE
 > **Status**: Partially Implemented — Postponed
-> **Target Lifecycle**: Harness Core / Post-Turn / Cross-Lifecycle  
+> **Target Lifecycle**: Harness Core / Post-Turn / Cross-Lifecycle
 > **Scope**: Standardized telemetry collection, OpenTelemetry export, latency/cost profiling, and harness-scoped observability for Antigravity and Codex.
 > **Planning Decision**: The existing SQLite event statistics and CLI summary are sufficient for the current project stage. Do not select this RFC during implementation-candidate reviews unless the user explicitly reactivates telemetry work.
 
@@ -79,17 +79,17 @@ When an agent invokes a tool (e.g., `run_command` executing `git status`), Jev r
 flowchart TD
     E[Harness Event: turn.before / tool.before] --> R[Shared Runtime Dispatch]
     R --> T[Telemetry Span Context]
-    
+
     subgraph Execution ["Core Feature Execution"]
         T --> S[Safety Gate]
         T --> SK[Skill Dispatch]
         T --> K[Knowledge Engine]
     end
-    
+
     S --> Collector[Telemetry Collector & Metrics Buffer]
     SK --> Collector
     K --> Collector
-    
+
     subgraph Exporters ["Non-Blocking Export Pipeline"]
         Collector --> RingBuffer[(In-Memory Ring Buffer)]
         RingBuffer -->|Batch Flush| SQLite[(jev.sqlite3 telemetry_spans)]

@@ -1,4 +1,11 @@
-# Use Case: Autonomous UI Navigation (Fast Click & Element Selection)
+# RFC-13: Autonomous UI Navigation & Element Selection
+
+> **Category**: `USE_CASE`
+> **Status**: 📐 Blueprint
+> **Target Lifecycle**: Browser & UI Agent Automation
+> **Harnesses**: Google Antigravity and OpenAI Codex
+
+---
 
 ## 1. Problem Statement
 
@@ -24,11 +31,11 @@ Instead of asking a generative LLM to think aloud, Jev maps user intent directly
 flowchart LR
     DOM["Sanitized Interactive Elements<br/>(IDs + Labels + Roles)"] --> JevSelector["Jev UI Element Dispatcher (~80ms)"]
     Goal["Current Action Goal:<br/>'Click checkout button'"] --> JevSelector
-    
+
     JevSelector --> ChoiceEval["Choice Primitive across all Element IDs"]
-    
+
     ChoiceEval --> Match{"Confidence ≥ 0.75?"}
-    
+
     Match -->|Yes| InstantClick["Dispatch Instant Browser Action:<br/>page.click('#btn_checkout')<br/>(Sub-second response time)"]
     Match -->|No| FallbackReasoning["Escalate to Full Vision / Reasoning LLM"]
 ```

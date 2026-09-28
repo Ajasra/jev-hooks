@@ -1,8 +1,11 @@
 # RFC-02: Dynamic Skill Dispatcher & Progressive Loader
 
-> **Category**: `CORE`  
-> **Status**: ✅ Implemented  
-> **Target Lifecycle**: `PreInvocation`  
+> **Category**: `CORE`
+> **Status**: ✅ Implemented
+> **Target Lifecycle**: `PreInvocation` (`turn.before`)
+> **Harnesses**: Google Antigravity and OpenAI Codex
+> **Implementation**: [`core/skills.py`](../../src/jev/core/skills.py)
+> **Related Protocol**: [System One Balance Protocol](../../.agents/protocols/system-one-balance-protocol.md)
 
 ---
 
@@ -37,7 +40,7 @@ Inspired by the TypeSafe [Skill Suggestion Cookbook](https://docs.typesafe.ai/co
 ```mermaid
 flowchart TD
     UserRequest["Incoming User Turn / Prompt"] --> Stage1["Stage 1: Wide Catalog Ranking + Gating (1 Request, ~150ms)"]
-    
+
     subgraph S1 ["Stage 1: System One Evaluation"]
         Q_Choice["Choice over all N skills (names + 1-line criteria)"]
         N_Gate1["Noul: Does this request require acting on system/files?"]
@@ -45,13 +48,13 @@ flowchart TD
         N_Gate3["Noul: Can a generalist answer in prose with no tools?"]
     end
     Stage1 --> S1
-    
+
     S1 --> GateCheck{"Combined Gate Score ≥ 0.30?"}
     GateCheck -->|No| NoSkill["No Skill Needed:<br/>Send clean prompt without skill noise"]
-    
+
     GateCheck -->|Yes| Top3["Extract Top 3 Shortlist Candidates"]
     Top3 --> Stage2["Stage 2: Detailed Verification (1 Request, ~100ms)"]
-    
+
     subgraph S2 ["Stage 2: Shortlist Verification"]
         Q_Verify["Choice over Top 3 with full SKILL.md excerpts"]
         N_Fits1["Noul: Does Skill A specifically do what is asked?"]
@@ -59,7 +62,7 @@ flowchart TD
         N_Fits3["Noul: Does Skill C specifically do what is asked?"]
     end
     Stage2 --> S2
-    
+
     S2 --> FitsCheck{"Max fits::skill Noul ≥ 0.30?"}
     FitsCheck -->|No| NoSkill
     FitsCheck -->|Yes| InjectSkill["Inject Verified Winner into Context:<br/>Add targeted hint or pre-load full SKILL.md instructions"]
@@ -127,7 +130,7 @@ Based on the Hermes Agent 182-skill benchmark:
 
 ## 6. Live Production Verification & Multi-Workspace Traces
 
-This proposal is implemented and actively deployed as an Antigravity `PreInvocation` lifecycle hook ([`.agents/hooks/jev_skill_router.py`](../.agents/hooks/jev_skill_router.py)) linked globally to `~/.gemini/config/hooks.json` and `~/.gemini/config/skills`.
+This proposal is implemented and actively deployed as an Antigravity `PreInvocation` lifecycle hook ([`.agents/hooks/jev_skill_router.py`](../../.agents/hooks/jev_skill_router.py)) linked globally to `~/.gemini/config/hooks.json` and `~/.gemini/config/skills`.
 
 ### 6.1 Multi-Workspace Test Traces (Evaluated against 30+ Skills in `d:\01_GIT\AAA`)
 

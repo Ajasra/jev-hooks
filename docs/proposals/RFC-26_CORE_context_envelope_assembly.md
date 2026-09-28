@@ -4,9 +4,9 @@
 > **Status**: Implemented
 > **Target Lifecycle**: `PreInvocation` (`turn.before`) & `PreToolUse` (`tool.before`)
 > **Harnesses**: Google Antigravity and OpenAI Codex
-> **Implementation**: [`core/context.py`](../src/jev/core/context.py) & [`runtime.py`](../src/jev/runtime.py)
-> **Related Protocol**: [System One Balance Protocol](../.agents/protocols/system-one-balance-protocol.md)
-> **Grounding Philosophy**: [The Philosophy of Jev](../docs/PHILOSOPHY.md)
+> **Implementation**: [`core/context.py`](../../src/jev/core/context.py) & [`runtime.py`](../../src/jev/runtime.py)
+> **Related Protocol**: [System One Balance Protocol](../../.agents/protocols/system-one-balance-protocol.md)
+> **Grounding Philosophy**: [The Philosophy of Jev](../PHILOSOPHY.md)
 
 ---
 

@@ -1,4 +1,11 @@
-# Proposal 20: Jev 1.13 Jaggedness Mitigation & Anti-Arithmetic Architectural Guardrails
+# RFC-20: Jev 1.13 Jaggedness Mitigation & Architectural Guardrails
+
+> **Category**: `EXT`
+> **Status**: ✅ Implemented
+> **Target Lifecycle**: Core Runtime & Question Linters
+> **Harnesses**: Google Antigravity and OpenAI Codex
+
+---
 
 ## 1. Context & Motivation
 
@@ -72,7 +79,7 @@ questions = {
 
 ```python
 # ✅ CORRECT (Extract components with Choice, compare in Python):
-# Date components are closed sets (12 months, 31 days). 
+# Date components are closed sets (12 months, 31 days).
 # Code parses and runs datetime.now() > cert_date.
 ```
 
@@ -89,7 +96,7 @@ When cataloging hundreds of tools, files, or symbols (e.g., Nous Hermes 182-skil
 
 ## 4. Antigravity Static Hook Linter
 
-To automate these rules, this proposal includes an automated check inside [`.agents/hooks/jev_skill_router.py`](../.agents/hooks/jev_skill_router.py) and CI linting:
+To automate these rules, this proposal includes an automated check inside [`.agents/hooks/jev_skill_router.py`](../../.agents/hooks/jev_skill_router.py) and CI linting:
 - **`check_no_math_in_instructions()`**: Flags regex matches for "how many", "count", "sum", "total" in Jev payloads.
 - **`check_cardinality_limit()`**: Asserts `len(criteria) <= 255` on all `Choice` questions.
 - **`check_score_criteria_type()`**: Ensures `criteria` for `Score` questions is an ordered list (2–10 items) rather than a dictionary or freeform string.

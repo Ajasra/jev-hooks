@@ -1,4 +1,11 @@
-# Use Case: Knowledge Graph Entity Alignment & Deduplication
+# RFC-14: Knowledge Graph Entity Alignment & Deduplication
+
+> **Category**: `USE_CASE`
+> **Status**: 📐 Blueprint
+> **Target Lifecycle**: Enterprise Automation & Data Integrity
+> **Harnesses**: Cross-Platform / Tooling
+
+---
 
 ## 1. Problem Statement
 
@@ -16,23 +23,23 @@ Traditional resolution methods struggle:
 
 ## 2. Core Idea: High-Throughput Semantic Alignment with Jev
 
-Jev combines a holistic `Score` question with specific companion `Noul` questions across candidate pairs in high-throughput batches:
+Jev combines a composite `Score` question with specific companion `Noul` questions across candidate pairs in high-throughput batches:
 - **`Score`**: Measures overall semantic equivalence (1–5).
 - **Companion `Noul`s**: Probe individual attributes for contradictions (e.g. country mismatch, version conflict, category mismatch).
 
 ```mermaid
 flowchart LR
     Pair["Candidate Pair:<br/>Entity A + Entity B"] --> JevMatcher["Jev Alignment Engine (~70ms)"]
-    
+
     subgraph AlignmentEval ["Simultaneous Evaluations"]
         EquivScore["Score: 1-5 Identity Match"]
         NameMatch["Noul: Do names refer to the same entity?"]
         FieldConflict["Noul: Do attributes contain hard factual contradictions?"]
     end
     JevMatcher --> AlignmentEval
-    
+
     AlignmentEval --> ResolutionLogic{"Evaluate Match vs. Conflict"}
-    
+
     ResolutionLogic -->|Score ≥ 4 and Conflict < 0.2| AutoMerge["Auto-Merge / Link Entities in Graph"]
     ResolutionLogic -->|Conflict ≥ 0.6| FlagDistinct["Declare Distinct Entities"]
     ResolutionLogic -->|Ambiguous (Confidence < 0.7)| HumanQueue["Route to Human Data Steward Queue"]

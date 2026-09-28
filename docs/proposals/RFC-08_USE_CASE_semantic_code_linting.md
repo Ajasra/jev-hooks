@@ -6,9 +6,9 @@
 >
 > **Harnesses**: Google Antigravity and OpenAI Codex
 >
-> **Implementation**: [`core/semantic_lint.py`](../src/jev/core/semantic_lint.py), [rule library](../.agents/lint-rules/), and [`services/storage.py`](../src/jev/services/storage.py)
+> **Implementation**: [`core/semantic_lint.py`](../../src/jev/core/semantic_lint.py), [rule library](../../.agents/lint-rules/), and [`services/storage.py`](../../src/jev/services/storage.py)
 >
-> **Related protocol**: [System One Balance](../.agents/protocols/system-one-balance-protocol.md)
+> **Related protocol**: [System One Balance](../../.agents/protocols/system-one-balance-protocol.md)
 
 ## 1. Problem
 
@@ -130,7 +130,7 @@ The registry exposes each tool once. Both harnesses use the same handler and dat
 
 ## 9. Implemented Scope and Deferred Work
 
-The MVP implements KI-style rule discovery, bounded staged/base diff collection, Noul evaluation, progressive modes, harness-specific presentation, decision logging, exact feedback, CLI commands, shared MCP registration, and the canonical `lint-architect` skill ([`.agents/skills/lint-architect/SKILL.md`](../.agents/skills/lint-architect/SKILL.md)) for stack-tailored rule curation.
+The MVP implements KI-style rule discovery, bounded staged/base diff collection, Noul evaluation, progressive modes, harness-specific presentation, decision logging, exact feedback, CLI commands, shared MCP registration, and the canonical `lint-architect` skill ([`.agents/skills/lint-architect/SKILL.md`](../../.agents/skills/lint-architect/SKILL.md)) for stack-tailored rule curation.
 
 SARIF output, automatic PR comments, baseline files, calibration dashboards, and automatic rule generation remain deferred. Latency must be measured on representative diffs before publishing a performance guarantee.
 
