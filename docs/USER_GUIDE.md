@@ -55,10 +55,15 @@ cmd /c mklink "%USERPROFILE%\.gemini\config\hooks.json" "%CD%\.agents\hooks.json
 Reload Antigravity: Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $\rightarrow$ **`Developer: Reload Window`**.
 
 ### B. OpenAI Codex Setup
-Codex discovers hooks automatically via the repository's [`.codex/hooks.json`](../.codex/hooks.json):
-1. Open this repository as a trusted project in Codex.
-2. Accept the hook review when prompted.
-3. Restart Codex so `python -m jev` is available to hook processes.
+
+Jev has two Codex hook boundaries:
+
+- The repository-local [`.codex/hooks.json`](../.codex/hooks.json) belongs to the Jev checkout. Codex uses it when the active workspace is `D:\01_GIT\Jev`.
+- The user-global `%USERPROFILE%\.codex\hooks.json` serves every other workspace. Its command points to `%USERPROFILE%\.codex\hooks\jev_dispatch.cmd`, which starts the shared runtime from `D:\01_GIT\Jev\src`.
+
+The global dispatcher reads the native hook JSON from standard input. When its `cwd`, after Windows path normalization and case folding, is exactly `D:\01_GIT\Jev`, it writes `{}` and exits without importing or dispatching Jev. A nested directory or any other workspace continues through the shared runtime. This keeps the global registration from double-running the checkout's dedicated local hook.
+
+After changing `%USERPROFILE%\.codex\hooks.json` or either global dispatcher file, open a **new Codex session**. Existing sessions keep the hook registration they started with. For the local Jev checkout, open it as a trusted project and accept the hook review when prompted.
 
 ---
 
