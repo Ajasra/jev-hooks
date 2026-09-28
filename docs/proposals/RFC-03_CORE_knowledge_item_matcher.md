@@ -12,7 +12,7 @@
 
 ## 1. Problem Statement: The Cold-Start & Cognitive Failure Dilemma
 
-Antigravity specifies a foundational **Knowledge Item (KI) System** designed to capture repository-specific architectural precedents, design conventions, and past bug resolutions:
+Modern coding harnesses like **Google Antigravity** and **OpenAI Codex** rely on repository knowledge to capture project-specific architectural precedents, design conventions, and past bug resolutions:
 
 ```markdown
 # Knowledge Items (KI) System
@@ -38,7 +38,7 @@ In real-world practice, this architecture breaks down in two critical ways:
 
 ## 2. Core Architecture: The Closed-Loop Dual Engine
 
-To solve both sides of the lifecycle, Proposal C implements **two synchronized System One engines**:
+To solve both sides of the lifecycle, RFC-03 implements **two synchronized System One engines**:
 
 ```mermaid
 flowchart TD
@@ -200,7 +200,9 @@ def build_read_questions(ki_catalog):
 
 ### 4.3 Arbitration Matrix & Turn-1 Auto-Mounting
 
-All injected messages are wrapped in `<system_preflight_hook name='jev_ki_engine'>` tags, establishing them as trusted harness telemetry and preventing generative hesitation.
+Across both harnesses, auto-mounted KIs and informational confirmations are delivered directly to the model's pre-flight context:
+- **Google Antigravity**: Injected as an ephemeral message wrapped in `<system_preflight_hook name='jev_ki_engine'>` tags.
+- **OpenAI Codex**: Returned inside `hookSpecificOutput.additionalContext` for `UserPromptSubmit` / `SessionStart`.
 
 | Evaluation Outcome | Calibrated Confidence | Action Taken Before System 2 LLM Starts | Turn-1 Impact |
 | :--- | :--- | :--- | :--- |
@@ -240,7 +242,7 @@ except ImportError:
     BASE_HEADERS = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
 
 def get_knowledge_dir() -> Path:
-    """Resolves cross-platform Antigravity knowledge store path."""
+    """Resolves cross-platform shared knowledge store path (per RFC-24 paths specification)."""
     app_data = Path(os.environ.get("APPDATA", "~/.gemini")).expanduser()
     if (app_data / "antigravity-ide" / "knowledge").exists():
         return app_data / "antigravity-ide" / "knowledge"
@@ -440,7 +442,7 @@ if __name__ == "__main__":
 
 ## 6. Expected Impact & Benchmarks
 
-| Metric | Traditional Unassisted KI System | Proposal C: Autonomous Dual Engine |
+| Metric | Traditional Unassisted KI System | RFC-03: Autonomous Dual Engine |
 | :--- | :--- | :--- |
 | **KI Authoring Overhead** | 100% manual (developers must draft json + md) | **0% manual** (auto-synthesized by Jev on commit/compactor/`/learn`) |
 | **Cold-Start Latency** | High (empty stores, zero utility) | **Zero** (populated automatically as development progresses) |

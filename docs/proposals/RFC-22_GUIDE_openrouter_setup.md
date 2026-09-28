@@ -13,7 +13,7 @@
 TypeSafe AI's **Jev** is available on OpenRouter under the model slug:
 👉 **[`typesafe/jev-latest`](https://openrouter.ai/~typesafe/jev-latest)** (and pinned version `typesafe/jev-1.13`).
 
-Routing Jev through OpenRouter allows teams and autonomous harnesses like **Google Antigravity** to execute sub-100ms System One decisions, skill dispatches, blast-radius safety gating, and context compaction **without provisioning a separate billing account or enterprise contract with TypeSafe AI**.
+Routing Jev through OpenRouter allows teams and autonomous harnesses like **Google Antigravity** and **OpenAI Codex** to execute sub-100ms System One decisions, skill dispatches, blast-radius safety gating, and context compaction **without provisioning a separate billing account or enterprise contract with TypeSafe AI**.
 
 ---
 
@@ -25,11 +25,11 @@ Routing Jev through OpenRouter allows teams and autonomous harnesses like **Goog
 | **Input Pricing** | **$0.042 / 1M tokens** (~$0.000000042 / token) | **$0.042 / 1M tokens** (Zero markup on evaluation calls) |
 | **Output Pricing** | **$0.000 / token** (No generative autoregressive tokens) | **$0.000 / token** (Calculated logits and calibrated probabilities) |
 | **Provider Fallbacks** | Single origin datacenter | Multi-datacenter edge routing and automated regional retry |
-| **Antigravity Hooks** | Supported via `TYPESAFE_API_KEY` | **Supported out of the box** via `OPENROUTER_API_KEY` |
+| **Harness Hooks** | Supported via `TYPESAFE_API_KEY` | **Supported out of the box** via `OPENROUTER_API_KEY` |
 
 ---
 
-## 2. Model Identifier & Endpoints
+## 3. Model Identifier & Endpoints
 
 ### Model Slugs
 - **`typesafe/jev-latest`** *(Recommended)*: Always points to the current production checkpoint (currently Jev 1.13).
@@ -113,9 +113,9 @@ cmd /c curl -s -X POST https://openrouter.ai/api/v1/systemone ^
 
 ```mermaid
 flowchart TD
-    subgraph Antigravity ["Google Antigravity Runtime"]
+    subgraph Harnesses ["Agent Harness Runtime (Antigravity / Codex)"]
         User["User Prompt / Tool Event"]
-        Hook["Hook Execution (env_loader.py)"]
+        Hook["Harness Adapter & Client (services/client.py)"]
     end
 
     User --> Hook
@@ -132,7 +132,7 @@ flowchart TD
 
     Engine --> Calibration["Logit Extraction & Probability Calibration"]
     Calibration --> Return["Calibrated Decision JSON<br/>Latency: 60-120ms | Cost: $0.042 / 1M tokens"]
-    Return --> Antigravity
+    Return --> Harnesses
 ```
 
 ---
@@ -140,8 +140,8 @@ flowchart TD
 ## 6. Best Practices for OpenRouter Deployment
 
 1. **Keep Latency Low**:
-   OpenRouter has edge nodes worldwide. Ensure hook timeouts are set to `0.8`–`1.2` seconds to allow for network transit across diverse geographies without ever stalling Antigravity's interactive loop.
+   OpenRouter has edge nodes worldwide. Ensure hook timeouts are set to `0.8`–`1.2` seconds to allow for network transit across diverse geographies without ever stalling the harness's interactive loop.
 2. **Attribution Headers**:
-   Always pass `HTTP-Referer` and `X-Title` (handled automatically by `env_loader.py`) so OpenRouter properly credits routing priority.
+   Always pass `HTTP-Referer` and `X-Title` (handled automatically by `services/client.py`) so OpenRouter properly credits routing priority.
 3. **Fail-Safe Fallbacks**:
-   As implemented in all workspace hooks, if an API call fails or times out, the hook exits with code `0`, allowing the agent to continue safely without blocking developer workflows.
+   As implemented in `src/jev/runtime.py`, if an API call fails or times out, the hook fails open safely (exit code `0`), allowing the agent to continue without blocking developer workflows.

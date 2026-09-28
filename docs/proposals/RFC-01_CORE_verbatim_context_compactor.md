@@ -57,21 +57,21 @@ flowchart TD
 
 ---
 
-## 3. Tool-Specific Pruning Dynamics in Antigravity
+## 3. Tool-Specific Pruning Dynamics Across Harnesses
 
-Antigravity uses specific tools that benefit directly from this tri-state decision matrix:
+Both Antigravity and Codex use file mutation, inspection, and execution tools that benefit directly from this tri-state decision matrix:
 
-| Tool Type | Example Scenario | Typical Jev Decision | Action Taken |
-| :--- | :--- | :--- | :--- |
-| `view_file` | Read a file 15 turns ago that was later modified by `replace_file_content` | `keepCall`: 0.6<br/>`keepResult`: 0.1 | Keep `view_file` path to show it was inspected, drop the 40KB file contents. |
-| `grep_search` | Search pattern returned 50 lines of vendor code, followed by refined search | `keepCall`: 0.2<br/>`keepResult`: 0.05 | Both < 0.5: Erase entire exploratory failure to clean context. |
-| `run_command` | Build command failed with 200 lines of stack traces, then fixed in next step | `keepCall`: 0.7<br/>`keepResult`: 0.2 | Truncate result to first 300 chars + error code stub. |
-| `run_command` | Test command currently failing that the agent is trying to fix | `keepCall`: 0.95<br/>`keepResult`: 0.92 | Keep full verbatim stack trace; do not truncate. |
-| `browser_subagent` | Subagent returned raw DOM or long trace log | `keepCall`: 0.8<br/>`keepResult`: 0.3 | Retain task summary; drop intermediate DOM dumps. |
+| Tool Operation | Antigravity Tool | Codex Equivalent | Example Scenario | Typical Jev Decision | Action Taken |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **File Read** | `view_file` | `cat` / `view_file` | Read a file 15 turns ago that was later modified by a patch | `keepCall`: 0.6<br/>`keepResult`: 0.1 | Keep file path reference to confirm inspection; drop the 40KB file contents. |
+| **Code Search** | `grep_search` | `grep` / `rg` | Pattern returned 50 lines of vendor code, followed by refined search | `keepCall`: 0.2<br/>`keepResult`: 0.05 | Both < 0.5: Erase entire exploratory failure to clean context. |
+| **Command Output** | `run_command` | `bash` / `exec` | Build command failed with 200 lines of stack traces, then fixed | `keepCall`: 0.7<br/>`keepResult`: 0.2 | Truncate result to first 300 chars + error code stub. |
+| **Active Failure** | `run_command` | `bash` / `exec` | Test suite currently failing that the agent is actively debugging | `keepCall`: 0.95<br/>`keepResult`: 0.92 | Keep full verbatim stack trace; do not truncate. |
+| **Subagent / UI** | `browser_subagent` | `agent_run` | Delegated subagent returned raw DOM or long trace log | `keepCall`: 0.8<br/>`keepResult`: 0.3 | Retain task summary; drop intermediate DOM dumps. |
 
 ---
 
-## 4. Antigravity Implementation Architecture
+## 4. Multi-Harness Implementation Architecture
 
 ### 4.1 State Masking
 Before presenting the transcript to Jev, all tool outputs are masked to short metadata strings:
@@ -98,10 +98,10 @@ const questions = {
 };
 ```
 
-### 4.3 Clean History Rebuilding
-- Untouched messages remain references to their original objects (no mutation).
-- Empty messages (where all tool calls and results were dropped and no text remains) are filtered out cleanly.
-- No dangling tool results are ever left without their matching tool calls.
+### 4.3 Clean History Rebuilding & Sidecar Storage
+- **Antigravity**: Reconstructs pruned transcripts for session compaction without mutating original user messages.
+- **Codex**: Emits sidecar checkpoints (`.codex/context_checkpoints/`) rather than overwriting active native transcript files, ensuring complete compatibility with native audit logging.
+- **Invariants**: Untouched messages remain references to their original objects. Empty messages are cleanly filtered. No dangling tool results remain without their matching tool calls.
 
 ---
 
@@ -115,7 +115,7 @@ const questions = {
 
 ## 6. Live Production Verification & Benchmark Results
 
-The compactor engine is implemented in [`.agents/hooks/jev_compactor.py`](../../.agents/hooks/jev_compactor.py) and validated via an automated test harness ([`tests/test_compactor.py`](../../tests/test_compactor.py)).
+The shared compactor core is implemented in [`src/jev/core/compaction.py`](../../src/jev/core/compaction.py) (with the Antigravity bootstrap in [`.agents/hooks/jev_compactor.py`](../../.agents/hooks/jev_compactor.py)) and validated via the test harness ([`tests/test_compactor.py`](../../tests/test_compactor.py)).
 
 ### 6.1 Test Execution & Benchmark Metrics
 
@@ -129,7 +129,7 @@ cmd /c python tests\test_compactor.py
 **Verbatim Captured Test Run:**
 ```text
 ======================================================================
- JEV VERBATIM TRANSCRIPT COMPACTOR TEST SUITE (Proposal A)
+ JEV VERBATIM TRANSCRIPT COMPACTOR TEST SUITE (RFC-01)
 ======================================================================
 [*] API Key Present: True
 [*] Endpoint: https://openrouter.ai/api/v1/systemone

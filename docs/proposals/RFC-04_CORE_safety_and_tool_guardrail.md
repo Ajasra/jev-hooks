@@ -11,12 +11,14 @@
 
 ## 1. Problem Statement
 
-Antigravity gives the agent direct local execution access via `run_command` (`cmd /c` on Windows), `replace_file_content`, and background daemon management (`manage_task`).
+Autonomous agent harnesses grant tools direct local execution access:
+- **Google Antigravity**: Executes commands via `run_command` (`cmd /c` on Windows), workspace file edits via `replace_file_content` / `write_to_file`, and background tasks via `manage_task`.
+- **OpenAI Codex**: Executes shell commands via `bash` / `exec` and filesystem patches via `apply_patch`.
 
 While autonomous execution is essential for productivity, it introduces distinct risks:
 1. **Destructive Shell Operations**: Accidental `git reset --hard`, deleting unversioned files, running long-running blocking processes, or overwriting critical configs.
 2. **Ambiguous Tool Arguments**: Choosing between subtle flags (e.g. should a daemon run in background, should `AllowMultiple` be true on replace, should a search be regex or literal).
-3. **Repetitive Friction**: Jev scoring `git commit` or file saves as medium-risk on every call, triggering unnecessary `force_ask` modals for routine, reversible operations.
+3. **Repetitive Friction**: Jev scoring `git commit` or file saves as medium-risk on every call, triggering unnecessary confirmation modals for routine, reversible operations.
 
 ---
 
@@ -202,11 +204,12 @@ Zero Jev API calls needed for any of the above — all resolved via deterministi
 
 ---
 
-## 8. Files
+## 8. Files & Architecture
 
 | File | Purpose |
 |:--- |:--- |
-| [`jev_safety_gate.py`](../../.agents/hooks/jev_safety_gate.py) | Main hook — 3-stage pipeline entry point |
-| [`safety_db.py`](../../.agents/hooks/safety_db.py) | Decision DB + Critical Shield — standalone module |
-| [`tests/test_gate_integration.py`](../../tests/test_gate_integration.py) | End-to-end pipeline integration test |
-| [`tests/test_gate_eval.py`](../../tests/test_gate_eval.py) | Jev blast-radius scoring evaluation harness |
+| [`src/jev/core/safety.py`](../../src/jev/core/safety.py) | Shared safety core (Critical Shield + SQLite memory + Jev intent) |
+| [`src/jev/services/storage.py`](../../src/jev/services/storage.py) | Shared SQLite persistence (`jev.sqlite3`) and harness-specific views |
+| [`src/jev/adapters/antigravity.py`](../../src/jev/adapters/antigravity.py) | Antigravity `PreToolUse` translator and `force_ask` permission overrides |
+| [`src/jev/adapters/codex.py`](../../src/jev/adapters/codex.py) | Codex `PreToolUse` translator and policy denial explanations |
+| [`tests/test_gate_integration.py`](../../tests/test_gate_integration.py) | End-to-end pipeline integration test suite |

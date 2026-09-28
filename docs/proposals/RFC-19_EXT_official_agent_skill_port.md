@@ -12,9 +12,9 @@
 
 TypeSafe AI has released an official agent skill ([`typesafe-ai`](https://github.com/typesafe-ai/skills)) for Claude Code, Codex, and modern AI coding agents.
 
-This proposal details the architectural integration of the official TypeSafe agent skill directly into the **Google Antigravity** runtime:
-1. **Local Vendoring**: Deploying the official skill at [`.agents/skills/typesafe-ai/SKILL.md`](../../.agents/skills/typesafe-ai/SKILL.md).
-2. **Hook Synergy**: Connecting the skill to Antigravity's `PreInvocation` lifecycle hook ([`jev_skill_router.py`](../../.agents/hooks/jev_skill_router.py)) for sub-100ms automatic skill hydration.
+This proposal details the architectural integration of the official TypeSafe agent skill directly into both **Google Antigravity** and **OpenAI Codex**:
+1. **Canonical Vendoring**: Deploying the official skill at [`.agents/skills/typesafe-ai/SKILL.md`](../../.agents/skills/typesafe-ai/SKILL.md), discovered natively by Codex and linked for Antigravity.
+2. **Hook Synergy**: Connecting the skill to shared pre-flight lifecycle hooks (`src/jev/core/skills.py`) for sub-100ms automatic skill hydration across both harnesses.
 3. **Live Documentation Access**: Equipping the primary agent with fast index navigation via `https://docs.typesafe.ai/llms.txt`.
 4. **Side-by-Side Verification**: Comparing native Jev primitive dispatch against traditional generative prompt-and-parse patterns.
 
@@ -28,7 +28,7 @@ In September 2026, TypeSafe AI exited stealth, launching the **Jev** System One 
 - **Guaranteed Typing**: 0% schema validation errors.
 - **Official Marketplace Package**: `typesafe-ai/skills`.
 
-While Claude Code users install this via `claude plugin install typesafe@typesafe-ai`, Antigravity possesses a superior customization system supporting workspace-level skill discovery under `.agents/skills/` and dynamic hook interception.
+Both **Google Antigravity** and **OpenAI Codex** natively discover skills from the canonical repository root at `.agents/skills/`.
 
 ---
 
@@ -36,7 +36,7 @@ While Claude Code users install this via `claude plugin install typesafe@typesaf
 
 ```mermaid
 flowchart TD
-    UserQuery["User Request:<br/>'Add semantic search and re-ranking to our doc search'"] --> Hook_PreInv["PreInvocation Hook<br/>(jev_skill_router.py)"]
+    UserQuery["User Request:<br/>'Add semantic search and re-ranking to our doc search'"] --> Hook_PreInv["Pre-Flight Lifecycle Hook<br/>(Antigravity PreInvocation / Codex UserPromptSubmit)"]
 
     subgraph JevSystemOne ["TypeSafe System One Gating (~80ms)"]
         RequiresSkill["Noul: Requires specialized domain skill? (P ≥ 0.70)"]
@@ -46,12 +46,12 @@ flowchart TD
     Hook_PreInv --> JevSystemOne
     JevSystemOne -->|Gated Activation| HydrateSkill["Hydrate .agents/skills/typesafe-ai/SKILL.md"]
 
-    subgraph AntigravityContext ["Assembled Antigravity Prompt"]
+    subgraph HarnessContext ["Assembled Harness Context (Antigravity / Codex)"]
         HydrateSkill --> InjectedGuide["TypeSafe Primitives Guide<br/>(Choice, Score, Noul + Live Docs Pointer)"]
         UserQuery --> ActiveTask["Active Task Execution"]
     end
 
-    InjectedGuide --> PrimaryPlanner["Antigravity Primary Agent (Gemini / System 2)"]
+    InjectedGuide --> PrimaryPlanner["Primary Reasoning Agent (System 2 LLM)"]
     PrimaryPlanner --> LiveDocs["Live Docs Probe<br/>(docs.typesafe.ai/llms.txt)"]
     LiveDocs --> CodeGeneration["Generates Pure Jev Integration Code<br/>(Zero JSON Hallucinations)"]
 ```

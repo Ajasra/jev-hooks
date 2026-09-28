@@ -19,9 +19,9 @@ A major latency and cost bottleneck in modern coding agents is the **sequential 
 
 TypeSafe AI's official documentation defines the **Speculative Fan-Out Pattern** (`https://docs.typesafe.ai/patterns/fan-out.md`) and **Confidence-Gated Routing** (`https://docs.typesafe.ai/patterns/confidence-routing.md`).
 
-This proposal applies these two frontier patterns to Antigravity's harness:
+This proposal applies these two frontier patterns to modern coding harnesses (**Google Antigravity** and **OpenAI Codex**):
 - In a single **sub-120ms, $0.00008 Jev request**, the harness evaluates 10–15 speculative questions across the incoming user turn and workspace state.
-- Antigravity pre-fetches git status, extracts target symbols, and assesses ambiguity **before** invoking the primary System 2 LLM.
+- Harnesses pre-fetch git status, extract target symbols, and assess ambiguity **before** invoking the primary System 2 LLM.
 
 ---
 
@@ -149,8 +149,9 @@ fan_out_payload = {
 ## 5. Live Implementation Reference & Concrete Examples
 
 ### 5.1 Active Implementation Artifacts
-- **PreInvocation Hook**: [`jev_speculative_router.py`](../../.agents/hooks/jev_speculative_router.py) (mirrored to `~/.gemini/config/hooks/jev_speculative_router.py`)
-- **Hook Registration**: Registered under `PreInvocation` in [`hooks.json`](../../.agents/hooks.json)
+- **Shared Speculative Engine**: [`src/jev/core/speculative.py`](../../src/jev/core/speculative.py)
+- **Harness Adapters**: [`src/jev/adapters/antigravity.py`](../../src/jev/adapters/antigravity.py) (`PreInvocation`) and [`src/jev/adapters/codex.py`](../../src/jev/adapters/codex.py) (`UserPromptSubmit`)
+- **Hook Registrations**: [`.agents/hooks.json`](../../.agents/hooks.json) & [`.codex/hooks.json`](../../.codex/hooks.json)
 - **Integration Test Suite**: [`tests/test_speculative_router.py`](../../tests/test_speculative_router.py)
 
 ### 5.2 Real-World Invocation Examples

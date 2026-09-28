@@ -97,20 +97,31 @@ If the gate passes:
 
 ---
 
-## 4. Antigravity Integration Modes
+## 4. Multi-Harness Integration Modes
+
+The skill dispatcher integrates natively across both harnesses via `src/jev/core/skills.py`:
 
 ### Mode 1: Context Injection (Soft Suggestion)
-Inject a dynamic block into the prompt before the user request:
-```markdown
-<skill_relevance>
-Relevant to the current request: ponytail-audit. Ignore this if it does not fit what the user actually asked for.
-</skill_relevance>
-```
-The agent maintains full autonomy, but its attention is immediately directed to the correct skill.
+- **Google Antigravity (`PreInvocation`)**: Injects an ephemeral hint into the turn prompt:
+  ```markdown
+  <skill_relevance>
+  Relevant to the current request: ponytail-audit. Ignore this if it does not fit what the user actually asked for.
+  </skill_relevance>
+  ```
+- **OpenAI Codex (`UserPromptSubmit`)**: Returns the recommendation inside `additionalContext`:
+  ```json
+  {
+    "hookSpecificOutput": {
+      "hookEventName": "UserPromptSubmit",
+      "additionalContext": "Recommended skill for this turn: ponytail-audit (.agents/skills/ponytail-audit/SKILL.md)"
+    }
+  }
+  ```
+The primary reasoning model maintains full autonomy, but its attention is immediately directed to the correct skill.
 
 ### Mode 2: Zero-Roster Pre-Loading (Hard Optimization)
-- Completely remove the static `<skills>` block containing 50+ skill summaries from the system prompt.
-- When Jev selects a skill with `confidence > 0.85`, the harness **automatically reads and injects that skill's full instructions into the system prompt for that turn only**.
+- Completely remove the static 50+ skill roster from the default prompt.
+- When Jev selects a skill with `confidence >= 0.80`, the harness **automatically reads and injects that skill's full instructions for that turn only**.
 - When no skill is selected, **0 skill tokens are sent to the LLM**, maximizing context space for project files and reasoning.
 
 ---
@@ -130,7 +141,7 @@ Based on the Hermes Agent 182-skill benchmark:
 
 ## 6. Live Production Verification & Multi-Workspace Traces
 
-This proposal is implemented and actively deployed as an Antigravity `PreInvocation` lifecycle hook ([`.agents/hooks/jev_skill_router.py`](../../.agents/hooks/jev_skill_router.py)) linked globally to `~/.gemini/config/hooks.json` and `~/.gemini/config/skills`.
+This capability is implemented in [`src/jev/core/skills.py`](../../src/jev/core/skills.py) and registered once in [`src/jev/registry.py`](../../src/jev/registry.py). It powers Antigravity through [`.agents/hooks/jev_dispatch.py`](../../.agents/hooks/jev_dispatch.py) and Codex through [`.codex/hooks.json`](../../.codex/hooks.json). Canonical skills live once under [`.agents/skills/`](../../.agents/skills/).
 
 ### 6.1 Multi-Workspace Test Traces (Evaluated against 30+ Skills in `d:\01_GIT\AAA`)
 

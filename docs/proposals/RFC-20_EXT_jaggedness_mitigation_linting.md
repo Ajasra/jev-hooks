@@ -13,7 +13,7 @@ On September 17, 2026, TypeSafe AI published its official [Model Jaggedness Guid
 
 While `jev-1.13` is extraordinarily fast (~70–200ms) and provides calibrated common-sense judgments at $0.042/1MTok, it is explicitly **not** an autoregressive generalist LLM, a calculator, or a calendar engine. Attempting to use Jev for arithmetic, character counting, or multi-hop temporal logic leads to degraded calibration and brittle integrations.
 
-This proposal establishes a set of **runtime linters and architectural design rules** within the Antigravity integration layer to permanently prevent known `jev-1.13` failure modes.
+This proposal establishes a set of **runtime linters and architectural design rules** within the shared Jev runtime (`src/jev/`) to permanently prevent known `jev-1.13` failure modes across both Google Antigravity and OpenAI Codex.
 
 ---
 
@@ -21,7 +21,7 @@ This proposal establishes a set of **runtime linters and architectural design ru
 
 The official documentation identifies 9 distinct failure modes:
 
-| # | Known Failure Mode | Underlying Root Cause | Architectural Mitigation in Antigravity |
+| # | Known Failure Mode | Underlying Root Cause | Architectural Mitigation in Jev Runtime |
 | :--- | :--- | :--- | :--- |
 | **1** | **Literal Reading** | Jev evaluates verbatim words, not implied developer intent. | Specify explicit conditions in `instructions` and define edge-case rubrics in `criteria`. |
 | **2** | **Math & Counting** | Non-autoregressive architecture lacks token counting and numeric arithmetic. | **Rule 1: Keep math in code.** Never ask Jev to tally occurrences or calculate totals. |
@@ -94,9 +94,9 @@ When cataloging hundreds of tools, files, or symbols (e.g., Nous Hermes 182-skil
 
 ---
 
-## 4. Antigravity Static Hook Linter
+## 4. Shared Runtime Question Linter
 
-To automate these rules, this proposal includes an automated check inside [`.agents/hooks/jev_skill_router.py`](../../.agents/hooks/jev_skill_router.py) and CI linting:
+To automate these rules, this proposal includes automated checks inside `src/jev/` and CI linting:
 - **`check_no_math_in_instructions()`**: Flags regex matches for "how many", "count", "sum", "total" in Jev payloads.
 - **`check_cardinality_limit()`**: Asserts `len(criteria) <= 255` on all `Choice` questions.
 - **`check_score_criteria_type()`**: Ensures `criteria` for `Score` questions is an ordered list (2–10 items) rather than a dictionary or freeform string.
