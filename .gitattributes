@@ -1,0 +1,3 @@
+# Dual-boot (Windows/Linux) stability: pin text files to LF in both index and
+# worktree so editors on either boot never produce whole-file EOL churn.
+* text=auto eol=lf
