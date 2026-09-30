@@ -71,7 +71,8 @@ def collect_diff(workspace: Path, *, staged: bool, base_ref: str | None, max_cha
     if base_ref:
         subprocess.run(["git", "rev-parse", "--verify", f"{base_ref}^{{commit}}"], cwd=workspace,
                        check=True, capture_output=True, text=True, timeout=5)
-    command = ["git", "diff", "--unified=3", "--no-ext-diff", "--no-textconv"]
+    command = ["git", "diff", "--unified=3", "--no-ext-diff", "--no-textconv",
+               "--src-prefix=a/", "--dst-prefix=b/"]
     if staged:
         command.append("--cached")
     elif base_ref:
