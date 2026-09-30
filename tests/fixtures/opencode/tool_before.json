@@ -1,0 +1,21 @@
+{
+  "hook": "tool.execute.before",
+  "harness_version": "1.18.33",
+  "cwd": "/abs/project",
+  "session_id": "ses_FIXTURESESSION000000",
+  "turn_id": "",
+  "agent": "",
+  "prompt": "",
+  "tool": {
+    "name": "bash",
+    "call_id": "call_FIXTURECALL0000000",
+    "args": {
+      "command": "echo HARMLESS_OK"
+    }
+  },
+  "native": {
+    "tool": "bash",
+    "sessionID": "ses_FIXTURESESSION000000",
+    "callID": "call_FIXTURECALL0000000"
+  }
+}

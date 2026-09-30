@@ -82,7 +82,7 @@ Tool → `Operation` translation: `bash` → `shell` (`args.command`), `write`/`
 }
 ```
 
-`prompt` is the joined text of the message parts (`chat.message`), empty for tool hooks. `tool` is absent on turn hooks; `result` (tool output, title, metadata) is added on `tool.execute.after`. Decoding follows the existing adapter rules: unknown fields stay in `native`, missing identity stays empty, and malformed tool input fails closed for shell and open for file mutations — the boundary already encoded in `cli.run_hook`.
+`prompt` is the joined text of the message parts (`chat.message`), empty for tool hooks. `tool` is absent on turn hooks; `result` (tool output, title, metadata) is added on `tool.execute.after`. Decoding follows the existing adapter rules: unknown fields stay in `native`, missing identity stays empty, and malformed tool input fails closed for shell and open for file mutations — the boundary already encoded in `cli.run_hook`, whose trigger detection keys on `hook_event_name`/`hookEventName`/`toolCall` today and therefore gains the opencode `hook` field plus the `write`/`edit`/`apply_patch` fail-open names at S1.
 
 ### 5.4 Output Contract (stdout → plugin)
 
@@ -101,6 +101,7 @@ JSON goes to stdout only; diagnostics go to stderr, same as every existing hook.
 
 ### 5.5 Generated Plugin (`~/.config/opencode/plugins/jev.ts`)
 
+- **Identity**: default export `{ id: "jev", server() { … } }` — OpenCode rejects path plugins that do not export `id` (S0 receipt), and only the `server()` side matters: `tool.execute.before`/`after` fire in the server process, not the TUI.
 - **Startup self-test**: one `python -m jev doctor --cwd <directory>` probe. On failure the plugin publishes a single session error, disables gating for the process, and keeps OpenCode usable — an unsupported capability gets reported, never silently claimed. Native OpenCode permissions remain the floor either way.
 - **Pre-filter**: skip `read`, `glob`, `grep`, `list`, `lsp`, `skill`, `todowrite`, `question`, `webfetch`, `websearch` in JavaScript; only then spawn Python. Everything else (`bash`, `edit`, `write`, `apply_patch`, `task`, `jev_*` and other MCP tools) is inspected.
 - **Spawn**: stdin JSON, stdout JSON, hard timeout 1000ms for `tool.before` and 750ms elsewhere; stderr passes through to the harness log.
@@ -157,36 +158,53 @@ Each step ends green on **both boots** before the next begins. The two boots sha
 | Boot | Suite command | Notes |
 | :--- | :--- | :--- |
 | Windows | `cmd /c .venv\Scripts\python -m pytest -q` | the existing `.venv` from the primary install |
-| Linux | `.venv-linux/bin/python -m pytest -q` | `.venv-linux` created at S0: `uv venv .venv-linux` + `uv pip install --python .venv-linux/bin/python -e ".[test]"` |
+| Linux | `.venv-linux/bin/python -m pytest -q` | `.venv-linux` created at S0: `uv venv .venv-linux` + `uv pip install --python .venv-linux/bin/python -e ".[test,mcp]"` (`mcp` added by the S0 R4 receipt — the MCP server refuses to start without it) |
 
 The Linux baseline is already recorded: 36 passed, 11 skipped. S0 records the Windows number beside it — identical counts are the expectation, because the suite is pathlib-clean. Fixtures and tests must stay OS-agnostic: no separator assumptions, no drive-letter or home-directory literals.
 
 ### S0 — Contract spike (½ day)
 
 - [x] `.gitattributes` with `* text=auto eol=lf` in place (landed at spec time; it collapsed the 30-file CRLF churn and emptied the phantom 228-line diff on `adapters/antigravity.py`).
-- [ ] Run the suite on both boots; record both baselines side by side.
-- [ ] Drop a temporary `~/.config/opencode/plugins/jev-spike.ts` (same directory on both OSes — verified, no Windows special case) that logs raw hook input and throws on a marked command.
-- [ ] Verify the five receipts on each boot's installed harness: throw blocks execution; `chat.message` mutation persists and reaches the model; system-tail append renders; `mcp.jev` discovers; plugin auto-load picks up the file.
-- [ ] Capture sanitized payloads into `tests/fixtures/opencode/{turn,tool_before,tool_after,checkpoint}.json`.
-- [ ] Record `opencode --version`, Python cold-start time, and end-to-end hook latency per boot.
+- [ ] Run the suite on both boots; record both baselines side by side. **Linux: 36 passed, 11 skipped (2026-09-29, reproduced again after fixtures landed). Windows: pending the Windows boot.**
+- [x] Drop a temporary `~/.config/opencode/plugins/jev-spike.ts` (same directory on both OSes — verified, no Windows special case) that logs raw hook input and throws on a marked command. Spike source committed at `tests/fixtures/opencode/jev-spike.ts`; **must export `id`** (path plugins without `id` are rejected at load).
+- [ ] Verify the five receipts on each boot's installed harness: throw blocks execution; `chat.message` mutation persists and reaches the model; system-tail append renders; `mcp.jev` discovers; plugin auto-load picks up the file. **Linux: all five ✓ (receipts below). Windows: pending.**
+- [x] Capture sanitized payloads into `tests/fixtures/opencode/{turn,tool_before,tool_after,checkpoint}.json`.
+- [ ] Record `opencode --version`, Python cold-start time, and end-to-end hook latency per boot. **Linux: recorded below. Windows: pending.**
 
-**Gate**: every receipt written down; payload fixtures committed; if any binding fails, revise §5.2 before touching `src/`.
+**Gate**: every receipt written down; payload fixtures committed; if any binding fails, revise §5.2 before touching `src/`. **No binding failed on the Linux boot — §5.2 stands as written.**
+
+#### S0 receipts — Linux boot (2026-09-29)
+
+| Item | Result |
+| :--- | :--- |
+| `opencode --version` | `1.18.33` (exact evidence tag of §5.1) |
+| Suite baseline | 36 passed, 11 skipped (re-run after fixtures: identical) |
+| R1 throw blocks execution | `echo JEV_SPIKE_DENY` → tool failed with `jev-spike: blocked marked command`; model reported "command was intercepted and did not run" — no process spawned |
+| R2 `chat.message` persists + reaches model | model replied `SPIKE_TURN_OK` to the injected marker; `opencode export` shows `<jev-spike>SPIKE_TURN_MARKER</jev-spike>` persisted in the stored user text part |
+| R3 system-tail renders | model listed `SPIKE_SYSTEM_INSTRUCTION_OK` injected via `experimental.chat.system.transform` |
+| R4 `mcp.jev` discovers | `opencode mcp list` → `✓ jev connected` with the rendered command; required the `mcp` extra in `.venv-linux` (`uv pip install -e ".[test,mcp]"`). S0 rendered `--harness codex` as a stand-in — the `opencode` choice lands at S1 |
+| R5 plugin auto-load | `opencode debug config` shows `plugins/jev-spike.ts` auto-discovered into the resolved `plugin` array while the on-disk `opencode.json` stays untouched; `loaded.txt` marker written at boot |
+| Checkpoint capture | `POST /session/:id/summarize` drove `experimental.session.compacting` with `{sessionID}` → `{context: []}`; this is the S5 smoke recipe |
+| Python cold start (external, n=10) | min 66 ms / p50 67 ms / p95 67 ms / max 67 ms (`python -m jev doctor`) |
+| End-to-end hook latency in-harness (n=4) | 66–73 ms from `tool.execute.before` entry through spawn+doctor round trip — ~4× headroom under the 300 ms budget |
+| Environment notes | path plugins need `id`; `chat.message` input carries only `sessionID` (agent/model/`messageID` live on `output.message`); `tool.execute.before` args arrive in `output.args`, `tool.execute.after` args in `input.args`; the title-agent free-tier stream error (`agent=title`) is a CLI-only artifact and does not affect build-agent calls; live config is strict JSON with no comments, so the S3 parse-or-abort rule holds on this machine |
 
 ### S1 — Contracts and adapter (1 day)
 
 - [ ] `contracts.py`: add `Harness.OPENCODE = "opencode"`.
 - [ ] `adapters/opencode.py`: decode/encode per §5.3–5.4; `adapters/__init__.py` export.
 - [ ] `cli.py`: add `opencode` to every `--harness` choice (`hook`, `authorize`, `stats`, `mcp`, `lint`).
+- [ ] `cli.py` malformed-input boundary: treat `hook: "tool.execute.*"` as pre-tool input, map `write`/`edit`/`apply_patch` onto the fail-open file-mutation set, and emit the `{"decision": …}` envelope instead of the Codex shape (finding F1 — without this, a malformed opencode shell payload fails open).
 - [ ] `runtime.py:67`: `inject_body = event.harness not in {Harness.CODEX, Harness.OPENCODE}`.
 - [ ] `services/storage.py`: `CREATE VIEW IF NOT EXISTS opencode_events …` beside the existing two.
-- [ ] `tests/test_opencode_adapter.py`: fixture round-trips, deny/ask/allow encoding, malformed shell fail-closed vs file fail-open, capability manifest includes `opencode`.
+- [ ] `tests/test_opencode_adapter.py`: fixture round-trips, deny/ask/allow encoding, malformed shell fail-closed vs file fail-open, and `Harness.OPENCODE` accepted across every `--harness` CLI path. (Finding F2: `render.capability_manifest()` is feature-scoped and harness-neutral — the per-harness capability matrix stays docs-only, asserted at S5 in `docs/ARCHITECTURE.md`.)
 
-**Gate**: the suite reproduces the pre-change baseline on **both boots** (Linux: 36 passed, 11 skipped; Windows number from S0 — any delta needs an explanation, never a shrug), `git diff` over `src/jev/adapters/{antigravity,codex}.py` and `src/jev/core/` stays empty, and no Antigravity or Codex test file is edited. Shared files may receive additions only: a new enum member, new CLI choice strings, a new view, one extra condition in the `inject_body` expression. Any refactor of existing adapter logic stops the step.
+**Gate**: the suite reproduces the pre-change baseline on **both boots** (Linux: 36 passed, 11 skipped; Windows number from S0 — any delta needs an explanation, never a shrug), `git diff` over `src/jev/adapters/{antigravity,codex}.py` and `src/jev/core/` stays empty, and no Antigravity or Codex test file is edited. Shared files may receive additions only: a new enum member, new CLI choice strings, a new view, one extra condition in the `inject_body` expression, and the opencode branch of the `run_hook` malformed-input boundary. Any refactor of existing adapter logic stops the step.
 
 ### S2 — Registry-generated plugin (1 day)
 
 - [ ] `install/render.py`: `opencode_plugin()` (event subscriptions, pre-filter list, and timeouts derived from `FEATURES`) and `opencode_config()` (the `mcp.jev` fragment).
-- [ ] Rendered `jev.ts` implements §5.5: startup probe, pre-filter, spawn, fault policy, decision application, telemetry footer.
+- [ ] Rendered `jev.ts` implements §5.5: `{ id: "jev", server() }` default export (S0: `id` is mandatory for path plugins), startup probe, pre-filter, spawn, fault policy, decision application, telemetry footer.
 - [ ] Snapshot test asserting the rendered plugin tracks the registry (drift check, same idea as the other generated registrations).
 
 **Gate**: rendered plugin loads in a live OpenCode window without publishing load errors.
@@ -214,7 +232,7 @@ The Linux baseline is already recorded: 36 passed, 11 skipped. S0 records the Wi
 - [ ] `docs/ARCHITECTURE.md`: lifecycle table and capability matrix gain OpenCode columns.
 - [ ] `docs/USER_GUIDE.md`: OpenCode section — install, restart, `jev authorize` recovery flow, uninstall.
 - [ ] Root `README.md` stays ≤150 lines; harness badge and quickstart gain the third harness. `AGENTS.md` shared-runtime bullet gains the opencode registration line.
-- [ ] Live smoke matrix on **both boots**: startup context, turn context, harmless `bash` allowed, `rm -rf` denied, file edit allowed, MCP tool discovery, one skill visible to the `skill` tool.
+- [ ] Live smoke matrix on **both boots**: startup context, turn context, harmless `bash` allowed, `rm -rf` denied, file edit allowed, MCP tool discovery, one skill visible to the `skill` tool, compaction hook fires (finding F3: an empty `checkpoint_context` is the expected payload until a feature claims `CONTEXT_CHECKPOINT` in `FEATURES` — assert the hook fires and accepts `output.context`, not a non-empty push).
 
 **Gate**: full suite green on both boots, smoke matrix receipts recorded per boot, capability table matches observed behavior.
 

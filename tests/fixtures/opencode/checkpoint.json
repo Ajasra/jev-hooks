@@ -1,0 +1,12 @@
+{
+  "hook": "experimental.session.compacting",
+  "harness_version": "1.18.33",
+  "cwd": "/abs/project",
+  "session_id": "ses_FIXTURESESSION000000",
+  "turn_id": "",
+  "agent": "",
+  "prompt": "",
+  "native": {
+    "sessionID": "ses_FIXTURESESSION000000"
+  }
+}

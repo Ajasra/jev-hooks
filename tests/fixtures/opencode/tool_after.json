@@ -1,0 +1,30 @@
+{
+  "hook": "tool.execute.after",
+  "harness_version": "1.18.33",
+  "cwd": "/abs/project",
+  "session_id": "ses_FIXTURESESSION000000",
+  "turn_id": "",
+  "agent": "",
+  "prompt": "",
+  "tool": {
+    "name": "bash",
+    "call_id": "call_FIXTURECALL0000000",
+    "args": {
+      "command": "echo FOOTER_CHECK"
+    }
+  },
+  "result": {
+    "title": "echo FOOTER_CHECK",
+    "output": "FOOTER_CHECK\n",
+    "metadata": {
+      "output": "FOOTER_CHECK\n",
+      "exit": 0,
+      "truncated": false
+    }
+  },
+  "native": {
+    "tool": "bash",
+    "sessionID": "ses_FIXTURESESSION000000",
+    "callID": "call_FIXTURECALL0000000"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "hook": "chat.message",
+  "harness_version": "1.18.33",
+  "cwd": "/abs/project",
+  "session_id": "ses_FIXTURESESSION000000",
+  "turn_id": "msg_FIXTUREMESSAGE000000",
+  "agent": "build",
+  "prompt": "\"Reply with exactly SPIKE_TURN_OK if your user message contains a <jev-spike> tag, otherwise reply SPIKE_NO_MARK\"",
+  "native": {
+    "sessionID": "ses_FIXTURESESSION000000"
+  }
+}
