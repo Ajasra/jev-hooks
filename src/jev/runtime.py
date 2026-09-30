@@ -64,7 +64,7 @@ class Runtime:
                     self.settings.skill_roots,
                     self.client,
                     self._remaining(event),
-                    inject_body=event.harness != Harness.CODEX,
+                    inject_body=event.harness not in {Harness.CODEX, Harness.OPENCODE},
                 ))
             elif spec.handler_name == "knowledge":
                 semantic_prompt = envelope.to_semantic_string() if envelope else str(event.payload.get("prompt", ""))

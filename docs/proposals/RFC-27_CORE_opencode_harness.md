@@ -191,13 +191,16 @@ The Linux baseline is already recorded: 36 passed, 11 skipped. S0 records the Wi
 
 ### S1 — Contracts and adapter (1 day)
 
-- [ ] `contracts.py`: add `Harness.OPENCODE = "opencode"`.
-- [ ] `adapters/opencode.py`: decode/encode per §5.3–5.4; `adapters/__init__.py` export.
-- [ ] `cli.py`: add `opencode` to every `--harness` choice (`hook`, `authorize`, `stats`, `mcp`, `lint`).
-- [ ] `cli.py` malformed-input boundary: treat `hook: "tool.execute.*"` as pre-tool input, map `write`/`edit`/`apply_patch` onto the fail-open file-mutation set, and emit the `{"decision": …}` envelope instead of the Codex shape (finding F1 — without this, a malformed opencode shell payload fails open).
-- [ ] `runtime.py:67`: `inject_body = event.harness not in {Harness.CODEX, Harness.OPENCODE}`.
-- [ ] `services/storage.py`: `CREATE VIEW IF NOT EXISTS opencode_events …` beside the existing two.
-- [ ] `tests/test_opencode_adapter.py`: fixture round-trips, deny/ask/allow encoding, malformed shell fail-closed vs file fail-open, and `Harness.OPENCODE` accepted across every `--harness` CLI path. (Finding F2: `render.capability_manifest()` is feature-scoped and harness-neutral — the per-harness capability matrix stays docs-only, asserted at S5 in `docs/ARCHITECTURE.md`.)
+- [x] `contracts.py`: add `Harness.OPENCODE = "opencode"`.
+- [x] `adapters/opencode.py`: decode/encode per §5.3–5.4; `adapters/__init__.py` export.
+- [x] `cli.py`: add `opencode` to every `--harness` choice (`hook`, `authorize`, `stats`, `mcp`, `lint`).
+- [x] `cli.py` malformed-input boundary: treat `hook: "tool.execute.*"` as pre-tool input, map `write`/`edit`/`apply_patch` onto the fail-open file-mutation set, and emit the `{"decision": …}` envelope instead of the Codex shape (finding F1 — without this, a malformed opencode shell payload fails open).
+- [x] `runtime.py:67`: `inject_body = event.harness not in {Harness.CODEX, Harness.OPENCODE}`.
+- [x] `services/storage.py`: `CREATE VIEW IF NOT EXISTS opencode_events …` beside the existing two.
+- [x] `tests/test_opencode_adapter.py`: fixture round-trips, deny/ask/allow encoding, malformed shell fail-closed vs file fail-open, and `Harness.OPENCODE` accepted across every `--harness` CLI path. (Finding F2: `render.capability_manifest()` is feature-scoped and harness-neutral — the per-harness capability matrix stays docs-only, asserted at S5 in `docs/ARCHITECTURE.md`.)
+
+
+**S1 gate result (Linux, 2026-09-29)**: suite 66 passed, 11 skipped — baseline 36 plus 30 new `test_opencode_adapter.py` cases (delta = this step's tests, skips unchanged); `git diff` over `adapters/{antigravity,codex}.py` and `core/` empty; no existing test file touched. One catch during implementation: merging `apply_patch` into the shared fail-open set changed Codex behavior (Codex ships its own `apply_patch` tool that must keep failing closed) — the boundary now keeps the Antigravity/Codex lines byte-identical behind a harness-scoped opencode branch, pinned by `test_codex_apply_patch_decode_error_still_fails_closed`. Windows run pending the Windows boot.
 
 **Gate**: the suite reproduces the pre-change baseline on **both boots** (Linux: 36 passed, 11 skipped; Windows number from S0 — any delta needs an explanation, never a shrug), `git diff` over `src/jev/adapters/{antigravity,codex}.py` and `src/jev/core/` stays empty, and no Antigravity or Codex test file is edited. Shared files may receive additions only: a new enum member, new CLI choice strings, a new view, one extra condition in the `inject_body` expression, and the opencode branch of the `run_hook` malformed-input boundary. Any refactor of existing adapter logic stops the step.
 
