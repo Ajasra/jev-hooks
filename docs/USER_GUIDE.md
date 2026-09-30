@@ -65,6 +65,34 @@ The global dispatcher reads the native hook JSON from standard input. When its `
 
 After changing `%USERPROFILE%\.codex\hooks.json` or either global dispatcher file, open a **new Codex session**. Existing sessions keep the hook registration they started with. For the local Jev checkout, open it as a trusted project and accept the hook review when prompted.
 
+### C. OpenCode Setup
+
+OpenCode has no `hooks.json`; it loads TypeScript plugins and resolves its global configuration from `$XDG_CONFIG_HOME/opencode` — `%USERPROFILE%\.config\opencode` on Windows, `~/.config/opencode` on Linux, the same directory on both systems. Install Jev into that directory:
+
+```cmd
+cmd /c python -m jev install opencode
+```
+
+The installer is idempotent and refuses to touch anything it does not own:
+
+- Merges only `$schema` (when missing), `mcp.jev`, and a `skills.paths` entry into the global config. Your existing `plugin`, `provider`, `agent`, `permission`, and `model` blocks are preserved unchanged.
+- Writes the generated shim to `plugins/jev.ts` (marked `// @jev-owned`) and records what it added in `.jev-install.json`.
+- Backs up the config before the first write and aborts on a comment-bearing config or an unmarked plugin it did not generate.
+
+Restart OpenCode, then confirm the registration:
+
+```cmd
+cmd /c python -m jev doctor --cwd .
+```
+
+`jev doctor` prints an `opencode` section (config dir, plugin ownership, skills path, `mcp.jev`, interpreter, `opencode --version`) and exits non-zero when a registration is missing. Uninstall the same way it was installed:
+
+```cmd
+cmd /c python -m jev uninstall opencode
+```
+
+Uninstall removes exactly the keys the installer added and deletes the generated shim; your own keys come back byte-for-byte.
+
 ---
 
 ## 3. The Everyday Execution Flow
@@ -124,6 +152,24 @@ Review the printed operation digest, then confirm:
 ```cmd
 cmd /c python -m jev authorize --harness codex --tool Bash --command "your command" --workspace-id WORKSPACE_ID --confirm-digest DIGEST
 ```
+
+### OpenCode Permissions
+OpenCode 1.18.33 declares a `permission.ask` plugin hook that its runtime never triggers, so an interactive modal is impossible there. Jev answers `ask` with a denial that carries the recovery command:
+
+```text
+Jev requires explicit approval for this operation. Approval is issued outside
+this agent session; see the Jev user guide. Reason: File mutation targets a
+sensitive path or leaves the workspace.
+```
+
+Authorize the operation from your terminal while the refusal is fresh:
+
+```cmd
+cmd /c python -m jev authorize --harness opencode --tool write --command "your operation" --workspace-id WORKSPACE_ID
+cmd /c python -m jev authorize --harness opencode --tool write --command "your operation" --workspace-id WORKSPACE_ID --confirm-digest DIGEST
+```
+
+Run `python -m jev stats --harness opencode` to list the pending denials and their digests.
 
 ---
 

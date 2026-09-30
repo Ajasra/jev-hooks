@@ -12,7 +12,7 @@ from typing import Any
 
 from jev.adapters import AntigravityAdapter, CodexAdapter, OpenCodeAdapter
 from jev.core import safety
-from jev.install.doctor import format_report
+from jev.install.doctor import report as doctor_report
 from jev.runtime import Runtime
 from jev.services.paths import Settings
 from jev.services.storage import Storage, operation_digest
@@ -97,6 +97,45 @@ def _manual_authorize(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def _install_harness(args: argparse.Namespace) -> int:
+    from jev.install.opencode import InstallError, install
+
+    try:
+        report = install(cwd=args.cwd, dir_override=args.dir_override, force_global=args.force_global)
+    except InstallError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print("Jev installed for OpenCode")
+    print(f"  Config:   {report['config_file']} ({'updated' if report['config_changed'] else 'unchanged'})")
+    print(f"  Plugin:   {report['plugin_file']} ({'written' if report['plugin_changed'] else 'unchanged'})")
+    print(f"  Skills:   {', '.join(report['skills_paths'])}")
+    print(f"  Python:   {report['python']}")
+    print(f"  Backup:   {report['backup_file'] or 'none (config file was created)'}")
+    print(f"  Manifest: {report['manifest_file']}")
+    if report["harness_version"]:
+        print(f"  Harness:  opencode {report['harness_version']}")
+    print("Restart OpenCode to load the generated plugin.")
+    return 0
+
+
+def _uninstall_harness(args: argparse.Namespace) -> int:
+    from jev.install.opencode import InstallError, uninstall
+
+    try:
+        report = uninstall(dir_override=args.dir_override, force_global=args.force_global)
+    except InstallError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print("Jev removed from OpenCode")
+    print(f"  Config:   {report['config_detail']}")
+    print(f"  Plugin:   {report['plugin_detail']}")
+    if report["backup_file"]:
+        print(f"  Backup:   {report['backup_file']} (kept)")
+    print("  Manifest: removed")
+    print("Restart OpenCode to drop the generated plugin.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jev")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -107,6 +146,20 @@ def build_parser() -> argparse.ArgumentParser:
     migrate = sub.add_parser("migrate-legacy")
     migrate.add_argument("legacy_db", type=Path)
     migrate.add_argument("--cwd", default=".")
+    install = sub.add_parser("install")
+    install.add_argument("harness", choices=("opencode",))
+    install.add_argument("--global", dest="force_global", action="store_true",
+                         help="Target the user-global harness config (default).")
+    install.add_argument("--dir", dest="dir_override", default="", metavar="PATH",
+                         help="Install into another config directory instead.")
+    install.add_argument("--cwd", default=".")
+    uninstall = sub.add_parser("uninstall")
+    uninstall.add_argument("harness", choices=("opencode",))
+    uninstall.add_argument("--global", dest="force_global", action="store_true",
+                           help="Target the user-global harness config (default).")
+    uninstall.add_argument("--dir", dest="dir_override", default="", metavar="PATH",
+                           help="Uninstall from another config directory instead.")
+    uninstall.add_argument("--cwd", default=".")
     authorize = sub.add_parser("authorize")
     authorize.add_argument("--harness", choices=("antigravity", "codex", "opencode"), required=True)
     authorize.add_argument("--tool", required=True)
@@ -156,8 +209,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Jev hook failed: {type(exc).__name__}", file=sys.stderr)
             return 1
     settings = Settings.load(getattr(args, "cwd", "."))
+    if args.command == "install":
+        return _install_harness(args)
+    if args.command == "uninstall":
+        return _uninstall_harness(args)
     if args.command == "doctor":
-        print(format_report(settings))
+        payload = doctor_report(settings)
+        print(json.dumps(payload, indent=2, sort_keys=True), flush=True)
+        problems = payload.get("problems") or []
+        if problems:
+            for item in problems:
+                print(f"jev doctor: missing OpenCode registration: {item}", file=sys.stderr, flush=True)
+            return 1
         return 0
     if args.command in {"stats", "telemetry"}:
         storage = Storage(settings.db_path)

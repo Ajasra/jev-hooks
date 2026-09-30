@@ -1,18 +1,18 @@
 # Jev: System One Semantic Control for AI Coding Harnesses
 
 [![System One](https://img.shields.io/badge/Architecture-System%20One%20Semantic%20Control-blue.svg)](https://docs.typesafe.ai)
-[![Harnesses](https://img.shields.io/badge/Harnesses-Google%20Antigravity%20%7C%20OpenAI%20Codex-orange.svg)](./docs/proposals/RFC-24_CORE_shared_harness_runtime.md)
+[![Harnesses](https://img.shields.io/badge/Harnesses-Google%20Antigravity%20%7C%20OpenAI%20Codex%20%7C%20OpenCode-orange.svg)](./docs/proposals/RFC-24_CORE_shared_harness_runtime.md)
 [![OpenRouter](https://img.shields.io/badge/Provider-OpenRouter%20%7C%20TypeSafe-purple.svg)](https://openrouter.ai/~typesafe/jev-latest)
 [![P95 Latency](https://img.shields.io/badge/P95%20Latency-%3C120ms-brightgreen.svg)](https://docs.typesafe.ai)
 [![Zero Pip Dependencies](https://img.shields.io/badge/Dependencies-Zero%20Pip%20Core-success.svg)](https://python.org)
 
-**A local safety guard and smart router for your AI coding assistant (Google Antigravity, OpenAI Codex).**
+**A local safety guard and smart router for your AI coding assistant (Google Antigravity, OpenAI Codex, OpenCode).**
 
 ---
 
 ## 1. What Jev Does
 
-When you let AI coding assistants (like Google Antigravity or OpenAI Codex) run in your project, they have access to your terminal and files. Two things go wrong all the time:
+When you let AI coding assistants (like Google Antigravity, OpenAI Codex, or OpenCode) run in your project, they have access to your terminal and files. Two things go wrong all the time:
 
 - **Dangerous commands**: The AI tries to wipe a folder, discard your uncommitted git changes, or run destructive scripts before you can stop it.
 - **Waste & lag**: The AI dumps 50 skill files into its prompt on every turn (burning tokens and money), or wastes several turns fumbling around before finding the right files.
@@ -73,6 +73,7 @@ cmd /c python -m pytest -q
   ```
   Reload window (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $\rightarrow$ **`Developer: Reload Window`**).
 * **OpenAI Codex**: Configured via repository [`.codex/hooks.json`](.codex/hooks.json) and [`.codex/config.toml`](.codex/config.toml).
+* **OpenCode**: `cmd /c python -m jev install opencode` merges Jev's keys into the global config and writes `plugins\jev.ts`; restart OpenCode to load it.
 
 ---
 

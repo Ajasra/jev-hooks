@@ -16,10 +16,11 @@ Treat `src/jev/` as the only implementation root for runtime behavior.
 - `contracts.py` defines harness-neutral events and results.
 - `registry.py` is the extension surface for hook features and callable tools.
 - `core/` owns safety, skills, knowledge, speculation, and compaction.
-- `adapters/` translates Google Antigravity and OpenAI Codex protocols.
+- `adapters/` translates Google Antigravity, OpenAI Codex, and OpenCode protocols.
 - `services/storage.py` owns shared SQLite persistence and harness-specific views.
 - `.agents/hooks/jev_dispatch.py` is the Antigravity checkout bootstrap.
 - `.codex/hooks.json` is the Codex registration.
+- `install/opencode.py` merges Jev-owned keys into the OpenCode global config and writes the registry-generated `plugins/jev.ts` shim.
 
 Files named `jev_safety_gate.py`, `jev_skill_router.py`, `jev_speculative_router.py`, `jev_ki_engine.py`, and `jev_compactor.py` are compatibility entry points only. Do not put feature logic in them.
 
@@ -27,7 +28,7 @@ Files named `jev_safety_gate.py`, `jev_skill_router.py`, `jev_speculative_router
 
 - Add a hook once in `src/jev/core/` and register one `FeatureSpec`.
 - Add a callable tool once in `src/jev/tooling.py` and register one `ToolSpec`; transports derive their exposure from the registry.
-- Add a skill once under `.agents/skills/<name>/SKILL.md`. Both harnesses use that canonical source.
+- Add a skill once under `.agents/skills/<name>/SKILL.md`. Every harness uses that canonical source.
 - Change an adapter only for native protocol translation or a harness capability difference.
 - Preserve the deterministic safety floor and harness-scoped audit identity.
 - Keep project configuration unable to redirect trusted rule storage or weaken policy.
@@ -38,6 +39,6 @@ Canonical custom skills live under [`.agents/skills/`](skills/). Antigravity may
 
 ## Execution
 
-The root [`AGENTS.md`](../AGENTS.md) and [`GEMINI.md`](../GEMINI.md) point here so both harnesses inherit the same instructions.
+The root [`AGENTS.md`](../AGENTS.md) and [`GEMINI.md`](../GEMINI.md) point here so every harness inherits the same instructions.
 
 On Windows, prefix shell commands with `cmd /c` to ensure clean process termination and EOF delivery.

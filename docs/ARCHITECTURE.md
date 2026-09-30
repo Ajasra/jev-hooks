@@ -2,7 +2,7 @@
 
 > **Audience**: Hook authors, systems architects, and framework contributors
 > **Status**: Production Standard (Unified Shared Runtime)
-> **Harnesses**: Google Antigravity 2.0 & OpenAI Codex
+> **Harnesses**: Google Antigravity 2.0, OpenAI Codex & OpenCode
 > **Foundational Philosophy**: [The Philosophy of Jev](PHILOSOPHY.md)
 > **Related Protocols**: [Documentation Standard](../.agents/protocols/documentation-standard-protocol.md) | [System One Balance](../.agents/protocols/system-one-balance-protocol.md)
 
@@ -10,14 +10,16 @@
 
 ## 1. Architecture Overview: Ports and Adapters
 
-Jev decouples agentic coding harnesses from semantic evaluation logic using a **ports-and-adapters** design. Harnesses (Google Antigravity, OpenAI Codex) act as external ports. Thin adapters translate native JSON payloads into harness-neutral `Event` and `Operation` contracts. The shared core owns safety evaluation, skill selection, speculative prefetching, and audit persistence.
+Jev decouples agentic coding harnesses from semantic evaluation logic using a **ports-and-adapters** design. Harnesses (Google Antigravity, OpenAI Codex, OpenCode) act as external ports. Thin adapters translate native JSON payloads into harness-neutral `Event` and `Operation` contracts. The shared core owns safety evaluation, skill selection, speculative prefetching, and audit persistence.
 
 ```mermaid
 flowchart LR
     A[Antigravity JSON] --> AA[Antigravity Adapter]
     C[Codex JSON] --> CA[Codex Adapter]
+    OC[OpenCode JSON] --> OA[OpenCode Adapter]
     AA --> E[Event + Operation]
     CA --> E
+    OA --> E
     E --> R[Shared Registry & Runtime]
     R --> S[Safety Gate]
     R --> SK[Dynamic Skills]
@@ -30,13 +32,14 @@ flowchart LR
     R --> O[Result]
     O --> AA
     O --> CA
+    O --> OA
 ```
 
 ### Architectural Guarantees:
 - **Authority belongs to determinism**: Invariant checks (regex, path traversal, hard resets) run locally in under 1ms without network calls.
 - **Sub-120ms P95 semantic turnaround**: Non-autoregressive primitives (`Choice`, `Score`, `Noul`) return structured probability distributions without text generation overhead.
 - **Fail-open on advisory timeouts**: Advisory checks have bounded deadlines (3.5s). If a semantic call times out or fails, workspace mutations proceed unblocked.
-- **Zero policy drift**: A single shared SQLite database (`jev.sqlite3`) and identical safety rules govern both Antigravity and Codex.
+- **Zero policy drift**: A single shared SQLite database (`jev.sqlite3`) and identical safety rules govern Antigravity, Codex, and OpenCode.
 
 ### Machine-Native IPC Wire Contract
 The hook interface executes as a standard child process communicating via Unix/Windows pipes:
@@ -44,6 +47,7 @@ The hook interface executes as a standard child process communicating via Unix/W
 - **`stdout` (JSON)**: Emits normalized response payloads:
   - Antigravity: `{"decision": "allow" | "deny" | "force_ask", "reason": "...", "additionalContext": "..."}` or `{"injectSteps": [{"ephemeralMessage": "..."}]}`.
   - Codex: `{"hookSpecificOutput": {"hookEventName": "...", "permissionDecision": "allow" | "deny", "additionalContext": "..."}}`.
+  - OpenCode: `{"decision": "allow" | "deny" | "ask", "context": "...", "footer": "...", "checkpointContext": "..."}` — `ask` reaches the developer through `jev authorize`, never an OpenCode modal (§4).
 - **`stderr` (Plain Text)**: Strictly reserved for diagnostic telemetry, timing receipts, and emergency exceptions; never emits response JSON.
 - **Process Exit Codes**: Code `0` indicates successful hook evaluation (even if the outcome is `deny`). Non-zero exit codes signal runtime crashes or CLI authorization errors.
 
@@ -70,6 +74,7 @@ src/jev/
   adapters/
     antigravity.py   # Translates Antigravity hook stdin/stdout JSON
     codex.py         # Translates OpenAI Codex hook payloads
+    opencode.py      # Translates OpenCode plugin hook JSON
   services/
     client.py        # Non-autoregressive TypeSafe / OpenRouter HTTP transport
     paths.py         # Cross-platform workspace path resolution
@@ -78,6 +83,9 @@ src/jev/
     mcp.py           # Shared MCP stdio server transport
   install/
     doctor.py        # Self-diagnostic engine
+    render.py        # Registry-derived hook registrations and OpenCode rendering
+    templates.py     # Generated source blobs (OpenCode plugin shim)
+    opencode.py      # Idempotent OpenCode global installer and ownership manifest
 ```
 
 ---
@@ -86,14 +94,14 @@ src/jev/
 
 The runtime normalizes harness-specific triggers into portable lifecycle events:
 
-| Event | Google Antigravity | OpenAI Codex | Description |
-| :--- | :--- | :--- | :--- |
-| `session.start` | *Unavailable* | `SessionStart` | Workspace and environment initialization. |
-| `turn.before` | `PreInvocation` | `UserPromptSubmit` | Injects speculative diffs, skills, and knowledge into Turn 1. |
-| `tool.before` | `PreToolUse` | `PreToolUse` | Intercepts proposed commands, file edits, and patches. |
-| `tool.after` | *Reserved* | `PostToolUse` | Post-execution verification and telemetry logging. |
-| `context.checkpoint` | Sidecar CLI command | `PreCompact` / `PostCompact` | Verbatim receipt pruning before context overflow. |
-| `session.end` | *Reserved* | `SessionEnd` | Session cleanup and active learning checkpointing. |
+| Event | Google Antigravity | OpenAI Codex | OpenCode | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `session.start` | *Unavailable* | `SessionStart` | *Unavailable* (probe runs at plugin load) | Workspace and environment initialization. |
+| `turn.before` | `PreInvocation` | `UserPromptSubmit` | `chat.message` | Injects speculative diffs, skills, and knowledge into Turn 1. |
+| `tool.before` | `PreToolUse` | `PreToolUse` | `tool.execute.before` | Intercepts proposed commands, file edits, and patches. |
+| `tool.after` | *Reserved* | `PostToolUse` | `tool.execute.after` | Post-execution verification and telemetry logging. |
+| `context.checkpoint` | Sidecar CLI command | `PreCompact` / `PostCompact` | `experimental.session.compacting` | Verbatim receipt pruning before context overflow. |
+| `session.end` | *Reserved* | `SessionEnd` | *Unavailable* | Session cleanup and active learning checkpointing. |
 
 Unknown or malformed inputs to safety hooks fail closed. Advisory hook errors fail open without injecting extra context.
 
@@ -101,21 +109,22 @@ Unknown or malformed inputs to safety hooks fail closed. Advisory hook errors fa
 
 ## 4. Harness Capability & Behavioral Matrix
 
-| Capability | Google Antigravity Binding | OpenAI Codex Binding | Implementing Module |
-| :--- | :--- | :--- | :--- |
-| **Safety Gate** | `PreToolUse` (renders interactive modal) | `PreToolUse` (emits permission deny) | `core/safety.py` |
-| **Speculative Prefetch** | `PreInvocation` (injects prompt context) | `UserPromptSubmit` (`additionalContext`) | `core/speculative.py` |
-| **Dynamic Skills** | Injects full body ($\ge 0.80$) or markdown link | Injects catalog ranking and hints | `core/skills.py` |
-| **Knowledge Engine** | `PreInvocation` prompt injection | `SessionStart` & `UserPromptSubmit` | `core/knowledge.py` |
-| **Context Envelope** | `PreInvocation` (assembles 4-layer state) | `UserPromptSubmit` (`additionalContext`) | `core/context.py` |
-| **Output Verification** | `PreToolUse` non-blocking advisory context | `PreToolUse` `additionalContext` | `core/verification.py` |
-| **Semantic Linting** | `prompt_user` advisory finding | `warn_user` advisory finding | `core/semantic_lint.py` |
-| **Context Compactor** | Sidecar execution | Sidecar execution | `core/compaction.py` |
-| **Audit Persistence** | `antigravity_events` view | `codex_events` view | `services/storage.py` |
+| Capability | Google Antigravity Binding | OpenAI Codex Binding | OpenCode Binding | Implementing Module |
+| :--- | :--- | :--- | :--- | :--- |
+| **Safety Gate** | `PreToolUse` (renders interactive modal) | `PreToolUse` (emits permission deny) | `tool.execute.before` (`ask` → deny + `jev authorize`) | `core/safety.py` |
+| **Speculative Prefetch** | `PreInvocation` (injects prompt context) | `UserPromptSubmit` (`additionalContext`) | `chat.message` (mutates the message part) | `core/speculative.py` |
+| **Dynamic Skills** | Injects full body ($\ge 0.80$) or markdown link | Injects catalog ranking and hints | Same ranking, injected into the message part | `core/skills.py` |
+| **Knowledge Engine** | `PreInvocation` prompt injection | `SessionStart` & `UserPromptSubmit` | `chat.message` | `core/knowledge.py` |
+| **Context Envelope** | `PreInvocation` (assembles 4-layer state) | `UserPromptSubmit` (`additionalContext`) | `chat.message` (assembles 4-layer state) | `core/context.py` |
+| **Output Verification** | `PreToolUse` non-blocking advisory context | `PreToolUse` `additionalContext` | Tool-output footer after `tool.execute.after` | `core/verification.py` |
+| **Semantic Linting** | `prompt_user` advisory finding | `warn_user` advisory finding | `jev_semantic_lint` MCP tool | `core/semantic_lint.py` |
+| **Context Compactor** | Sidecar execution | Sidecar execution | `experimental.session.compacting` (`output.context`) | `core/compaction.py` |
+| **Audit Persistence** | `antigravity_events` view | `codex_events` view | `opencode_events` view | `services/storage.py` |
 
 ### Key Transport Differences:
-- **Interactive Approval**: Antigravity supports `"decision": "force_ask"`, prompting the developer directly in the IDE. Codex does not support interactive prompts at `PreToolUse`; conditional checks map to a clean denial with actionable reasoning.
-- **Fail-Open Boundaries**: In both harnesses, workspace file mutations (`write_to_file`, `replace_*`, `apply_patch`) fail open if semantic inspection times out, ensuring developer flow is never blocked by network latency.
+- **Interactive Approval**: Antigravity supports `"decision": "force_ask"`, prompting the developer directly in the IDE. Codex does not support interactive prompts at `PreToolUse`; conditional checks map to a clean denial with actionable reasoning. OpenCode declares a `permission.ask` plugin hook that its runtime never triggers (v1.18.33), so `ask` maps to deny plus the `jev authorize` recovery command.
+- **Fail-Open Boundaries**: In every harness, workspace file mutations (`write_to_file`, `replace_*`, `apply_patch`) fail open if semantic inspection times out, ensuring developer flow is never blocked by network latency. OpenCode keeps the same file-mutation boundary (`write`/`edit`/`apply_patch`) while shell remains fail-closed.
+- **Process Model**: OpenCode runs every event through a generated TypeScript shim (`~/.config/opencode/plugins/jev.ts`) that spawns `python -m jev hook --harness opencode` with 1000ms (`tool.execute.before`) and 750ms budgets, skipping the ten read-only fast-path tools in-process.
 
 ---
 
@@ -159,6 +168,7 @@ The audit store (`%LOCALAPPDATA%\Jev\jev.sqlite3`) uses WAL mode on local filesy
 | `events` | Master audit log tagged by harness, workspace, session, and tool. |
 | `antigravity_events` | Partitioned view filtering Antigravity executions. |
 | `codex_events` | Partitioned view filtering Codex executions. |
+| `opencode_events` | Partitioned view filtering OpenCode executions. |
 | `rules` | Learned policy memory and single-use CLI authorizations. |
 | `invocations` | Atomic claim keys preventing duplicate execution replay. |
 | `semantic_lint_decisions` | Historical evaluation logs for architectural lint rules. |
@@ -178,7 +188,7 @@ The audit store (`%LOCALAPPDATA%\Jev\jev.sqlite3`) uses WAL mode on local filesy
 ### Adding a Callable Tool:
 1. Add a typed handler to `src/jev/tooling.py`.
 2. Register a `ToolSpec` in `registry.py`.
-3. The shared MCP transport (`transports/mcp.py`) automatically discovers and exposes the tool to both Antigravity and Codex without per-tool transport configuration.
+3. The shared MCP transport (`transports/mcp.py`) automatically discovers and exposes the tool to Antigravity, Codex, and OpenCode without per-tool transport configuration.
 
 ---
 
