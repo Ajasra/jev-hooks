@@ -14,10 +14,33 @@ def knowledge_search(settings: Settings, query: str) -> dict:
 
 
 def knowledge_learn(settings: Settings, summary: str, details: str) -> dict:
-    """Explicitly save a repository knowledge item."""
+    """Explicitly save a repository knowledge item with Jev deduplication."""
     if not settings.knowledge_roots:
         raise ValueError("No knowledge root is configured")
-    return knowledge.learn(summary, details, settings.knowledge_roots[0])
+    from jev.services.client import HttpDecisionClient
+    from jev.services.storage import Storage
+    client = HttpDecisionClient.from_environment()
+    outcome = knowledge.learn(
+        summary,
+        details,
+        settings.knowledge_roots[0],
+        client=client,
+        timeout=settings.semantic_timeout_seconds,
+    )
+    try:
+        Storage(settings.db_path).record_knowledge_decision({
+            "harness": settings.harness_identity,
+            "action": "learn",
+            "target_ki": outcome.get("id", ""),
+            "is_update": outcome.get("is_update", False),
+            "confidence": outcome.get("confidence", 0.0),
+            "summary": summary,
+        })
+    except Exception:
+        pass
+    return outcome
+
+
 
 
 def skills_list(settings: Settings) -> list[dict[str, str]]:

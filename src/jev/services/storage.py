@@ -15,7 +15,7 @@ from typing import Any
 
 from jev.contracts import Event, Outcome, Result
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 SECRET_PATTERN = re.compile(
     r"(?i)(api[_-]?key|authorization|token|password|secret)(\s*[:=]\s*)([^\s,;]+)"
 )
@@ -187,6 +187,21 @@ class Storage:
                 );
                 CREATE INDEX IF NOT EXISTS verification_session_time
                     ON verification_decisions(session_id, created_at);
+                CREATE TABLE IF NOT EXISTS knowledge_decisions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id TEXT NOT NULL DEFAULT '',
+                    session_id TEXT NOT NULL DEFAULT '',
+                    harness TEXT NOT NULL DEFAULT '',
+                    action TEXT NOT NULL,
+                    target_ki TEXT NOT NULL DEFAULT '',
+                    is_update INTEGER NOT NULL DEFAULT 0,
+                    confidence REAL NOT NULL DEFAULT 0.0,
+                    summary TEXT NOT NULL DEFAULT '',
+                    duration_ms REAL NOT NULL DEFAULT 0.0,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS knowledge_session_time
+                    ON knowledge_decisions(session_id, created_at);
                 CREATE VIEW IF NOT EXISTS codex_events AS
                     SELECT * FROM events WHERE harness = 'codex';
                 CREATE VIEW IF NOT EXISTS antigravity_events AS
@@ -203,8 +218,13 @@ class Storage:
             )
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
-                (SCHEMA_VERSION, "verification-v3"),
+                (3, "verification-v3"),
             )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
+                (SCHEMA_VERSION, "knowledge-lifecycle-v4"),
+            )
+
 
     def record_semantic_lint_decision(self, decision: dict[str, Any]) -> int:
         self.initialize()
@@ -248,6 +268,28 @@ class Storage:
             )
             return int(cursor.lastrowid or 0)
 
+    def record_knowledge_decision(self, decision: Mapping[str, Any]) -> int:
+        self.initialize()
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """INSERT INTO knowledge_decisions(
+                    event_id, session_id, harness, action, target_ki,
+                    is_update, confidence, summary, duration_ms
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    str(decision.get("event_id", "")),
+                    str(decision.get("session_id", "")),
+                    str(decision.get("harness", "")),
+                    str(decision.get("action", "")),
+                    str(decision.get("target_ki", "")),
+                    1 if decision.get("is_update") else 0,
+                    float(decision.get("confidence", 0.0)),
+                    redact(str(decision.get("summary", "")), 400),
+                    float(decision.get("duration_ms", 0.0)),
+                ),
+            )
+            return int(cursor.lastrowid or 0)
+
     def record_semantic_lint_feedback(self, decision_id: int, label: str, reason: str = "") -> None:
         allowed = {"confirmed_violation", "false_positive", "missed_violation", "acceptable_exception", "rule_unclear", "fixed", "dismissed"}
         if label not in allowed:
@@ -263,6 +305,25 @@ class Storage:
                 "INSERT INTO semantic_lint_feedback(decision_id, label, reason) VALUES (?, ?, ?)",
                 (decision_id, label, redact(reason)),
             )
+
+    def knowledge_decision_stats(self) -> dict[str, Any]:
+        self.initialize()
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT action, is_update, COUNT(*) as count,
+                    ROUND(AVG(confidence), 3) as avg_confidence,
+                    ROUND(AVG(duration_ms), 1) as avg_duration_ms
+                    FROM knowledge_decisions
+                    GROUP BY action, is_update"""
+            ).fetchall()
+            recent = connection.execute(
+                """SELECT id, target_ki, is_update, confidence, summary, duration_ms, created_at
+                    FROM knowledge_decisions ORDER BY id DESC LIMIT 20"""
+            ).fetchall()
+            return {
+                "summary": [dict(r) for r in rows],
+                "recent": [dict(r) for r in recent],
+            }
 
     def semantic_lint_stats(self, rule_id: str | None = None) -> dict[str, Any]:
         self.initialize()

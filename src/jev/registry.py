@@ -26,7 +26,9 @@ FEATURES = (
     FeatureSpec("speculative", "1", frozenset({EventKind.TURN_BEFORE}), "speculative", frozenset({"turn.before", "context"}), 70, 4000, "open"),
     FeatureSpec("skills", "1", frozenset({EventKind.TURN_BEFORE}), "skills", frozenset({"turn.before", "context"}), 60, 6000, "open"),
     FeatureSpec("knowledge", "1", frozenset({EventKind.TURN_BEFORE, EventKind.SESSION_START}), "knowledge", frozenset({"context"}), 50, 6000, "open"),
+    FeatureSpec("knowledge_proposer", "1", frozenset({EventKind.TOOL_AFTER, EventKind.TURN_BEFORE}), "knowledge_proposer", frozenset({"context"}), 45, 1000, "open"),
 )
+
 
 
 @dataclass(frozen=True)

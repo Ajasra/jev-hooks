@@ -74,6 +74,21 @@ class Runtime:
                     self.client,
                     self._remaining(event),
                 ))
+            elif spec.handler_name == "knowledge_proposer":
+                context_str = ""
+                if event.kind == EventKind.TOOL_AFTER and operation:
+                    context_str = f"Tool: {operation.tool_name}\nCommand: {operation.command}\nArgs: {operation.arguments}"
+                elif envelope:
+                    context_str = envelope.to_semantic_string()
+                else:
+                    context_str = str(event.payload.get("prompt", ""))
+                results.append(knowledge.propose_learning(
+                    context_str,
+                    event.harness.value,
+                    self.client,
+                    self._remaining(event),
+                ))
+
         merged = merge_results(results, self.settings.context_budget)
         if envelope:
             envelope_telemetry = envelope.to_telemetry()

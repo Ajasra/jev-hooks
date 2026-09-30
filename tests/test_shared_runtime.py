@@ -197,3 +197,97 @@ def test_checkpoint_preserves_user_messages_and_truncates_old_tool_output():
     assert output[-2:] == messages[-2:]
     assert output[1]["tool_calls"][0]["result"].startswith("x" * 20)
     assert "Checkpoint truncated" in output[1]["tool_calls"][0]["result"]
+
+
+class MockDeduplicationClient:
+    def __init__(self, target_choice: str, confidence: float = 0.90):
+        self.target_choice = target_choice
+        self.confidence = confidence
+
+    def evaluate(self, state, questions, timeout):
+        if "existing_ki_to_update" in questions:
+            return {
+                "existing_ki_to_update": {
+                    "choice": self.target_choice,
+                    "confidence": self.confidence,
+                }
+            }
+        if "is_reusable_pattern" in questions:
+            return {
+                "is_reusable_pattern": {"noul": 0.88},
+                "pattern_title": {"choice": "architecture"},
+            }
+        return {}
+
+
+def test_knowledge_learn_deduplication_updates_existing_ki(tmp_path: Path):
+    root = tmp_path / ".agents/knowledge"
+    first = knowledge.learn(
+        "JWT Verification Rule",
+        "Tokens must contain valid signatures.",
+        root,
+    )
+    assert first["success"] is True
+    assert first["is_update"] is False
+
+    # Second learn call matching first KI via Jev client
+    client = MockDeduplicationClient(target_choice=first["id"], confidence=0.88)
+    second = knowledge.learn(
+        "JWT Signature Algorithm Restriction",
+        "Never accept alg none.",
+        root,
+        client=client,
+    )
+    assert second["success"] is True
+    assert second["is_update"] is True
+    assert second["id"] == first["id"]
+
+    # Verify that metadata and pattern markdown were updated in place
+    pattern_md = Path(second["path"]) / "artifacts" / "architectural_pattern.md"
+    content = pattern_md.read_text(encoding="utf-8")
+    assert "Never accept alg none" in content
+    assert "Tokens must contain valid signatures" in content
+
+
+def test_knowledge_proposer_advises_codex_system_message_and_antigravity():
+    client = MockDeduplicationClient("none")
+    # Codex: Option B systemMessage guidance
+    codex_res = knowledge.propose_learning("Resolved token invariant issue", "codex", client=client)
+    assert len(codex_res.context) == 1
+    assert "Ask the user in your response" in codex_res.context[0].text
+    assert "knowledge_learn" in codex_res.context[0].text
+
+    # Antigravity: interactive prompt guidance
+    anti_res = knowledge.propose_learning("Resolved token invariant issue", "antigravity", client=client)
+    assert len(anti_res.context) == 1
+    assert "Propose saving it to repository knowledge" in anti_res.context[0].text
+
+
+def test_storage_logs_knowledge_decisions(tmp_path: Path):
+    store = Storage(tmp_path / "data/jev.sqlite3")
+    store.initialize()
+
+    row_id = store.record_knowledge_decision({
+        "event_id": "ev-123",
+        "session_id": "sess-456",
+        "harness": "antigravity",
+        "action": "learn",
+        "target_ki": "ki_jwt_rule",
+        "is_update": True,
+        "confidence": 0.89,
+        "summary": "JWT Security Rule Update",
+        "duration_ms": 78.4,
+    })
+    assert row_id > 0
+
+    stats = store.knowledge_decision_stats()
+    assert len(stats["summary"]) == 1
+    assert stats["summary"][0]["action"] == "learn"
+    assert stats["summary"][0]["is_update"] == 1
+    assert stats["summary"][0]["count"] == 1
+    assert stats["summary"][0]["avg_confidence"] == 0.89
+
+    assert len(stats["recent"]) == 1
+    assert stats["recent"][0]["target_ki"] == "ki_jwt_rule"
+
+
