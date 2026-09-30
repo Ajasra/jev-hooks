@@ -95,7 +95,7 @@ cmd /c python -m pytest -q
 - **[The Philosophy of Jev](docs/PHILOSOPHY.md)**: Meaning in context, the 4-layer Context Envelope, and non-autoregressive primitives.
 - **[User Guide & Operational Manual](docs/USER_GUIDE.md)**: Daily developer workflows, interactive IDE modals, and CLI rule management.
 - **[Architecture Specification](docs/ARCHITECTURE.md)**: Machine-native contracts, ports-and-adapters runtime, SQLite schemas, and latency budgets.
-- **[Master Proposals Index (26 Specs)](docs/proposals/README.md)**: Unified architectural RFCs from `RFC-01` through `RFC-26`.
+- **[Master Proposals Index (27 Specs)](docs/proposals/README.md)**: Unified architectural RFCs from `RFC-01` through `RFC-27`.
 - **[System One Balance Protocol](.agents/protocols/system-one-balance-protocol.md)**: Operational rules keeping semantic micro-decisions fast and non-blocking.
 
 ---

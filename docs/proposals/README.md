@@ -3,7 +3,7 @@
 [![RFC Standards](https://img.shields.io/badge/Standard-RFC--01%20to%20RFC--26-purple.svg)](../../.agents/protocols/documentation-standard-protocol.md)
 [![Status](https://img.shields.io/badge/Coverage-100%25%20Synchronized-brightgreen.svg)](./)
 
-This directory houses 26 technical architecture proposals, blueprints, case studies, and operational protocols for **TypeSafe AI Jev (System One)**. Existing work targets Google Antigravity; RFC-24 defines the shared runtime for Antigravity and OpenAI Codex. RFC-25 is partially implemented and postponed; exclude it from implementation-candidate reviews unless telemetry work is explicitly reactivated.
+This directory houses 27 technical architecture proposals, blueprints, case studies, and operational protocols for **TypeSafe AI Jev (System One)**. Existing work targets Google Antigravity; RFC-24 defines the shared runtime for Antigravity and OpenAI Codex, and RFC-27 adds the OpenCode harness as an implementation blueprint. RFC-25 is partially implemented and postponed; exclude it from implementation-candidate reviews unless telemetry work is explicitly reactivated.
 
 All specifications follow the unified taxonomy defined in [`.agents/protocols/documentation-standard-protocol.md`](../../.agents/protocols/documentation-standard-protocol.md) and ground their decision states in the Context Envelope philosophy ([`docs/PHILOSOPHY.md`](../PHILOSOPHY.md)).
 
@@ -65,6 +65,7 @@ Applying this division of labor to agent harnesses: **Deterministic code handles
 | **24** | **[`RFC-24: Shared Jev Runtime for Antigravity and Codex`](RFC-24_CORE_shared_harness_runtime.md)** | `CORE` | ✅ **Implemented** | Shared core, harness adapters, extension registry and harness-scoped database logs |
 | **25** | **[`RFC-25: Harness-Neutral Telemetry & Observability`](RFC-25_CORE_telemetry_and_observability.md)** | `CORE` | ⏸️ **Partially Implemented — Postponed** | Existing stats remain supported; exclude from candidate analysis until explicitly reactivated |
 | **26** | **[`RFC-26: Context Envelope State Assembly`](RFC-26_CORE_context_envelope_assembly.md)** | `CORE` | ✅ **Implemented** | [`core/context.py`](../../src/jev/core/context.py) & [`runtime.py`](../../src/jev/runtime.py) |
+| **27** | **[`RFC-27: OpenCode Harness Integration`](RFC-27_CORE_opencode_harness.md)** | `CORE` | 📐 **Blueprint** | Third adapter, registry-generated `plugins/jev.ts` and idempotent global installer for OpenCode |
 
 ---
 

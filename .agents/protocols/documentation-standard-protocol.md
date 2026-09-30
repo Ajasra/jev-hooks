@@ -80,7 +80,7 @@ Documentation is strictly partitioned into distinct roles:
 - **Contents**: Ports-and-adapters pattern, machine-native hook contracts, IPC schemas, active learning SQLite tables, P95 latency budgets, and test suites.
 
 ### E. Master Proposals & RFCs (`docs/proposals/`)
-- **Role**: Formal architectural blueprints, treatises, and implementation specifications (`RFC-01` through `RFC-26`).
+- **Role**: Formal architectural blueprints, treatises, and implementation specifications (`RFC-01` through `RFC-27`).
 
 ---
 
