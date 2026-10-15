@@ -10,7 +10,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from jev.adapters import AntigravityAdapter, CodexAdapter
+from jev.adapters import AntigravityAdapter, CodexAdapter, OpenCodeAdapter
 from jev.core import safety
 from jev.install.doctor import format_report
 from jev.runtime import Runtime
@@ -23,6 +23,8 @@ def _adapter(name: str):
         return AntigravityAdapter()
     if name == "codex":
         return CodexAdapter()
+    if name == "opencode":
+        return OpenCodeAdapter()
     raise ValueError(f"Unknown harness: {name}")
 
 
@@ -32,7 +34,13 @@ def run_hook(harness: str, raw: dict[str, Any], settings: Settings | None = None
     try:
         event, operation = adapter.decode(raw)
     except Exception as exc:  # noqa: BLE001 - hook boundary must translate malformed native input
-        is_pre_tool = str(raw.get("hook_event_name") or raw.get("hookEventName")) == "PreToolUse" or "toolCall" in raw
+        is_pre_tool = (
+            str(raw.get("hook_event_name") or raw.get("hookEventName")) == "PreToolUse"
+            or "toolCall" in raw
+            or raw.get("opencode_event") == "tool.execute.before"
+        )
+        if harness == "opencode" and is_pre_tool:
+            return {"deny": True, "reason": "Jev could not inspect the pending tool operation."}
         if is_pre_tool:
             tool_call = raw.get("toolCall") if isinstance(raw.get("toolCall"), Mapping) else {}
             tool_name = str(tool_call.get("name") or raw.get("tool_name") or "")
@@ -85,14 +93,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jev")
     sub = parser.add_subparsers(dest="command", required=True)
     hook = sub.add_parser("hook")
-    hook.add_argument("--harness", choices=("antigravity", "codex"), required=True)
+    hook.add_argument("--harness", choices=("antigravity", "codex", "opencode"), required=True)
     doctor = sub.add_parser("doctor")
     doctor.add_argument("--cwd", default=".")
     migrate = sub.add_parser("migrate-legacy")
     migrate.add_argument("legacy_db", type=Path)
     migrate.add_argument("--cwd", default=".")
     authorize = sub.add_parser("authorize")
-    authorize.add_argument("--harness", choices=("antigravity", "codex"), required=True)
+    authorize.add_argument("--harness", choices=("antigravity", "codex", "opencode"), required=True)
     authorize.add_argument("--tool", required=True)
     authorize.add_argument("--command", required=True)
     authorize.add_argument("--workspace-id", required=True)
@@ -101,17 +109,17 @@ def build_parser() -> argparse.ArgumentParser:
     authorize.add_argument("--reason", default="Manual one-use authorization")
     authorize.add_argument("--cwd", default=".")
     stats_p = sub.add_parser("stats", aliases=["telemetry"])
-    stats_p.add_argument("--harness", choices=("antigravity", "codex"), default=None)
+    stats_p.add_argument("--harness", choices=("antigravity", "codex", "opencode"), default=None)
     stats_p.add_argument("--json", action="store_true", help="Output raw JSON")
     stats_p.add_argument("--cwd", default=".")
     mcp = sub.add_parser("mcp")
     mcp.add_argument("--cwd", default=".")
-    mcp.add_argument("--harness", choices=("antigravity", "codex"), default="")
+    mcp.add_argument("--harness", choices=("antigravity", "codex", "opencode"), default="")
     lint = sub.add_parser("lint")
     lint_mode = lint.add_mutually_exclusive_group()
     lint_mode.add_argument("--staged", action="store_true")
     lint_mode.add_argument("--base")
-    lint.add_argument("--harness", choices=("antigravity", "codex"), default="codex")
+    lint.add_argument("--harness", choices=("antigravity", "codex", "opencode"), default="codex")
     lint.add_argument("--cwd", default=".")
     lint_feedback = sub.add_parser("lint-feedback")
     lint_feedback.add_argument("decision_id", type=int)

@@ -1,18 +1,18 @@
 # Jev: System One Semantic Control for AI Coding Harnesses
 
 [![System One](https://img.shields.io/badge/Architecture-System%20One%20Semantic%20Control-blue.svg)](https://docs.typesafe.ai)
-[![Harnesses](https://img.shields.io/badge/Harnesses-Google%20Antigravity%20%7C%20OpenAI%20Codex-orange.svg)](./docs/proposals/RFC-24_CORE_shared_harness_runtime.md)
+[![Harnesses](https://img.shields.io/badge/Harnesses-Antigravity%20%7C%20Codex%20%7C%20OpenCode-orange.svg)](./docs/proposals/RFC-24_CORE_shared_harness_runtime.md)
 [![OpenRouter](https://img.shields.io/badge/Provider-OpenRouter%20%7C%20TypeSafe-purple.svg)](https://openrouter.ai/~typesafe/jev-latest)
 [![P95 Latency](https://img.shields.io/badge/P95%20Latency-%3C120ms-brightgreen.svg)](https://docs.typesafe.ai)
 [![Zero Pip Dependencies](https://img.shields.io/badge/Dependencies-Zero%20Pip%20Core-success.svg)](https://python.org)
 
-**A local safety guard and smart router for your AI coding assistant (Google Antigravity, OpenAI Codex).**
+**A shared safety guard and smart router for Antigravity, Codex, OpenCode, and Codex-based T3 Code sessions.**
 
 ---
 
 ## 1. What Jev Does
 
-When you let AI coding assistants (like Google Antigravity or OpenAI Codex) run in your project, they have access to your terminal and files. Two things go wrong all the time:
+When you let AI coding assistants run in your project, they have access to your terminal and files. Two things go wrong all the time:
 
 - **Dangerous commands**: The AI tries to wipe a folder, discard your uncommitted git changes, or run destructive scripts before you can stop it.
 - **Waste & lag**: The AI dumps 50 skill files into its prompt on every turn (burning tokens and money), or wastes several turns fumbling around before finding the right files.
@@ -48,31 +48,35 @@ Jev inspects user intent in ~95ms, mounting matching skills from [`.agents/skill
 
 ## 3. Quick Start (60 Seconds)
 
-### Step 1: Install Package & Configure `.env`
-```cmd
-cmd /c python -m pip install --user -e ".[mcp]"
-cmd /c copy .agents\.env.example .agents\.env
+### Step 1: Install the shared runtime
+From this checkout, install Jev in editable mode so every harness runs the same source:
+```sh
+python -m pip install --user -e ".[mcp]"
+jev doctor --cwd .
 ```
-Add your OpenRouter key to `.agents/.env`:
+Put the OpenRouter key in the machine-wide config file `~/.config/jev/.env`:
+```sh
+mkdir -p ~/.config/jev
+chmod 700 ~/.config/jev
+$EDITOR ~/.config/jev/.env
+chmod 600 ~/.config/jev/.env
+```
+Add this line to the file:
 ```ini
-OPENROUTER_API_KEY=sk-or-v1-your_openrouter_api_key_here
+OPENROUTER_API_KEY=your_key_here
 ```
+Jev checks this shared file from every workspace. Project-local `.agents/.env` and `.env` remain available for intentional per-project overrides.
 
-### Step 2: Run Diagnostics & Offline Suite
-```cmd
-cmd /c python -m jev doctor --cwd .
-cmd /c python -m pytest -q
+### Step 2: Verify the shared database
+All harnesses use the same local SQLite database by default:
+```sh
+jev doctor --cwd .
+jev stats --json
 ```
+The default path is `~/.local/share/jev/jev.sqlite3`.
 
-### Step 3: Link to Your Harness
-* **Google Antigravity**: Link canonical hooks and skills into global configuration:
-  ```cmd
-  cmd /c mklink /J "%USERPROFILE%\.gemini\config\hooks" "%CD%\.agents\hooks"
-  cmd /c mklink /J "%USERPROFILE%\.gemini\config\skills" "%CD%\.agents\skills"
-  cmd /c mklink "%USERPROFILE%\.gemini\config\hooks.json" "%CD%\.agents\hooks.json"
-  ```
-  Reload window (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $\rightarrow$ **`Developer: Reload Window`**).
-* **OpenAI Codex**: Configured via repository [`.codex/hooks.json`](.codex/hooks.json) and [`.codex/config.toml`](.codex/config.toml).
+### Step 3: Connect harnesses to this checkout
+Antigravity hooks and skills, Codex hooks and Jev skills, and the OpenCode plugin are linked to this repository. The editable package install points at this checkout, so runtime changes apply to new hook calls; restart harness sessions after changing native registrations.
 
 ---
 

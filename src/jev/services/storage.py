@@ -191,6 +191,8 @@ class Storage:
                     SELECT * FROM events WHERE harness = 'codex';
                 CREATE VIEW IF NOT EXISTS antigravity_events AS
                     SELECT * FROM events WHERE harness = 'antigravity';
+                CREATE VIEW IF NOT EXISTS opencode_events AS
+                    SELECT * FROM events WHERE harness = 'opencode';
                 """
             )
             connection.execute(

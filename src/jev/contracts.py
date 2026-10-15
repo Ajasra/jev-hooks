@@ -13,6 +13,7 @@ SCHEMA_VERSION = 1
 class Harness(str, Enum):
     ANTIGRAVITY = "antigravity"
     CODEX = "codex"
+    OPENCODE = "opencode"
 
 
 class EventKind(str, Enum):

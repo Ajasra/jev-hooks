@@ -11,9 +11,11 @@ from typing import Any, Mapping, Protocol
 
 
 def _load_env_defaults() -> None:
+    config_root = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
     candidates = [
         Path(".agents/.env"),
         Path(".env"),
+        config_root / "jev" / ".env",
         Path.home() / ".gemini" / "config" / ".env",
     ]
     for p in candidates:
@@ -24,7 +26,7 @@ def _load_env_defaults() -> None:
                     if line and not line.startswith("#") and "=" in line:
                         k, v = line.split("=", 1)
                         k, v = k.strip(), v.strip().strip("'\"")
-                        if k and k not in os.environ:
+                        if k and v and k not in os.environ:
                             os.environ[k] = v
             except OSError:
                 pass

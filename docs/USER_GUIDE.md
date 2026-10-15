@@ -1,8 +1,8 @@
 # Jev System One Control Layer: User Guide & Operational Manual
 
-> **Audience**: Developers and engineers operating Google Antigravity or OpenAI Codex
+> **Audience**: Developers operating Antigravity, Codex, OpenCode, or Codex-based T3 Code
 > **Status**: Production Standard (Unified Shared Runtime)
-> **Supported Platform**: Windows, Python 3.10+
+> **Supported Platform**: Windows and Linux, Python 3.10+
 > **Foundational Concepts**: [The Philosophy of Jev](PHILOSOPHY.md) | [Architecture Spec](ARCHITECTURE.md)
 
 ---
@@ -13,57 +13,57 @@ Get Jev installed and verified in your environment in three steps.
 
 ### Step 1: Install Package & Core Tools
 From the repository root:
-```cmd
-cmd /c python -m pip install --user -e ".[mcp]"
-cmd /c python -m jev doctor --cwd .
+```sh
+python -m pip install --user -e ".[mcp]"
+jev doctor --cwd .
 ```
 
-### Step 2: Configure Provider API Key in `.env`
-Copy the environment template and set your API key in `.agents/.env` (or project root `.env`):
-```cmd
-cmd /c copy .agents\.env.example .agents\.env
+### Step 2: Configure the machine-wide provider key
+For all workspaces and harnesses, store the provider key in `~/.config/jev/.env`:
+```sh
+mkdir -p ~/.config/jev
+chmod 700 ~/.config/jev
+$EDITOR ~/.config/jev/.env
+chmod 600 ~/.config/jev/.env
 ```
 
-Inside `.agents/.env`:
+Add this line:
 ```ini
 OPENROUTER_API_KEY=sk-or-v1-your_openrouter_api_key_here
 ```
-*(Or set `TYPESAFE_API_KEY=your_typesafe_key_here` if connecting directly. Environment variables already present in your shell take priority).*
+Jev loads this machine-wide file from every workspace. Environment variables already present in the harness process take priority. A project `.agents/.env` or `.env` can override the machine key intentionally.
+
+All harnesses write to one local database, `~/.local/share/jev/jev.sqlite3`, unless the trusted machine config changes it. Check paths and log counts with `jev doctor --cwd .` and `jev stats --json`.
 
 ### Step 3: Run Self-Diagnostics
-```cmd
-cmd /c python -m jev doctor --cwd .
-cmd /c python -m pytest -q
+```sh
+jev doctor --cwd .
+jev stats --json
 ```
 
 ---
 
 ## 2. Connecting to Your Agent Harness
 
-Jev uses a shared Python runtime (`src/jev/`). Connect it to your preferred harness:
+Jev uses one editable Python runtime from this checkout (`src/jev/`). The machine-wide Antigravity, Codex, and OpenCode registrations point to this source. T3 Code sessions use the same Codex registration when running through the Codex hook layer.
 
-### A. Google Antigravity Setup
-Create directory junctions from Jev into your Antigravity user config directory (`%USERPROFILE%\.gemini\config`):
+### A. Antigravity
 
-```cmd
-cmd /c mklink /J "%USERPROFILE%\.gemini\config\hooks" "%CD%\.agents\hooks"
-cmd /c mklink /J "%USERPROFILE%\.gemini\config\skills" "%CD%\.agents\skills"
-cmd /c mklink /J "%USERPROFILE%\.gemini\config\protocols" "%CD%\.agents\protocols"
-cmd /c mklink "%USERPROFILE%\.gemini\config\hooks.json" "%CD%\.agents\hooks.json"
-```
+The global `~/.gemini/config/hooks`, `hooks.json`, and `skills` paths link to `.agents/` in this checkout.
 
-Reload Antigravity: Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $\rightarrow$ **`Developer: Reload Window`**.
+### B. Codex and T3 Code
 
-### B. OpenAI Codex Setup
+The global `~/.codex/hooks.json` links to this checkout's [`.codex/hooks.json`](../.codex/hooks.json). Jev skill links under `~/.codex/skills/` point to the canonical skill files in `.agents/skills/`.
 
-Jev has two Codex hook boundaries:
+T3 Code sessions share these hooks when T3 Code runs the local Codex hook system. If a T3 Code deployment runs in a separate host or does not load Codex hooks, it needs its own native bridge to the same `jev` executable and user data directory.
 
-- The repository-local [`.codex/hooks.json`](../.codex/hooks.json) belongs to the Jev checkout. Codex uses it when the active workspace is `D:\01_GIT\Jev`.
-- The user-global `%USERPROFILE%\.codex\hooks.json` serves every other workspace. Its command points to `%USERPROFILE%\.codex\hooks\jev_dispatch.cmd`, which starts the shared runtime from `D:\01_GIT\Jev\src`.
+### C. OpenCode
 
-The global dispatcher reads the native hook JSON from standard input. When its `cwd`, after Windows path normalization and case folding, is exactly `D:\01_GIT\Jev`, it writes `{}` and exits without importing or dispatching Jev. A nested directory or any other workspace continues through the shared runtime. This keeps the global registration from double-running the checkout's dedicated local hook.
+The global `~/.config/opencode/opencode.json`, plugin, and `skills` paths link to `.agents/opencode/` and `.agents/skills/` in this checkout. The thin JavaScript plugin translates OpenCode prompt and tool events into the shared Jev runtime; policy and feature logic remain in `src/jev/`.
 
-After changing `%USERPROFILE%\.codex\hooks.json` or either global dispatcher file, open a **new Codex session**. Existing sessions keep the hook registration they started with. For the local Jev checkout, open it as a trusted project and accept the hook review when prompted.
+The shared SQLite database is `~/.local/share/jev/jev.sqlite3`; Antigravity, Codex, OpenCode, and T3 Code through Codex write to this same file. `jev stats --json` summarizes the decision records by harness. Runtime records contain outcomes and feature data, not full user prompts or tool commands.
+
+Changes to this checkout's runtime, skills, or plugin source take effect on new hook calls. Restart harness sessions after changing their native hook registration.
 
 ---
 

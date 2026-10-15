@@ -1,0 +1,22 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": false,
+  "mcp": {
+    "jev": {
+      "type": "local",
+      "command": [
+        "/home/vasily/.local/bin/jev",
+        "mcp",
+        "--harness",
+        "opencode"
+      ]
+    }
+  },
+  "agent": {
+    "jev": {
+      "description": "System One semantic control agent with Jev guardrails, router, and verifier",
+      "mode": "all",
+      "prompt": "You are assisted by Jev System One semantic control, shared safety guardrails, and real-time verification."
+    }
+  }
+}
