@@ -11,7 +11,7 @@
 ## 1. Overview
 
 TypeSafe AI's **Jev** is available on OpenRouter under the model slug:
-👉 **[`typesafe/jev-latest`](https://openrouter.ai/~typesafe/jev-latest)** (and pinned version `typesafe/jev-1.13`).
+👉 **[`typesafe/jev-1.14`](https://openrouter.ai/typesafe/jev-1.14)** (pinned) or **[`~typesafe/jev-latest`](https://openrouter.ai/~typesafe/jev-latest)** (tracks the latest release).
 
 Routing Jev through OpenRouter allows teams and autonomous harnesses like **Google Antigravity** and **OpenAI Codex** to execute sub-100ms System One decisions, skill dispatches, blast-radius safety gating, and context compaction **without provisioning a separate billing account or enterprise contract with TypeSafe AI**.
 
@@ -32,17 +32,17 @@ Routing Jev through OpenRouter allows teams and autonomous harnesses like **Goog
 ## 3. Model Identifier & Endpoints
 
 ### Model Slugs
-- **`typesafe/jev-latest`** *(Recommended)*: Always points to the current production checkpoint (currently Jev 1.13).
-- **`typesafe/jev-1.13`**: Pinned version for deterministic regression pipelines.
+- **`typesafe/jev-1.14`**: Current pinned model, used by Jev's OpenRouter default for reproducible behavior.
+- **`~typesafe/jev-latest`**: OpenRouter alias that follows the latest Jev release.
 
 ### Endpoints
-- **System One Decision Endpoint**: `https://openrouter.ai/api/v1/systemone`
-- **Fallback / Alternative**: `https://openrouter.ai/api/v1/chat/completions` (OpenRouter translates decision schemas into calibrated logit probabilities).
+- **Decisions API**: `https://openrouter.ai/api/alpha/decisions`
+- **Direct TypeSafe API**: `https://api.typesafe.ai/v1/systemone`
 
 ### Required Request Headers
 When calling OpenRouter, standard ranking and statistics headers are passed:
 ```http
-POST /api/v1/systemone HTTP/1.1
+POST /api/alpha/decisions HTTP/1.1
 Host: openrouter.ai
 Authorization: Bearer sk-or-v1-...
 Content-Type: application/json
@@ -58,8 +58,8 @@ The repository's [`.agents/hooks/env_loader.py`](../../.agents/hooks/env_loader.
 
 If you set `OPENROUTER_API_KEY` in `.agents/.env` (or project root `.env`), the hooks:
 1. Detect that `OPENROUTER_API_KEY` is present.
-2. Automatically redirect the endpoint to `https://openrouter.ai/api/v1/systemone`.
-3. Set the default model slug to `typesafe/jev-latest`.
+2. Automatically use `https://openrouter.ai/api/alpha/decisions`.
+3. Set the default model slug to `typesafe/jev-1.14`.
 4. Add OpenRouter attribution headers (`HTTP-Referer`, `X-Title`).
 
 ### Minimal Configuration
@@ -80,18 +80,18 @@ That's it! All 4 hooks (`jev_skill_router.py`, `jev_safety_gate.py`, `jev_output
 Test your OpenRouter Jev connection directly in terminal:
 
 ```bash
-cmd /c curl -s -X POST https://openrouter.ai/api/v1/systemone ^
-  -H "Authorization: Bearer %OPENROUTER_API_KEY%" ^
-  -H "Content-Type: application/json" ^
-  -H "HTTP-Referer: https://github.com/google/antigravity" ^
-  -H "X-Title: Antigravity Jev Integration" ^
-  -d "{\"model\": \"typesafe/jev-latest\", \"state\": \"git rm -rf src/\", \"questions\": {\"is_destructive\": {\"type\": \"noul\", \"instructions\": \"Does this delete code?\"}}}"
+curl -s -X POST https://openrouter.ai/api/alpha/decisions \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "HTTP-Referer: https://github.com/typesafe-ai/jev" \
+  -H "X-Title: Jev Harness Runtime" \
+  -d '{"model":"typesafe/jev-1.14","state":"git rm -rf src/","questions":{"is_destructive":{"type":"noul","instructions":"Does this delete code?"}}}'
 ```
 
 ### Expected Response
 ```json
 {
-  "model": "typesafe/jev-latest",
+  "model": "typesafe/jev-1.14",
   "answers": {
     "is_destructive": {
       "noul": 0.992,
@@ -121,12 +121,12 @@ flowchart TD
     User --> Hook
 
     subgraph Providers ["Provider Routing"]
-        Hook -->|"Has OPENROUTER_API_KEY"| OR["OpenRouter (https://openrouter.ai/api/v1/systemone)<br/>Model: typesafe/jev-latest"]
+        Hook -->|"Has OPENROUTER_API_KEY"| OR["OpenRouter (https://openrouter.ai/api/alpha/decisions)<br/>Model: typesafe/jev-1.14"]
         Hook -->|"Has TYPESAFE_API_KEY"| TS["TypeSafe AI Direct (https://api.typesafe.ai/v1/systemone)<br/>Model: jev-latest"]
     end
 
     subgraph JevEngine ["TypeSafe Jev Engine"]
-        OR --> Engine["Jev 1.13 Transformer<br/>Single Forward-Pass Attention"]
+        OR --> Engine["Jev 1.14<br/>Structured decision model"]
         TS --> Engine
     end
 

@@ -52,12 +52,12 @@ class HttpDecisionClient:
         endpoint = os.environ.get("TYPESAFE_ENDPOINT", "").strip()
         if not endpoint:
             endpoint = (
-                "https://openrouter.ai/api/v1/systemone"
+                "https://openrouter.ai/api/alpha/decisions"
                 if is_openrouter
                 else "https://api.typesafe.ai/v1/systemone"
             )
         model = os.environ.get("JEV_MODEL", "").strip() or (
-            "typesafe/jev-1.13" if is_openrouter else "jev-latest"
+            "typesafe/jev-1.14" if is_openrouter else "jev-latest"
         )
         return cls(key, endpoint, model)
 
