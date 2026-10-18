@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
-from jev.adapters.base import Adapter, patch_paths, stable_event_id, workspace_id
+from jev.adapters.base import Adapter, patch_paths, stable_event_id, workspace_id, tool_result_payload
 from jev.contracts import Event, EventKind, Harness, Operation, Outcome, Result
 
 
@@ -21,6 +21,8 @@ class OpenCodeAdapter(Adapter):
             kind = EventKind.SESSION_START
         elif native_event == "turn.before":
             kind = EventKind.TURN_BEFORE
+        elif native_event == "tool.execute.after":
+            kind = EventKind.TOOL_AFTER
         elif native_event == "tool.execute.before":
             kind = EventKind.TOOL_BEFORE
         else:
@@ -41,6 +43,8 @@ class OpenCodeAdapter(Adapter):
             "active_path": str(raw.get("active_path") or ""),
             "last_error": str(raw.get("last_error") or ""),
         }
+        if kind == EventKind.TOOL_AFTER:
+            payload.update(tool_result_payload(raw))
         event = Event(
             kind=kind,
             harness=self.harness,
@@ -56,7 +60,7 @@ class OpenCodeAdapter(Adapter):
             tool_call_id=tool_call_id,
             deadline_monotonic=self._deadline(),
         )
-        if kind != EventKind.TOOL_BEFORE:
+        if kind not in {EventKind.TOOL_BEFORE, EventKind.TOOL_AFTER}:
             return event, None
 
         tool_name = str(raw.get("tool") or "")

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from jev.core import knowledge, skills
 from jev.core import semantic_lint as semantic_lint_core
 from jev.install.doctor import report
@@ -18,6 +20,27 @@ def knowledge_learn(settings: Settings, summary: str, details: str) -> dict:
     if not settings.knowledge_roots:
         raise ValueError("No knowledge root is configured")
     return knowledge.learn(summary, details, settings.knowledge_roots[0])
+
+
+def record_gotcha(
+    settings: Settings,
+    title: str,
+    trap: str = "",
+    remediation: str = "",
+    tags: list[str] | str | None = None,
+    slug: str | None = None,
+    **kwargs: Any,
+) -> dict:
+    """Persist an operational gotcha into repository docs/gotchas/."""
+    gotchas_root = settings.workspace_root / "docs" / "gotchas"
+    return knowledge.record_gotcha(
+        title=title,
+        trap=trap or str(kwargs.get("summary", "")),
+        remediation=remediation or str(kwargs.get("details", "")),
+        root=gotchas_root,
+        tags=tags,
+        slug=slug,
+    )
 
 
 def skills_list(settings: Settings) -> list[dict[str, str]]:
@@ -60,13 +83,22 @@ def verify_output(settings: Settings, code_snippet: str, reference_context: str)
     return evaluate_verification(code_snippet, reference_context, client, timeout=settings.semantic_timeout_seconds)
 
 
+def verify_completion(settings: Settings, claim_text: str, session_id: str = "") -> dict:
+    """Validate completion claim against WHAT-WHY-HOW-LEARNINGS schema and tool executions."""
+    from jev.core.verification import verify_completion_claim
+    from jev.services.storage import Storage
+    return verify_completion_claim(claim_text, session_id, Storage(settings.db_path))
+
+
 HANDLERS = {
     "knowledge_search": knowledge_search,
     "knowledge_learn": knowledge_learn,
+    "record_gotcha": record_gotcha,
     "skills_list": skills_list,
     "diagnostics_status": diagnostics_status,
     "semantic_lint": semantic_lint,
     "semantic_lint_feedback": semantic_lint_feedback,
     "semantic_lint_stats": semantic_lint_stats,
     "verify_output": verify_output,
+    "verify_completion": verify_completion,
 }

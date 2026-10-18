@@ -10,6 +10,17 @@
         "--harness",
         "opencode"
       ]
+    },
+    "aaa-consultant": {
+      "type": "local",
+      "command": [
+        "/home/vasily/.local/share/mise/installs/uv/latest/.mise-bins/uv",
+        "run",
+        "python",
+        "backend/mcp_server.py"
+      ],
+      "cwd": "/home/vasily/Projects/personal/aaa",
+      "enabled": true
     }
   },
   "agent": {

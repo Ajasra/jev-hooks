@@ -25,7 +25,9 @@ flowchart LR
     R --> SK[Dynamic Skills]
     R --> P[Speculative Context]
     R --> K[Knowledge Engine]
+    R --> LG[Loop Guard]
     S --> DB[(jev.sqlite3)]
+    LG --> DB
     SK --> J[TypeSafe System One]
     P --> J
     K --> J
@@ -71,9 +73,11 @@ src/jev/
     compaction.py    # Verbatim receipt context compactor
     semantic_lint.py # Architectural rule evaluation over git diffs
     verification.py  # API symbol and citation verification
+    loop_guard.py    # Repeated failure loop breaker & circuit breaker
   adapters/
     antigravity.py   # Translates Antigravity hook stdin/stdout JSON
     codex.py         # Translates OpenAI Codex hook payloads
+    opencode.py      # Translates OpenCode plugin events
   services/
     client.py        # Non-autoregressive TypeSafe / OpenRouter HTTP transport
     paths.py         # Cross-platform workspace path resolution
@@ -95,7 +99,7 @@ The runtime normalizes harness-specific triggers into portable lifecycle events:
 | `session.start` | *Unavailable* | `SessionStart` | `session.created` | Workspace and environment initialization. |
 | `turn.before` | `PreInvocation` | `UserPromptSubmit` | `chat.message` + system transform | Injects speculative diffs, skills, and knowledge into Turn 1. |
 | `tool.before` | `PreToolUse` | `PreToolUse` | `tool.execute.before` | Intercepts proposed commands, file edits, and patches. |
-| `tool.after` | *Reserved* | `PostToolUse` | *Unavailable* | Post-execution verification and telemetry logging. |
+| `tool.after` | `PostToolUse` | `PostToolUse` | `tool.execute.after` | Post-execution verification, loop guard tracking, and telemetry logging. |
 | `context.checkpoint` | Sidecar CLI command | `PreCompact` / `PostCompact` | *Unavailable* | Verbatim receipt pruning before context overflow. |
 | `session.end` | *Reserved* | `SessionEnd` | `session.idle` cleanup | Session cleanup and active learning checkpointing. |
 
@@ -113,6 +117,7 @@ Unknown or malformed inputs to safety hooks fail closed. Advisory hook errors fa
 | **Knowledge Engine** | `PreInvocation` prompt injection | `SessionStart` & `UserPromptSubmit` | Prompt enrichment | `core/knowledge.py` |
 | **Context Envelope** | `PreInvocation` (assembles 4-layer state) | `UserPromptSubmit` (`additionalContext`) | Prompt enrichment | `core/context.py` |
 | **Output Verification** | `PreToolUse` non-blocking advisory context | `PreToolUse` `additionalContext` | `tool.execute.before` toast advisory | `core/verification.py` |
+| **Loop Guard** | `PostToolUse` failure tracking & breaker | `PostToolUse` failure tracking & breaker | `tool.execute.after` failure tracking & breaker | `core/loop_guard.py` |
 | **Semantic Linting** | Shared MCP callable | Shared MCP callable | Shared MCP callable | `core/semantic_lint.py` |
 | **Context Compactor** | Sidecar execution | Sidecar execution | Shared CLI only | `core/compaction.py` |
 | **Audit Persistence** | `antigravity_events` view | `codex_events` view | `opencode_events` view | `services/storage.py` |
@@ -166,6 +171,7 @@ The audit store uses WAL mode on local filesystems with bounded busy timeouts. T
 | `opencode_events` | Partitioned view filtering OpenCode executions. |
 | `rules` | Learned policy memory and single-use CLI authorizations. |
 | `invocations` | Atomic claim keys preventing duplicate execution replay. |
+| `tool_invocations` | Tool execution outcomes, status (`success`/`failure`/`unknown`), and exit codes for loop guard tracking. |
 | `semantic_lint_decisions` | Historical evaluation logs for architectural lint rules. |
 | `semantic_lint_feedback` | Developer confirmations or false-positive ratings. |
 
@@ -189,10 +195,10 @@ The audit store uses WAL mode on local filesystems with bounded busy timeouts. T
 
 ## 8. Verification & Test Harness
 
-```cmd
-cmd /c python -m pytest -q
-cmd /c python -m jev doctor --cwd .
-cmd /c git diff --check
+```bash
+python3 -m pytest -q
+python3 -m jev doctor --cwd .
+git diff --check
 ```
 
 The test suite validates cross-harness equivalence, replay denial, atomic single-use rule consumption, malformed JSON handling, and deterministic invariant barriers without requiring live network access.

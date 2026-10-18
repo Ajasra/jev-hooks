@@ -143,7 +143,7 @@ def test_patch_without_resolvable_target_fails_closed(tmp_path: Path):
 def test_registry_is_shared_extension_surface():
     assert {feature.id for feature in FEATURES} >= {"safety", "skills", "knowledge", "speculative"}
     assert {tool.name for tool in TOOLS} == {
-        "knowledge_search", "knowledge_learn", "skills_list", "diagnostics_status",
+        "knowledge_search", "knowledge_learn", "record_gotcha", "skills_list", "diagnostics_status",
         "semantic_lint", "semantic_lint_feedback", "semantic_lint_stats", "verify_output",
     }
 

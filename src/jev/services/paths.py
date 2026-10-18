@@ -73,7 +73,7 @@ class Settings:
     lint_rule_roots: tuple[Path, ...] = ()
     harness_identity: str = ""
     context_budget: int = 12_000
-    semantic_timeout_seconds: float = 0.25
+    semantic_timeout_seconds: float = 2.0
     rejected_project_keys: tuple[str, ...] = ()
 
     @classmethod
@@ -89,20 +89,28 @@ class Settings:
 
         data_root_value = os.environ.get("JEV_DATA_ROOT") or user.get("data_root")
         data_root = Path(data_root_value).expanduser().resolve() if data_root_value else default_data_root()
-        rules_value = os.environ.get("JEV_DB_PATH") or user.get("rules_db")
+        rules_value = os.environ.get("JEV_DB_PATH") or (user.get("rules_db") if not os.environ.get("JEV_DATA_ROOT") else None)
         db_path = Path(rules_value).expanduser().resolve() if rules_value else data_root / "jev.sqlite3"
-        skill_value: object = ordinary.get("skill_roots", [".agents/skills"])
+        skill_value: object = project.get("skill_roots", [".agents/skills"])
         if os.environ.get("JEV_SKILL_ROOTS"):
             skill_value = os.environ["JEV_SKILL_ROOTS"].split(os.pathsep)
-        knowledge_value: object = ordinary.get("knowledge_roots", [".agents/knowledge"])
+        knowledge_value: object = ordinary.get("knowledge_roots", [".agents/knowledge", "docs/gotchas"])
         if os.environ.get("JEV_KNOWLEDGE_ROOTS"):
             knowledge_value = os.environ["JEV_KNOWLEDGE_ROOTS"].split(os.pathsep)
         skill_roots = _resolve_list(skill_value, workspace)
+        if not os.environ.get("JEV_SKILL_ROOTS"):
+            skill_roots = tuple(dict.fromkeys((
+                *skill_roots,
+                *_resolve_list(user.get("skill_roots", []), config_root),
+            )))
         knowledge_roots = _resolve_list(knowledge_value, workspace)
+        gotchas_root = (workspace / "docs" / "gotchas").resolve()
+        if gotchas_root not in knowledge_roots:
+            knowledge_roots = (*knowledge_roots, gotchas_root)
         lint_rule_roots = ((workspace / ".agents/lint-rules").resolve(),)
         context_budget = os.environ.get("JEV_CONTEXT_BUDGET", ordinary.get("context_budget", 12_000))
         semantic_timeout = os.environ.get(
-            "JEV_SEMANTIC_TIMEOUT_SECONDS", ordinary.get("semantic_timeout_seconds", 0.25)
+            "JEV_SEMANTIC_TIMEOUT_SECONDS", ordinary.get("semantic_timeout_seconds", 2.0)
         )
         return cls(
             workspace_root=workspace,

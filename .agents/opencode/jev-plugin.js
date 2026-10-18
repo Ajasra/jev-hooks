@@ -70,6 +70,22 @@ export default async function jevPlugin({ directory, client }) {
       }
     },
 
+    "tool.execute.after": async (input, output) => {
+      try {
+        invokeJev({
+          opencode_event: "tool.execute.after",
+          session_id: input.sessionID || "",
+          call_id: input.callID || "",
+          cwd: directory || process.cwd(),
+          tool: input.tool || "",
+          args: input.args || {},
+          tool_response: output.metadata || {},
+        }, directory || process.cwd());
+      } catch {
+        // Recording is advisory and must not change an already completed tool call.
+      }
+    },
+
     "chat.message": async (input, output) => {
       const prompt = messageText(output.parts);
       if (!input.sessionID || !prompt) return;

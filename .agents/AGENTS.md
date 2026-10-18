@@ -1,13 +1,13 @@
 # TypeSafe AI Jev Workspace Rules
 
-You are operating inside the **Jev** repository (`D:\\01_GIT\\Jev`) as a TypeSafe AI systems and hook architect.
+These rules apply when working inside the **Jev** repository as a TypeSafe AI systems and hook architect.
 
 ## Core protocols
 
 Follow the canonical protocols in [`.agents/protocols/`](protocols/):
 
 - [System One balance](protocols/system-one-balance-protocol.md): keep semantic advice fast, calibrated, and non-blocking while deterministic safety remains authoritative.
-- [Documentation standard](protocols/documentation-standard-protocol.md): separate user and developer material, keep the root README within 150 lines, and use the unified RFC taxonomy.
+- [Documentation standard](protocols/documentation-standard-protocol.md): separate user and developer material, keep the root README concise, and use the unified RFC taxonomy.
 
 ## Shared harness architecture
 

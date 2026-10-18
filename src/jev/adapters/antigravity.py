@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
-from jev.adapters.base import Adapter, extract_turn_context, stable_event_id, workspace_id
+from jev.adapters.base import Adapter, extract_turn_context, stable_event_id, workspace_id, tool_result_payload
 from jev.contracts import Event, EventKind, Harness, Operation, Outcome, Result
 from jev.core.safety import clean_command
 
@@ -18,8 +18,10 @@ class AntigravityAdapter(Adapter):
     harness = Harness.ANTIGRAVITY
 
     def decode(self, raw: Mapping[str, Any]) -> tuple[Event, Operation | None]:
-        native_event = str(raw.get("hookEventName") or raw.get("eventName") or "")
-        if native_event in TOOL_EVENTS or raw.get("toolCall"):
+        native_event = str(raw.get("hookEventName") or raw.get("eventName") or raw.get("hook_event_name") or "")
+        if native_event in {"PostToolUse", "post_tool_use", "postToolUse"} or ("error" in raw and ("toolCall" in raw or "stepIdx" in raw)):
+            kind = EventKind.TOOL_AFTER
+        elif native_event in TOOL_EVENTS or raw.get("toolCall"):
             kind = TOOL_EVENTS.get(native_event, EventKind.TOOL_BEFORE)
         else:
             kind = TURN_EVENTS.get(native_event, EventKind.TURN_BEFORE)
@@ -45,6 +47,8 @@ class AntigravityAdapter(Adapter):
             "transcript_path": str(transcript_path or ""),
             "native": dict(raw),
         }
+        if kind == EventKind.TOOL_AFTER:
+            payload.update(tool_result_payload(raw))
         event = Event(
             kind=kind,
             harness=self.harness,
@@ -111,4 +115,3 @@ class AntigravityAdapter(Adapter):
                 output["additionalContext"] = context
             return output
         return {"injectSteps": [{"ephemeralMessage": context}]} if context else {}
-

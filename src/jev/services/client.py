@@ -5,6 +5,9 @@ from __future__ import annotations
 import json
 import os
 import urllib.request
+import urllib.error
+import socket
+import ssl
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol
@@ -76,5 +79,26 @@ class HttpDecisionClient:
         )
         with urllib.request.urlopen(request, timeout=timeout) as response:
             value = json.loads(response.read().decode("utf-8"))
-        return dict(value.get("answers", {}))
+        if not isinstance(value, dict) or not isinstance(value.get("answers"), dict):
+            raise ValueError("Provider response is missing an answers object.")
+        answers = value["answers"]
+        if set(questions) - set(answers):
+            raise ValueError("Provider response omitted requested answers.")
+        return answers
 
+
+
+def failure_details(exc: Exception) -> dict[str, Any]:
+    """Classify provider failures without persisting URLs, headers or response bodies."""
+    reason = getattr(exc, "reason", exc)
+    timed_out = isinstance(reason, (TimeoutError, socket.timeout)) or "timed out" in str(reason).lower()
+    category = (
+        "timeout" if timed_out else
+        "http" if isinstance(exc, urllib.error.HTTPError) else
+        "tls" if isinstance(reason, ssl.SSLError) else
+        "network" if isinstance(exc, urllib.error.URLError) else "invalid_response"
+    )
+    details = {"provider_status": "unavailable", "error_category": category, "timed_out": timed_out}
+    if isinstance(exc, urllib.error.HTTPError):
+        details["http_status"] = exc.code
+    return details

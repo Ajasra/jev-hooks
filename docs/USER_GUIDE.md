@@ -231,3 +231,31 @@ To run live provider integration tests against OpenRouter / TypeSafe:
 cmd /c set JEV_RUN_LIVE_TESTS=1
 cmd /c python -m pytest tests\test_speculative_router.py -q
 ```
+
+
+### Diagnosing missing advice or repeated provider failures
+
+On Linux, run `jev doctor --cwd /path/to/project`. On Windows, run
+`cmd /c python -m jev doctor --cwd C:\path\to\project`. The report includes
+catalog counts, missing catalog directories, and the semantic request timeout.
+An empty project knowledge catalog is valid; it means there are no local items to search.
+
+The default semantic request timeout is 2 seconds. Hook dispatch starts with a
+4-second budget, shortened by any earlier native deadline. The three independent
+turn-enrichment requests run concurrently. Optional features skip
+when that budget expires; deterministic safety checks still run. Set
+`semantic_timeout_seconds` in `jev.json` or the user config to tune the request
+timeout, or override it with `JEV_SEMANTIC_TIMEOUT_SECONDS`.
+
+To share skills across projects, add `skill_roots` to the user config at
+`~/.config/jev/config.json` on Linux (or `%APPDATA%\Jev\config.json` on Windows).
+Relative user roots resolve beside that config. Project skills take precedence
+when a name also exists globally. `JEV_SKILL_ROOTS` replaces both root lists.
+Knowledge remains scoped to the configured knowledge roots and project gotchas.
+
+New audit events distinguish `empty_catalog`, `missing_prompt`, and
+`dispatch_deadline_exceeded`. Their details include provider status, safe error
+categories, and context item/character counts retained after the context budget.
+`abstain` alone does not tell you whether advice was injected. Post-tool events
+record `success`, `failure`, or `unknown`; missing exit status is not success.
+Restart the harness after changing hook registrations or the OpenCode plugin.

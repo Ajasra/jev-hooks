@@ -1,86 +1,45 @@
-# System One Agent Balance & Anti-Bureaucracy Protocol
+# System One balance protocol
 
-**Version**: 1.0.0  
-**Scope**: Universal Protocol for Machine-Native System One Semantic Decision Models (TypeSafe AI Jev, Google Antigravity 2.0 Hooks)  
-**Location**: `.agents/protocols/system-one-balance-protocol.md`  
-**Referencing Skill**: [`.agents/skills/system-one-balance-protocol/SKILL.md`](../skills/system-one-balance-protocol/SKILL.md)  
-**Related Proposals**: [RFC-02: Dynamic Skill Dispatcher](../../docs/proposals/RFC-02_USE_CASE_dynamic_skill_dispatcher.md), [RFC-04: Safety & Tool Router](../../docs/proposals/RFC-04_CORE_safety_and_tool_router.md), [RFC-21: Speculative Fan-Out & Confidence Arbitration](../../docs/proposals/RFC-21_EXPERIMENT_speculative_fan_out.md), [RFC-23: System One Agent Balance](../../docs/proposals/RFC-23_PROTOCOL_system_one_balance.md)
+Scope: designing JEV semantic hooks and decision surfaces. This document governs
+hook design; it does not introduce a mandatory preflight for ordinary agent work.
+User instructions and higher-priority harness policy govern permitted actions.
 
----
+## Context and authorization
 
-## 1. Core Architectural Principle: "Augment, Don't Handcuff"
+- Include the active objective, relevant prior turns, environment, and immediate
+  failure evidence when available. Follow-ups often resolve from context, but
+  several pending targets can still make “apply it” ambiguous.
+- Emit actionable advice for semantic uncertainty. Preserve discovery tools and
+  continue already-authorized work. Ask only about consequential unresolved choices.
+- Evaluate command effects, target ownership, scope, reversibility, and existing
+  authorization. Command spelling alone does not establish safety or permission.
+  Cleanup of generated files differs from discarding user data; a test migration
+  differs from dropping a production table.
+- Preserve the runtime's deterministic safety floor. Skills cannot bypass harness
+  blocks or relax policy through project configuration. If the floor is too broad,
+  propose a centrally reviewed policy change rather than circumventing it.
+- Save permissions only for the intended scope and context; changed targets or
+  effects require reevaluation. Routine checks and authorized reversible edits
+  should proceed without repeated confirmation.
 
-Machine-native System One semantic decision models (such as Jev) exist to grant generative foundation models (Gemini, Claude, GPT) **speed, contextual awareness, and deterministic safety barriers**.
+## Routing and calibration
 
-They MUST NEVER treat the foundation model like a prisoner or a toddler.
+- Treat full-injection and hint thresholds as configurable starting points, not
+  universal confidence guarantees. Calibrate on representative labeled traces and
+  the consequences of false activation or omission.
+- Prefer one owner for a workflow and narrow its trigger. Load references on demand.
+  Semantic confidence is not proof of correctness or permission to execute.
+- Bound state by relevance. Keep facts, inferred intent, and source provenance
+  distinct; include tool receipts rather than entire logs and redact credentials.
+- Measure end-to-end latency, timeouts, false positives, and missed activations for
+  each decision surface. Specify budgets from the actual deployment; do not impose
+  one token ratio or latency promise on every hook.
+- On service failure, optional advisory features may fail open. Authorization and
+  required safety checks retain their deterministic fallback; a model outage must
+  not silently grant permission.
 
-```
-       ┌────────────────────────────────────────────────────────┐
-       │             THE SYSTEM ONE BALANCE SPECTRUM            │
-       └────────────────────────────────────────────────────────┘
-  
-  [ BUREAUCRATIC COP ]                                    [ SUPERCHARGED COPILOT ]
-  (ANTI-PATTERN)                                          (TARGET ARCHITECTURE)
-  ───────────────────                                     ──────────────────────
-  • Turn-1 amnesia                                        • Conversational recency awareness
-  • Imperative tool lockouts (`DO NOT CALL TOOLS`)       • Calibrated advisory guidance
-  • Paralyzing modal prompts on natural continuations     • Seamless execution of follow-ups
-  • Complete skill starvation below 0.80 confidence       • Two-tier soft hints with clickable links
-  • Confirmation fatigue on routine dev commands          • Invariant shield + safe dev tool fast-path
-```
-
----
-
-## 2. Invariant Rules of the Balance Protocol
-
-### Invariant 1: Conversational Recency Awareness (Anti-Amnesia)
-* **Requirement**: Pre-flight hooks evaluating developer prompt ambiguity or routing intent MUST include recent conversational recency (`Prior Turn Context`) in the evaluation state sent to Jev.
-* **Invariant**: Never evaluate follow-up turns in isolation.
-* **Benchmark**: Prompts like *"commit"*, *"apply changes"*, *"update docs"*, *"run tests"*, or *"fix it"* must be recognized as contextual continuations with **Ambiguity = 0.0**.
-
-### Invariant 2: Calibrated Advisories, Not Imperative Lockouts (Anti-Paralysis)
-* **Requirement**: Pre-flight hooks MUST NOT inject imperative tool bans (`DO NOT call grep`, `DO NOT call view_file`, `You MUST call ask_question and nothing else`).
-* **Invariant**: Emit calibrated, contextual advisories that preserve the foundation model's common sense and discovery autonomy.
-* **Advisory Template**:
-  ```markdown
-  [SPECULATIVE ARBITER ADVISORY: The user instruction '{user_prompt}' appears underspecified in isolation.
-  If the preceding conversational context or current project state does NOT clearly identify the intended target,
-  PREFER invoking `ask_question` to render an interactive clarification modal rather than wandering into unguided exploration.
-  However, if the immediate prior conversation context already defines the target or action, proceed with standard intelligent execution.]
-  ```
-
-### Invariant 3: Two-Tier Progressive Disclosure (Anti-Cliff)
-* **Requirement**: Avoid the "0.79 Confidence Cliff" where a relevant skill is withheld completely because confidence missed an arbitrary 0.80 threshold.
-* **Two-Tier Thresholds**:
-  1. **Tier 1 (High Confidence $\ge 0.80$)**: Ephemeral injection of the full `SKILL.md` body with active in-chat badge.
-  2. **Tier 2 (Soft Hint $0.50 \le P < 0.80$)**: Ephemeral injection of a lightweight, non-bloating 1-line hint with a clickable markdown link to the skill file.
-
-### Invariant 4: Invariant Safety vs Routine Velocity (Anti-Fatigue)
-* **Requirement**: Confirmation modals (`force_ask`) must be strictly reserved for genuinely irreversible, high blast-radius actions.
-* **Three-Stage Separation**:
-  1. **Deterministic Invariant Shield**: Hard-block `git push --force`, `rmdir /s /q`, `rm -rf`, `DROP TABLE`. Non-bypassable.
-  2. **Safe Fast-Path**: Workspace file modifications (`write_to_file`, `replace_*`) and standard developer tools (`git status`, `git commit`, `pytest`, `npm test`) execute with zero interactive confirmation.
-  3. **Persistent SQLite Memory**: Developers can save permanent or session-scoped rules (`always` / `session`) to permanently suppress prompts for their specific workflows.
-
-### Invariant 5: The Context Envelope Principle (Meaning Is in the Context)
-* **Requirement**: Meaning and decisions reside in the situated Context Envelope, not in isolated message strings. Every Jev System One evaluation state must systematically assemble:
-  1. *Epistemic Intent*: User request / current prompt.
-  2. *Environmental State*: Active editor file path, git branch, and modified diff hunks.
-  3. *Historical Trajectory*: Immediate prior error receipt / test failure.
-  4. *Normative Precedents*: Active Knowledge Items, architectural lint rules, and type exports.
-* **Invariant**: Never evaluate Jev semantic decisions on bare message strings alone when environmental state is available. Avoid both **Context Starvation** (bare strings causing low confidence) and **Context Flooding** (unbounded transcript dumps causing latency drag).
-* **Reference**: Grounded in [`docs/PHILOSOPHY.md`](../../docs/PHILOSOPHY.md) and operationalized via [`context-architect`](../skills/context-architect/SKILL.md).
-
----
-
-## 3. Protocol Verification Checklist
-
-Before deploying any new lifecycle hook, tool, or proposal:
-
-- [ ] Does the hook complete in $\le 300\text{ms}$ (P95)?
-- [ ] Does the hook fail open safely if the API or network stalls?
-- [ ] Does the hook ingest conversational recency before scoring ambiguity?
-- [ ] Does the hook assemble a calibrated 4-layer Context Envelope (avoiding bare strings and raw flooding)?
-- [ ] Does the hook allow the foundation model to use read-only discovery tools?
-- [ ] Does the skill router provide soft hints for moderate-confidence matches?
-- [ ] Are safety confirmations reserved exclusively for irreversible actions?
+Use [Context Architect](../skills/context-architect/SKILL.md) when designing state.
+The [dispatcher](../../docs/proposals/RFC-02_CORE_dynamic_skill_dispatcher.md),
+[safety guardrail](../../docs/proposals/RFC-04_CORE_safety_and_tool_guardrail.md), and
+[fan-out proposal](../../docs/proposals/RFC-21_EXT_speculative_fan_out.md) explain the
+JEV-specific architecture. These references are read only when relevant.

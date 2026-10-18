@@ -6,6 +6,7 @@
         "hooks": [
           {
             "type": "command",
+            "command": "/home/vasily/.local/bin/jev hook --harness codex",
             "command_windows": "python -m jev hook --harness codex",
             "statusMessage": "Loading Jev context",
             "timeout": 5
@@ -18,6 +19,7 @@
         "hooks": [
           {
             "type": "command",
+            "command": "/home/vasily/.local/bin/jev hook --harness codex",
             "command_windows": "python -m jev hook --harness codex",
             "statusMessage": "Preparing Jev context",
             "additionalContextLimit": 12000,
@@ -32,8 +34,23 @@
         "hooks": [
           {
             "type": "command",
+            "command": "/home/vasily/.local/bin/jev hook --harness codex",
             "command_windows": "python -m jev hook --harness codex",
             "statusMessage": "Checking Jev policy",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|apply_patch|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/vasily/.local/bin/jev hook --harness codex",
+            "command_windows": "python -m jev hook --harness codex",
+            "statusMessage": "Recording Jev tool result",
             "timeout": 5
           }
         ]
