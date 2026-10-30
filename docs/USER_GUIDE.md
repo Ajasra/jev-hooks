@@ -173,7 +173,10 @@ cmd /c python -m jev verify --code "client.get_token()" --reference "API Referen
 - In **Codex**, warnings appear in `hookSpecificOutput.additionalContext`.
 - Agents can also call the `verify_output` MCP tool before writing complex diffs.
 
-### B. Capturing Precedents (`knowledge_learn`)
+### B. Reading the Audit Log (`audit_log`)
+The read-only `audit_log` MCP tool returns a bounded page of redacted event records for the configured workspace. Filter by `harness`, `outcome`, `reason_code`, or an ISO-8601 `since` timestamp with timezone. Results are ordered newest first; use `next_before_id` as `before_id` to fetch an older page. The maximum page size is 100 events. Feature details include a bounded, redacted `decision_reason` for events recorded after this version is installed. Earlier records may not contain it. Raw tool commands are not stored in the event table.
+
+### C. Capturing Precedents (`knowledge_learn`)
 When you establish a project-specific pattern or resolve a tricky convention, teach it to Jev so future turns auto-mount it:
 
 ```cmd

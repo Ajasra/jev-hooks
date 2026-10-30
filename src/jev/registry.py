@@ -47,5 +47,6 @@ TOOLS = (
     ToolSpec("semantic_lint", "semantic_lint", False, "Evaluate a Git diff against repository semantic rules."),
     ToolSpec("semantic_lint_feedback", "semantic_lint_feedback", True, "Record user feedback for a semantic lint decision."),
     ToolSpec("semantic_lint_stats", "semantic_lint_stats", False, "Summarize semantic lint effectiveness by rule and version."),
+    ToolSpec("audit_log", "audit_log", False, "Read recent redacted Jev audit events for the configured workspace."),
     ToolSpec("verify_output", "verify_output", False, "Verify proposed code or citations against reference documentation."),
 )

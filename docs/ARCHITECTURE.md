@@ -126,7 +126,7 @@ Unknown or malformed inputs to safety hooks fail closed. Advisory hook errors fa
 | **Loop Guard** | `PostToolUse` failure tracking & breaker | `PostToolUse` failure tracking & breaker | `tool.execute.after` failure tracking & breaker | `core/loop_guard.py` |
 | **Semantic Linting** | Shared MCP callable | Shared MCP callable | Shared MCP callable | `core/semantic_lint.py` |
 | **Context Compactor** | Sidecar execution | Sidecar execution | Shared CLI only | `core/compaction.py` |
-| **Audit Persistence** | `antigravity_events` view | `codex_events` view | `opencode_events` view | `services/storage.py` |
+| **Audit Persistence** | `antigravity_events` view | `codex_events` view | `opencode_events` view | `services/storage.py`; redacted workspace-scoped reads via the `audit_log` MCP tool |
 
 ### Key Transport Differences:
 - **Interactive Approval**: Antigravity supports `"decision": "force_ask"`, prompting the developer directly in the IDE. Codex and OpenCode map conditional checks to a denial with actionable reasoning.
