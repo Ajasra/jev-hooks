@@ -1,8 +1,2 @@
-#:schema https://developers.openai.com/codex/config-schema.json
-
-[mcp_servers.jev]
-command = "python"
-args = ["-m", "jev", "mcp", "--cwd", ".", "--harness", "codex"]
-cwd = "."
-startup_timeout_sec = 10
-tool_timeout_sec = 30
+# Jev's MCP server is installed at user scope by scripts/codex_hooks.py.
+# Keep this file free of project-level Jev registrations to avoid duplicate tools.

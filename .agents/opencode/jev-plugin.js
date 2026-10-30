@@ -2,10 +2,11 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
-const jevCommand = process.env.JEV_BIN || join(homedir(), ".local", "bin", "jev");
+const jevCommand = process.env.JEV_BIN || join(homedir(), ".local", "bin", process.platform === "win32" ? "jev.exe" : "jev");
 const turnCache = new Map();
 
 function invokeJev(payload, cwd) {
+  const useWindowsShell = process.platform === "win32" && /\.(?:cmd|bat)$/i.test(jevCommand);
   const result = spawnSync(jevCommand, ["hook", "--harness", "opencode"], {
     cwd,
     env: process.env,
@@ -13,6 +14,7 @@ function invokeJev(payload, cwd) {
     encoding: "utf8",
     timeout: 5000,
     maxBuffer: 1024 * 1024,
+    shell: useWindowsShell,
   });
   if (result.error || result.status !== 0 || !result.stdout) {
     throw new Error("Jev hook did not complete successfully.");

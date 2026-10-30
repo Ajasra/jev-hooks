@@ -155,7 +155,7 @@ def test_existing_v4_store_migrates_without_losing_results(tmp_path):
 def test_generated_and_checked_in_hooks_register_post_tool():
     root = Path(__file__).resolve().parents[1]
     configs = [codex_hooks()['hooks'], antigravity_hooks()['jev-runtime'],
-               json.loads((root / '.codex/hooks.json').read_text())['hooks'],
+               json.loads((root / '.codex/hooks.template.json').read_text())['hooks'],
                json.loads((root / '.agents/hooks.json').read_text())['jev-runtime']]
     assert all('PostToolUse' in config for config in configs)
 
@@ -199,23 +199,32 @@ def test_opencode_plugin_forwards_after_metadata(tmp_path):
     import os
     import shutil
     import subprocess
+    import sys
     if not shutil.which('node'):
         pytest.skip('Node is required for the OpenCode plugin smoke test')
     root = Path(__file__).resolve().parents[1]
-    fake = tmp_path / 'jev'
     capture = tmp_path / 'calls.jsonl'
-    fake.write_text('#!/usr/bin/python3\nimport json,sys,os\np=json.load(sys.stdin)\nwith open(os.environ["CAPTURE"],"a") as f: f.write(json.dumps(p)+"\\n")\nprint("{}")\n')
-    fake.chmod(0o700)
+    fake_script = tmp_path / 'fake_jev.py'
+    fake_script.write_text('import json,sys,os\np=json.load(sys.stdin)\nwith open(os.environ["CAPTURE"],"a") as f: f.write(json.dumps(p)+"\\n")\nprint("{}")\n')
+    if os.name == 'nt':
+        fake = tmp_path / 'jev.cmd'
+        fake.write_text(f'@"{sys.executable}" "{fake_script}" %*\r\n')
+    else:
+        fake = tmp_path / 'jev'
+        fake.write_text(f'#!/usr/bin/env python3\n{fake_script.read_text()}')
+        fake.chmod(0o700)
     script = '''
-const {default: plugin} = await import(process.env.PLUGIN);
+import {pathToFileURL} from 'node:url';
+const {default: plugin} = await import(pathToFileURL(process.env.PLUGIN));
 const hooks = await plugin({directory: process.env.WORKSPACE, client: {}});
 await hooks['tool.execute.after'](
   {tool: 'bash', sessionID: 's', callID: 'c', args: {command: 'python fail.py'}},
   {title: 'failure', output: 'failed', metadata: {exit: 2}});
 '''
-    subprocess.run(['node', '--input-type=module', '-e', script], check=True, capture_output=True,
-                   env={**os.environ, 'JEV_BIN': str(fake), 'CAPTURE': str(capture),
-                        'PLUGIN': str(root / '.agents/opencode/jev-plugin.js'), 'WORKSPACE': str(tmp_path)})
+    result = subprocess.run(['node', '--input-type=module', '-e', script], capture_output=True,
+                            env={**os.environ, 'JEV_BIN': str(fake), 'CAPTURE': str(capture),
+                                 'PLUGIN': str(root / '.agents/opencode/jev-plugin.js'), 'WORKSPACE': str(tmp_path)})
+    assert result.returncode == 0, result.stderr.decode(errors='replace')
     payload = json.loads(capture.read_text())
     assert payload['opencode_event'] == 'tool.execute.after'
     assert payload['args']['command'] == 'python fail.py'

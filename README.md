@@ -75,8 +75,18 @@ jev stats --json
 ```
 The default path is `~/.local/share/jev/jev.sqlite3`.
 
-### Step 3: Connect harnesses to this checkout
-Antigravity hooks and skills, Codex hooks and Jev skills, and the OpenCode plugin are linked to this repository. The editable package install points at this checkout, so runtime changes apply to new hook calls; restart harness sessions after changing native registrations.
+### Step 3: Install the user-scope Codex integration
+Run this on every device from its checkout:
+```sh
+python scripts/codex_hooks.py install
+python scripts/codex_hooks.py check
+```
+The project keeps `.codex/hooks.json` empty and does not define a project Jev MCP server. Codex hooks from user and project scopes are additive, so Jev belongs to one scope only. On Windows, the all-harness installer also links Antigravity and OpenCode:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-user-harnesses.ps1
+```
+
+Use a separate checkout per device and move source with Git. Development checkouts use the editable install above; each device keeps its own generated user config, trust approvals, and SQLite database. Restart harness sessions after changing native registration templates.
 
 ---
 

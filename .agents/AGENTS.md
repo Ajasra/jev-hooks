@@ -19,7 +19,10 @@ Treat `src/jev/` as the only implementation root for runtime behavior.
 - `adapters/` translates Google Antigravity and OpenAI Codex protocols.
 - `services/storage.py` owns shared SQLite persistence and harness-specific views.
 - `.agents/hooks/jev_dispatch.py` is the Antigravity checkout bootstrap.
-- `.codex/hooks.json` is the Codex registration.
+- `.codex/hooks.template.json` is the Codex user-scope registration template.
+- `.codex/hooks.json` stays empty; `.codex/config.toml` must not define Jev MCP at project scope.
+- `scripts/codex_hooks.py` is the portable Codex user-scope installer and scope checker.
+- Harness configuration is generated per device from tracked templates; never commit user config, trust state, or the user SQLite database.
 
 Files named `jev_safety_gate.py`, `jev_skill_router.py`, `jev_speculative_router.py`, `jev_ki_engine.py`, and `jev_compactor.py` are compatibility entry points only. Do not put feature logic in them.
 
@@ -41,3 +44,5 @@ Canonical custom skills live under [`.agents/skills/`](skills/). Antigravity may
 The root [`AGENTS.md`](../AGENTS.md) and [`GEMINI.md`](../GEMINI.md) point here so both harnesses inherit the same instructions.
 
 On Windows, prefix shell commands with `cmd /c` to ensure clean process termination and EOF delivery.
+
+The default development install is user-scoped and editable. Keep exactly one Jev registration per device and harness. Codex loads matching hooks from both user and project configuration, so do not add a project Jev hook beside the user hook. Use a separate Codex home for isolated project-hook experiments.

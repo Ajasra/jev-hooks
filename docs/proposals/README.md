@@ -1,9 +1,9 @@
 # Jev System One Proposals & RFC Index
 
 [![RFC Standards](https://img.shields.io/badge/Standard-RFC--01%20to%20RFC--26-purple.svg)](../../.agents/protocols/documentation-standard-protocol.md)
-[![Status](https://img.shields.io/badge/Coverage-100%25%20Synchronized-brightgreen.svg)](./)
+[![Document type](https://img.shields.io/badge/Document%20type-Proposal%20archive-blue.svg)](./)
 
-This directory houses 26 technical architecture proposals, blueprints, case studies, and operational protocols for **TypeSafe AI Jev (System One)**. Existing work targets Google Antigravity; RFC-24 defines the shared runtime for Antigravity and OpenAI Codex. RFC-25 is partially implemented and postponed; exclude it from implementation-candidate reviews unless telemetry work is explicitly reactivated.
+This directory houses 26 technical proposals, blueprints, case studies, and operational protocols for **TypeSafe AI Jev (System One)**. These documents preserve design decisions and proposal status; they are not a release inventory. For current behavior, use [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md), [`docs/USER_GUIDE.md`](../USER_GUIDE.md), and the implementation under [`src/jev/`](../../src/jev/). RFC-24 records the shared-runtime design. RFC-25 remains a deferred telemetry proposal.
 
 All specifications follow the unified taxonomy defined in [`.agents/protocols/documentation-standard-protocol.md`](../../.agents/protocols/documentation-standard-protocol.md) and ground their decision states in the Context Envelope philosophy ([`docs/PHILOSOPHY.md`](../PHILOSOPHY.md)).
 
@@ -101,4 +101,4 @@ flowchart TD
 
 ## 6. Runnable Hook Infrastructure
 
-Production behavior lives in [`src/jev/`](../../src/jev/) and is registered once in [`registry.py`](../../src/jev/registry.py). [`.agents/hooks.json`](../../.agents/hooks.json) and [`.codex/hooks.json`](../../.codex/hooks.json) invoke the same runtime through harness adapters. Files under [`.agents/hooks/`](../../.agents/hooks/) are bootstraps or transition shims and contain no independent feature policy.
+Production behavior lives in [`src/jev/`](../../src/jev/) and is registered once in [`registry.py`](../../src/jev/registry.py). [`.agents/hooks.json`](../../.agents/hooks.json) and [`.codex/hooks.template.json`](../../.codex/hooks.template.json) invoke the same runtime through harness adapters. The checked-in [`.codex/hooks.json`](../../.codex/hooks.json) stays empty to prevent user/project duplicate dispatch. Files under [`.agents/hooks/`](../../.agents/hooks/) are bootstraps or transition shims and contain no independent feature policy.

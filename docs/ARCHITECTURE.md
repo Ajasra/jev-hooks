@@ -10,7 +10,7 @@
 
 ## 1. Architecture Overview: Ports and Adapters
 
-Jev decouples agentic coding harnesses from semantic evaluation logic using a **ports-and-adapters** design. Harnesses (Google Antigravity, OpenAI Codex, and OpenCode) act as external ports. Thin adapters translate native JSON payloads into harness-neutral `Event` and `Operation` contracts. The shared core owns safety evaluation, skill selection, speculative prefetching, and audit persistence. A machine-level editable install and linked harness registrations point all local clients at this checkout; Codex-based hosts such as T3 Code inherit the Codex binding when they load the host's Codex hooks.
+Jev decouples agentic coding harnesses from semantic evaluation logic using a **ports-and-adapters** design. Harnesses (Google Antigravity, OpenAI Codex, and OpenCode) act as external ports. Thin adapters translate native JSON payloads into harness-neutral `Event` and `Operation` contracts. The shared core owns safety evaluation, skill selection, speculative prefetching, and audit persistence. Each device has one editable or version-pinned Jev install and user-level harness registrations for all projects; Codex-based hosts such as T3 Code inherit the Codex binding when they load the host's Codex hooks.
 
 ```mermaid
 flowchart LR
@@ -41,14 +41,20 @@ flowchart LR
 - **Authority belongs to determinism**: Invariant checks (regex, path traversal, hard resets) run locally in under 1ms without network calls.
 - **Sub-120ms P95 semantic turnaround**: Non-autoregressive primitives (`Choice`, `Score`, `Noul`) return structured probability distributions without text generation overhead.
 - **Fail-open on advisory timeouts**: Advisory checks have bounded deadlines (3.5s). If a semantic call times out or fails, workspace mutations proceed unblocked.
-- **One local source of truth**: Linked harness configuration and the editable package use this checkout; one user-scoped SQLite database (`jev.sqlite3`) stores events from all configured harnesses.
+- **One runtime per device**: Harness registrations invoke the one installed Jev command. During development, each device uses an editable install from its own checkout at a known Git commit.
+- **One registration scope**: Codex Jev hooks and MCP tools are installed at user scope. The project hook template remains empty so project and user hooks cannot dispatch Jev twice.
+- **Device-local state**: Harness trust approvals and the SQLite database stay in each device's user-data directory. Git carries source and templates, not runtime state.
+
+### Per-Device Installation Contract
+
+The repository owns runtime code, skills, and harness templates. `scripts/codex_hooks.py` merges the Codex template into the active user config while retaining unrelated hooks, and `check` verifies there is one user registration per event and no project Jev hook or MCP server. The Windows `scripts/install-user-harnesses.ps1` also wires Antigravity and OpenCode into that same checkout. Each development device pulls source updates and keeps its editable install. User hook files and trust hashes are generated locally and are never copied through Git.
 
 ### Machine-Native IPC Wire Contract
 The hook interface executes as a standard child process communicating via Unix/Windows pipes:
 - **`stdin` (JSON)**: Ingests the native hook envelope (`hookEventName`, `toolCall`, `workspacePaths`, `conversationId`).
 - **`stdout` (JSON)**: Emits normalized response payloads:
   - Antigravity: `{"decision": "allow" | "deny" | "force_ask", "reason": "...", "additionalContext": "..."}` or `{"injectSteps": [{"ephemeralMessage": "..."}]}`.
-  - Codex: `{"hookSpecificOutput": {"hookEventName": "...", "permissionDecision": "allow" | "deny", "additionalContext": "..."}}`.
+    - Codex: `{"hookSpecificOutput": {"hookEventName": "...", "permissionDecision": "allow" | "deny", "additionalContext": "..."}}`.
   - OpenCode: native plugin hooks call the shared CLI adapter; tool denials are returned as plugin errors and turn context is added through the system transform hook.
 - **`stderr` (Plain Text)**: Strictly reserved for diagnostic telemetry, timing receipts, and emergency exceptions; never emits response JSON.
 - **Process Exit Codes**: Code `0` indicates successful hook evaluation (even if the outcome is `deny`). Non-zero exit codes signal runtime crashes or CLI authorization errors.

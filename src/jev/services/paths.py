@@ -19,9 +19,12 @@ TRUSTED_ONLY = {"data_root", "rules_db", "policy_floor", "harness_identity"}
 
 
 def _user_config_root() -> Path:
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
+    if xdg_config_home:
+        return Path(xdg_config_home) / "jev"
     if sys.platform == "win32":
         return Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming")) / "Jev"
-    return Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "jev"
+    return Path(Path.home() / ".config") / "jev"
 
 
 def default_data_root() -> Path:

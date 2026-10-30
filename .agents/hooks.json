@@ -4,7 +4,7 @@
     "PreInvocation": [
       {
         "type": "command",
-        "command": "python3 /home/vasily/Projects/work/JEV/.agents/hooks/jev_dispatch.py hook --harness antigravity"
+        "command": "jev hook --harness antigravity"
       }
     ],
     "PreToolUse": [
@@ -13,7 +13,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /home/vasily/Projects/work/JEV/.agents/hooks/jev_dispatch.py hook --harness antigravity"
+            "command": "jev hook --harness antigravity"
           }
         ]
       }
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /home/vasily/Projects/work/JEV/.agents/hooks/jev_dispatch.py hook --harness antigravity"
+            "command": "jev hook --harness antigravity"
           }
         ]
       }
