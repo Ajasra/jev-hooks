@@ -75,6 +75,29 @@ def semantic_lint_stats(settings: Settings, rule_id: str | None = None) -> dict:
     return Storage(settings.db_path).semantic_lint_stats(rule_id)
 
 
+def audit_log(
+    settings: Settings,
+    harness: str = "",
+    outcome: str = "",
+    reason_code: str = "",
+    since: str = "",
+    before_id: int | None = None,
+    limit: int = 50,
+) -> dict:
+    """Read a bounded page of redacted audit events for the configured workspace."""
+    from jev.adapters.base import workspace_id as workspace_key
+    from jev.services.storage import Storage
+    return Storage(settings.db_path).audit_log(
+        workspace_id=workspace_key(str(settings.workspace_root)),
+        harness=harness,
+        outcome=outcome,
+        reason_code=reason_code,
+        since=since,
+        before_id=before_id,
+        limit=limit,
+    )
+
+
 def verify_output(settings: Settings, code_snippet: str, reference_context: str) -> dict:
     """Verify proposed code or citations against reference documentation."""
     from jev.core.verification import evaluate_verification
@@ -99,6 +122,7 @@ HANDLERS = {
     "semantic_lint": semantic_lint,
     "semantic_lint_feedback": semantic_lint_feedback,
     "semantic_lint_stats": semantic_lint_stats,
+    "audit_log": audit_log,
     "verify_output": verify_output,
     "verify_completion": verify_completion,
 }

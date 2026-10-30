@@ -10,8 +10,10 @@ import sqlite3
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
+from urllib.parse import quote
 
 from jev.contracts import Event, Operation, Outcome, Result
 
@@ -55,6 +57,18 @@ class Storage:
         connection.execute("PRAGMA foreign_keys=ON")
         if not str(self.path).startswith("\\\\"):
             connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("PRAGMA busy_timeout=250")
+        return connection
+
+    def connect_readonly(self) -> sqlite3.Connection:
+        """Open the existing audit database without initializing or modifying it."""
+        resolved = self.path.resolve()
+        path = resolved.as_posix()
+        if resolved.drive:
+            path = "/" + path
+        uri = f"file:{quote(path, safe='/:')}?mode=ro"
+        connection = sqlite3.connect(uri, uri=True, timeout=0.25)
+        connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA busy_timeout=250")
         return connection
 
@@ -431,6 +445,81 @@ class Storage:
             ).fetchall()
             return {"rules": [dict(row) for row in rows]}
 
+    def audit_log(
+        self,
+        *,
+        workspace_id: str,
+        harness: str = "",
+        outcome: str = "",
+        reason_code: str = "",
+        since: str = "",
+        before_id: int | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """Return a bounded page of redacted event records from the local audit log."""
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+        if before_id is not None and before_id < 1:
+            raise ValueError("before_id must be a positive event id")
+        if harness and harness not in {"codex", "antigravity", "opencode"}:
+            raise ValueError("harness must be codex, antigravity, or opencode")
+        if outcome and outcome not in {"allow", "deny", "needs_confirmation", "abstain"}:
+            raise ValueError("unsupported outcome")
+
+        since_value = ""
+        if since:
+            try:
+                parsed = datetime.fromisoformat(since.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError("since must be an ISO-8601 timestamp with a timezone") from exc
+            if parsed.tzinfo is None:
+                raise ValueError("since must include a timezone")
+            since_value = parsed.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+        clauses: list[str] = ["workspace_id = ?"]
+        params: list[Any] = [workspace_id]
+        for column, value in (
+            ("harness", harness),
+            ("outcome", outcome),
+            ("reason_code", reason_code),
+        ):
+            if value:
+                clauses.append(f"{column} = ?")
+                params.append(value)
+        if since_value:
+            clauses.append("created_at >= ?")
+            params.append(since_value)
+        if before_id is not None:
+            clauses.append("id < ?")
+            params.append(before_id)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+
+        sql = f"""SELECT id, event_id, harness, workspace_id, session_id, agent_id,
+                         turn_id, tool_call_id, feature, feature_version, phase,
+                         outcome, reason_code, source, duration_ms, timed_out,
+                         error, details, created_at
+                  FROM events {where}
+                  ORDER BY id DESC LIMIT ?"""
+        with self.connect_readonly() as connection:
+            rows = connection.execute(sql, (*params, limit + 1)).fetchall()
+
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        events = []
+        for row in rows:
+            item = dict(row)
+            try:
+                item["details"] = json.loads(item["details"] or "{}")
+            except (TypeError, ValueError):
+                item["details"] = redact(str(item["details"] or ""))
+            item["error"] = redact(str(item["error"] or ""))
+            events.append(item)
+        return {
+            "events": events,
+            "has_more": has_more,
+            "next_before_id": events[-1]["id"] if has_more and events else None,
+        }
+
     def stats(self, harness: str | None = None) -> dict[str, Any]:
         self.initialize()
         where = "WHERE harness = ?" if harness else ""
@@ -472,6 +561,8 @@ class Storage:
     def record_event(self, event: Event, result: Result) -> None:
         self.initialize()
         audit_data = dict(result.data)
+        if result.reason:
+            audit_data["decision_reason"] = result.reason
         context_telemetry = audit_data.pop("context_telemetry", None)
         # Operational fields precede optional context so truncation cannot hide health.
         details = redact(json.dumps(audit_data, sort_keys=True, default=str), limit=1500)
