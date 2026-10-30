@@ -151,7 +151,7 @@ fan_out_payload = {
 ### 5.1 Active Implementation Artifacts
 - **Shared Speculative Engine**: [`src/jev/core/speculative.py`](../../src/jev/core/speculative.py)
 - **Harness Adapters**: [`src/jev/adapters/antigravity.py`](../../src/jev/adapters/antigravity.py) (`PreInvocation`) and [`src/jev/adapters/codex.py`](../../src/jev/adapters/codex.py) (`UserPromptSubmit`)
-- **Hook Registrations**: [`.agents/hooks.json`](../../.agents/hooks.json) & [`.codex/hooks.json`](../../.codex/hooks.json)
+- **Hook Registrations**: [`.agents/hooks.json`](../../.agents/hooks.json) & [`.codex/hooks.template.json`](../../.codex/hooks.template.json) (installed at Codex user scope)
 - **Integration Test Suite**: [`tests/test_speculative_router.py`](../../tests/test_speculative_router.py)
 
 ### 5.2 Real-World Invocation Examples

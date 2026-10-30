@@ -2,7 +2,9 @@
 
 > **Audience**: Developers operating Antigravity, Codex, OpenCode, or Codex-based T3 Code
 > **Status**: Production Standard (Unified Shared Runtime)
-> **Supported Platform**: Windows and Linux, Python 3.10+
+> **Runtime Platforms**: Windows and Linux, Python 3.10+
+>
+> **Installer Coverage**: Codex user setup is cross-platform; full Antigravity/Codex/OpenCode setup is currently PowerShell on Windows
 > **Foundational Concepts**: [The Philosophy of Jev](PHILOSOPHY.md) | [Architecture Spec](ARCHITECTURE.md)
 
 ---
@@ -18,7 +20,25 @@ python -m pip install --user -e ".[mcp]"
 jev doctor --cwd .
 ```
 
-### Step 2: Configure the machine-wide provider key
+The editable install is the development mode: the `jev` command on this device loads this checkout. Each device has its own checkout and user-level harness config; use Git to move source changes between checkouts.
+
+### Step 2: Install and verify the Codex user integration
+From the repository root on each device:
+```sh
+python scripts/codex_hooks.py install
+python scripts/codex_hooks.py check
+```
+
+The installer merges the tracked [Codex hook template](../.codex/hooks.template.json) into that device's user `hooks.json`, preserves unrelated handlers, and ensures the user-level Jev MCP server is present. It stops if the current project already registers Jev locally. Keep Jev hook and MCP registrations out of project scope; Codex loads matching hooks from both scopes. If the template changes, Codex may ask you to review and trust the new hook definition on that device.
+
+On Windows, the all-harness user installer also configures Antigravity and OpenCode:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-user-harnesses.ps1
+```
+
+That script calls the same Codex installer, so Codex hook merging has one implementation.
+
+### Step 3: Configure the machine-wide provider key
 For all workspaces and harnesses, store the provider key in `~/.config/jev/.env`:
 ```sh
 mkdir -p ~/.config/jev
@@ -35,7 +55,7 @@ Jev loads this machine-wide file from every workspace. Environment variables alr
 
 All harnesses write to one local database, `~/.local/share/jev/jev.sqlite3`, unless the trusted machine config changes it. Check paths and log counts with `jev doctor --cwd .` and `jev stats --json`.
 
-### Step 3: Run Self-Diagnostics
+### Step 4: Run Self-Diagnostics
 ```sh
 jev doctor --cwd .
 jev stats --json
@@ -45,7 +65,7 @@ jev stats --json
 
 ## 2. Connecting to Your Agent Harness
 
-Jev uses one editable Python runtime from this checkout (`src/jev/`). The machine-wide Antigravity, Codex, and OpenCode registrations point to this source. T3 Code sessions use the same Codex registration when running through the Codex hook layer.
+Jev uses one editable Python runtime from this checkout (`src/jev/`). Each device installs that checkout into its user Python environment, then its user-level harness registrations invoke the `jev` command. T3 Code sessions use the same Codex registration when running through the Codex hook layer.
 
 ### A. Antigravity
 
@@ -53,7 +73,7 @@ The global `~/.gemini/config/hooks`, `hooks.json`, and `skills` paths link to `.
 
 ### B. Codex and T3 Code
 
-The global `~/.codex/hooks.json` links to this checkout's [`.codex/hooks.json`](../.codex/hooks.json). Jev skill links under `~/.codex/skills/` point to the canonical skill files in `.agents/skills/`.
+The global `~/.codex/hooks.json` is installed from [`.codex/hooks.template.json`](../.codex/hooks.template.json). The project `.codex/hooks.json` stays empty, and the project `.codex/config.toml` does not register Jev MCP. This keeps both hooks and tools in one scope. Jev skill links under `~/.codex/skills/` point to the canonical skill files in `.agents/skills/`.
 
 T3 Code sessions share these hooks when T3 Code runs the local Codex hook system. If a T3 Code deployment runs in a separate host or does not load Codex hooks, it needs its own native bridge to the same `jev` executable and user data directory.
 
@@ -63,7 +83,20 @@ The global `~/.config/opencode/opencode.json`, plugin, and `skills` paths link t
 
 The shared SQLite database is `~/.local/share/jev/jev.sqlite3`; Antigravity, Codex, OpenCode, and T3 Code through Codex write to this same file. `jev stats --json` summarizes the decision records by harness. Runtime records contain outcomes and feature data, not full user prompts or tool commands.
 
-Changes to this checkout's runtime, skills, or plugin source take effect on new hook calls. Restart harness sessions after changing their native hook registration.
+For development, push source commits from one checkout and fast-forward the other device's checkout. The editable package uses the updated source on the next hook call. Rerun the installer when a harness template changes, then restart that harness. Do not copy user `hooks.json`, trust approvals, or the SQLite database between devices: each installer merges the tracked template with that device's own settings, and the database is local state.
+
+```sh
+# On the device where you made the change
+git add -p
+git commit -m "Describe the Jev change"
+git push
+
+# On another development device
+git pull --ff-only
+python -m pip install --user -e ".[mcp]"
+python scripts/codex_hooks.py install
+python scripts/codex_hooks.py check
+```
 
 ---
 
@@ -199,22 +232,13 @@ cmd /c python .agents\hooks\safety_db.py --review --harness codex
 
 ## 8. Multi-Workspace Codex Configuration
 
-To expose Jev MCP tools across all Codex workspaces on Windows:
+The Codex installer configures hooks and MCP tools once at user scope for all workspaces. Run it after installing Jev on each device:
+```cmd
+python scripts/codex_hooks.py install
+python scripts/codex_hooks.py check
+```
 
-1. Add this block to `%USERPROFILE%\.codex\config.toml`:
-   ```toml
-   [mcp_servers.jev]
-   command = "python"
-   args = ["-m", "jev", "mcp", "--harness", "codex"]
-   startup_timeout_sec = 10
-   tool_timeout_sec = 30
-   ```
-   Do not hardcode a global `cwd`: Codex launches the server inside the active workspace directory so Jev loads that repository's `.agents/skills`, `.agents/knowledge`, and `.agents/lint-rules`.
-
-2. Verify registration:
-   ```cmd
-   cmd /c codex mcp list
-   ```
+Do not add the same Jev server or hook to a project's `.codex/config.toml` or `.codex/hooks.json`. `check` exits with an error if it finds a project Jev registration, duplicate user hooks, missing user MCP configuration, or a `jev` executable unavailable on `PATH`.
 
 ---
 

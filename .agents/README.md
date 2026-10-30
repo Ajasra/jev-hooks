@@ -1,6 +1,6 @@
 # Shared Agent Configuration
 
-`.agents/` is the canonical repository source for Jev protocols, skills, knowledge, and Antigravity compatibility entry points. Runtime logic lives in `src/jev/` and is shared by Google Antigravity and OpenAI Codex.
+`.agents/` is the canonical repository source for Jev protocols, skills, knowledge, and Antigravity/OpenCode compatibility entry points. Runtime logic lives in `src/jev/` and is shared by Google Antigravity, OpenAI Codex, and OpenCode.
 
 ## Layout
 
@@ -38,21 +38,28 @@ Compatibility files in `.agents/hooks/` may translate or forward data. They must
 
 ## Harness registrations
 
-Codex uses [`.codex/hooks.json`](../.codex/hooks.json). Antigravity uses [`hooks.json`](hooks.json), normally linked into its global configuration:
+Codex uses [`.codex/hooks.template.json`](../.codex/hooks.template.json), installed once into the user's Codex configuration by [`scripts/codex_hooks.py`](../scripts/codex_hooks.py). The checked-in [`.codex/hooks.json`](../.codex/hooks.json) stays empty, and project `.codex/config.toml` must not define a Jev MCP server. Codex loads matching user and project hooks together, so a project Jev registration would dispatch twice. Run the check from this checkout to confirm the active project has no duplicate:
 
-```cmd
-cmd /c mklink /J "%USERPROFILE%\.gemini\config\hooks" "%CD%\.agents\hooks"
-cmd /c mklink /J "%USERPROFILE%\.gemini\config\skills" "%CD%\.agents\skills"
-cmd /c mklink /J "%USERPROFILE%\.gemini\config\protocols" "%CD%\.agents\protocols"
-cmd /c mklink "%USERPROFILE%\.gemini\config\hooks.json" "%CD%\.agents\hooks.json"
+```sh
+python scripts/codex_hooks.py check
 ```
 
-Install the package once from the repository root so both registrations resolve the same runtime:
+Antigravity uses [`hooks.json`](hooks.json), normally linked into its global configuration. On Windows, the full user-scope setup for Antigravity, Codex, and OpenCode is:
 
 ```cmd
-cmd /c python -m pip install -e .
-cmd /c jev doctor --cwd .
+powershell -ExecutionPolicy Bypass -File scripts\install-user-harnesses.ps1
 ```
+
+Install the editable package once per device from the repository root, then install and check Codex's user configuration:
+
+```cmd
+python -m pip install --user -e ".[mcp]"
+python scripts\codex_hooks.py install
+python scripts\codex_hooks.py check
+jev doctor --cwd .
+```
+
+Use separate Git checkouts on separate devices. Commit and push source changes from one checkout; fast-forward the others and rerun the installer when harness templates change. Do not copy generated user configuration, hook trust state, or the SQLite database through Git.
 
 ## Persistence
 

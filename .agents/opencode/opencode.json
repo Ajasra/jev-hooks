@@ -5,7 +5,7 @@
     "jev": {
       "type": "local",
       "command": [
-        "/home/vasily/.local/bin/jev",
+        "jev",
         "mcp",
         "--harness",
         "opencode"
