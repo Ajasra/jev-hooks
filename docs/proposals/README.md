@@ -1,9 +1,9 @@
 # Jev System One Proposals & RFC Index
 
 [![RFC Standards](https://img.shields.io/badge/Standard-RFC--01%20to%20RFC--26-purple.svg)](../../.agents/protocols/documentation-standard-protocol.md)
-[![Status](https://img.shields.io/badge/Coverage-100%25%20Synchronized-brightgreen.svg)](./)
+[![Document type](https://img.shields.io/badge/Document%20type-Proposal%20archive-blue.svg)](./)
 
-This directory houses 27 technical architecture proposals, blueprints, case studies, and operational protocols for **TypeSafe AI Jev (System One)**. Existing work targets Google Antigravity; RFC-24 defines the shared runtime for Antigravity and OpenAI Codex, and RFC-27 adds OpenCode as the third harness. RFC-25 is partially implemented and postponed; exclude it from implementation-candidate reviews unless telemetry work is explicitly reactivated.
+This directory houses 26 technical proposals, blueprints, case studies, and operational protocols for **TypeSafe AI Jev (System One)**. These documents preserve design decisions and proposal status; they are not a release inventory. For current behavior, use [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md), [`docs/USER_GUIDE.md`](../USER_GUIDE.md), and the implementation under [`src/jev/`](../../src/jev/). RFC-24 records the shared-runtime design. RFC-25 remains a deferred telemetry proposal.
 
 All specifications follow the unified taxonomy defined in [`.agents/protocols/documentation-standard-protocol.md`](../../.agents/protocols/documentation-standard-protocol.md) and ground their decision states in the Context Envelope philosophy ([`docs/PHILOSOPHY.md`](../PHILOSOPHY.md)).
 
@@ -65,7 +65,6 @@ Applying this division of labor to agent harnesses: **Deterministic code handles
 | **24** | **[`RFC-24: Shared Jev Runtime for Antigravity and Codex`](RFC-24_CORE_shared_harness_runtime.md)** | `CORE` | ✅ **Implemented** | Shared core, harness adapters, extension registry and harness-scoped database logs |
 | **25** | **[`RFC-25: Harness-Neutral Telemetry & Observability`](RFC-25_CORE_telemetry_and_observability.md)** | `CORE` | ⏸️ **Partially Implemented — Postponed** | Existing stats remain supported; exclude from candidate analysis until explicitly reactivated |
 | **26** | **[`RFC-26: Context Envelope State Assembly`](RFC-26_CORE_context_envelope_assembly.md)** | `CORE` | ✅ **Implemented** | [`core/context.py`](../../src/jev/core/context.py) & [`runtime.py`](../../src/jev/runtime.py) |
-| **27** | **[`RFC-27: OpenCode Harness Integration`](RFC-27_CORE_opencode_harness.md)** | `CORE` | ✅ **Implemented** | [`adapters/opencode.py`](../../src/jev/adapters/opencode.py), [`install/opencode.py`](../../src/jev/install/opencode.py) & registry-generated `plugins/jev.ts` |
 
 ---
 
@@ -102,4 +101,4 @@ flowchart TD
 
 ## 6. Runnable Hook Infrastructure
 
-Production behavior lives in [`src/jev/`](../../src/jev/) and is registered once in [`registry.py`](../../src/jev/registry.py). [`.agents/hooks.json`](../../.agents/hooks.json) and [`.codex/hooks.json`](../../.codex/hooks.json) invoke the same runtime through harness adapters. Files under [`.agents/hooks/`](../../.agents/hooks/) are bootstraps or transition shims and contain no independent feature policy.
+Production behavior lives in [`src/jev/`](../../src/jev/) and is registered once in [`registry.py`](../../src/jev/registry.py). [`.agents/hooks.json`](../../.agents/hooks.json) and [`.codex/hooks.template.json`](../../.codex/hooks.template.json) invoke the same runtime through harness adapters. The checked-in [`.codex/hooks.json`](../../.codex/hooks.json) stays empty to prevent user/project duplicate dispatch. Files under [`.agents/hooks/`](../../.agents/hooks/) are bootstraps or transition shims and contain no independent feature policy.

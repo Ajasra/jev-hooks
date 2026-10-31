@@ -1,6 +1,7 @@
 ---
 name: typesafe-ai
 license: MIT
+scope: global
 description: >
   Build AI-powered software with TypeSafe: small units of AI intelligence you
   can use like programming primitives. Its System One models, including Jev,

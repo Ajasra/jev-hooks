@@ -71,8 +71,15 @@ def collect_diff(workspace: Path, *, staged: bool, base_ref: str | None, max_cha
     if base_ref:
         subprocess.run(["git", "rev-parse", "--verify", f"{base_ref}^{{commit}}"], cwd=workspace,
                        check=True, capture_output=True, text=True, timeout=5)
-    command = ["git", "diff", "--unified=3", "--no-ext-diff", "--no-textconv",
-               "--src-prefix=a/", "--dst-prefix=b/"]
+    command = [
+        "git",
+        "diff",
+        "--unified=3",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--src-prefix=a/",
+        "--dst-prefix=b/",
+    ]
     if staged:
         command.append("--cached")
     elif base_ref:
@@ -91,10 +98,17 @@ def _hunks(diff: str) -> list[dict[str, Any]]:
         if path and lines:
             results.append({"path": path, "start": start, "end": end, "text": "\n".join(lines)[:12_000]})
     for line in diff.splitlines():
-        if line.startswith("+++ b/"):
-            flush(); lines = []; path = line[6:]; start = end = 0
+        if line.startswith("+++ ") and line != "+++ /dev/null":
+            flush()
+            lines = []
+            raw_path = line[4:].strip()
+            path = raw_path[2:] if raw_path.startswith(("b/", "i/", "w/")) else raw_path
+            start = end = 0
         elif match := HUNK.match(line):
-            flush(); lines = [line]; start = int(match.group(1)); end = start + max(int(match.group(2) or 1) - 1, 0)
+            flush()
+            lines = [line]
+            start = int(match.group(1))
+            end = start + max(int(match.group(2) or 1) - 1, 0)
         elif path and lines:
             lines.append(line)
     flush()

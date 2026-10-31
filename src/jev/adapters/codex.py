@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
-from jev.adapters.base import Adapter, extract_turn_context, patch_paths, stable_event_id, workspace_id
+from jev.adapters.base import Adapter, extract_turn_context, patch_paths, stable_event_id, workspace_id, tool_result_payload
 from jev.contracts import Event, EventKind, Harness, Operation, Outcome, Result
 
 
@@ -52,6 +52,8 @@ class CodexAdapter(Adapter):
             "trigger": str(raw.get("trigger") or ""),
             "native": dict(raw),
         }
+        if kind == EventKind.TOOL_AFTER:
+            payload.update(tool_result_payload(raw))
         event = Event(
             kind=kind,
             harness=self.harness,

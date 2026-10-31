@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jev.contracts import ContextItem, Outcome, Result
-from jev.services.client import DecisionClient
+from jev.services.client import DecisionClient, failure_details
 
 
 @dataclass(frozen=True)
@@ -39,7 +39,7 @@ def _frontmatter(text: str) -> dict[str, str]:
 
 def load_catalog(roots: tuple[Path, ...]) -> list[Skill]:
     catalog: list[Skill] = []
-    seen: set[tuple[str, Path]] = set()
+    seen: set[str] = set()
     for root in roots:
         if not root.exists():
             continue
@@ -50,7 +50,7 @@ def load_catalog(roots: tuple[Path, ...]) -> list[Skill]:
                 continue
             meta = _frontmatter(body)
             name = meta.get("name") or path.parent.name
-            key = (name, path.resolve())
+            key = name
             if key in seen:
                 continue
             seen.add(key)
@@ -79,9 +79,14 @@ def suggest(
     inject_body: bool = True,
 ) -> Result:
     started = time.monotonic()
+    provider_error = ""
+    provider_data = {"provider_status": "not_configured" if client is None else "not_called"}
     catalog = load_catalog(roots)
     if not prompt or not catalog:
-        return Result(feature="skills", feature_version="1")
+        return Result(feature="skills", feature_version="1",
+                      reason_code="missing_prompt" if not prompt else "empty_catalog",
+                      data={"catalog_count": len(catalog), "provider_status": "not_called"},
+                      duration_ms=(time.monotonic() - started) * 1000)
     selected, confidence = _keyword_candidate(prompt, catalog)
     requires_skill = confidence
     if client is not None:
@@ -107,13 +112,17 @@ def suggest(
             confidence = float(answer.get("confidence", 0.0))
             requires_skill = float(answers.get("requires_skill", {}).get("noul", 0.0))
             selected = next((skill for skill in catalog if skill.name == choice), None)
-        except Exception:
-            pass
+            provider_data = {"provider_status": "ok"}
+        except Exception as exc:
+            provider_error = type(exc).__name__
+            provider_data = failure_details(exc)
     result = Result(
         outcome=Outcome.ABSTAIN,
+        error=provider_error,
+        timed_out=bool(provider_data.get("timed_out")),
         feature="skills",
         feature_version="1",
-        data={"selected": selected.name if selected else "", "confidence": confidence},
+        data={**provider_data, "catalog_count": len(catalog), "selected": selected.name if selected else "", "confidence": confidence},
         duration_ms=(time.monotonic() - started) * 1000,
     )
     if selected and confidence >= 0.80 and requires_skill >= 0.30 and inject_body:

@@ -39,6 +39,7 @@ def run_hook(harness: str, raw: dict[str, Any], settings: Settings | None = None
             str(raw.get("hook_event_name") or raw.get("hookEventName")) == "PreToolUse"
             or "toolCall" in raw
             or hook == "tool.execute.before"
+            or raw.get("opencode_event") == "tool.execute.before"
         )
         if is_pre_tool:
             tool_call = raw.get("toolCall") if isinstance(raw.get("toolCall"), Mapping) else {}

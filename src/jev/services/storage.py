@@ -10,12 +10,14 @@ import sqlite3
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
+from urllib.parse import quote
 
-from jev.contracts import Event, Outcome, Result
+from jev.contracts import Event, Operation, Outcome, Result
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 SECRET_PATTERN = re.compile(
     r"(?i)(api[_-]?key|authorization|token|password|secret)(\s*[:=]\s*)([^\s,;]+)"
 )
@@ -35,6 +37,9 @@ def operation_digest(tool_name: str, command: str, arguments: Any) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+jev_operation_digest = operation_digest
+
+
 @dataclass(frozen=True)
 class Claim:
     status: str
@@ -52,6 +57,18 @@ class Storage:
         connection.execute("PRAGMA foreign_keys=ON")
         if not str(self.path).startswith("\\\\"):
             connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("PRAGMA busy_timeout=250")
+        return connection
+
+    def connect_readonly(self) -> sqlite3.Connection:
+        """Open the existing audit database without initializing or modifying it."""
+        resolved = self.path.resolve()
+        path = resolved.as_posix()
+        if resolved.drive:
+            path = "/" + path
+        uri = f"file:{quote(path, safe='/:')}?mode=ro"
+        connection = sqlite3.connect(uri, uri=True, timeout=0.25)
+        connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA busy_timeout=250")
         return connection
 
@@ -202,6 +219,23 @@ class Storage:
                 );
                 CREATE INDEX IF NOT EXISTS knowledge_session_time
                     ON knowledge_decisions(session_id, created_at);
+                CREATE TABLE IF NOT EXISTS tool_invocations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    workspace_id TEXT NOT NULL,
+                    harness TEXT NOT NULL DEFAULT '',
+                    tool_name TEXT NOT NULL,
+                    operation_digest TEXT NOT NULL,
+                    command TEXT,
+                    event_kind TEXT NOT NULL,
+                    exit_code INTEGER,
+                    status TEXT NOT NULL,
+                    error_summary TEXT,
+                    created_at REAL NOT NULL,
+                    timestamp REAL NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_tool_invocations_session
+                    ON tool_invocations(session_id, workspace_id, operation_digest);
                 CREATE VIEW IF NOT EXISTS codex_events AS
                     SELECT * FROM events WHERE harness = 'codex';
                 CREATE VIEW IF NOT EXISTS antigravity_events AS
@@ -209,6 +243,13 @@ class Storage:
                 CREATE VIEW IF NOT EXISTS opencode_events AS
                     SELECT * FROM events WHERE harness = 'opencode';
                 """
+            )
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(tool_invocations)")}
+            if "harness" not in columns:
+                connection.execute("ALTER TABLE tool_invocations ADD COLUMN harness TEXT NOT NULL DEFAULT ''")
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
+                (5, "tool-invocations-harness-v5"),
             )
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
@@ -224,9 +265,129 @@ class Storage:
             )
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
-                (SCHEMA_VERSION, "knowledge-lifecycle-v4"),
+                (4, "loop-guard-tool-invocations-v4"),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
+                (SCHEMA_VERSION, "knowledge-lifecycle-v5"),
             )
 
+    def record_tool_invocation(
+        self,
+        event: Event | None = None,
+        operation: Operation | None = None,
+        status: str = "pending",
+        exit_code: int | None = None,
+        error: str = "",
+        session_id: str | None = None,
+        workspace_id: str | None = None,
+        tool_name: str | None = None,
+        op_digest: str | None = None,
+        operation_digest: str | None = None,
+        command: str | None = None,
+        event_kind: str | None = None,
+    ) -> None:
+        self.initialize()
+        now = time.time()
+        sess_id = session_id or (event.session_id if event else "")
+        ws_id = workspace_id or (event.workspace_id if event else "")
+        t_name = tool_name or (operation.tool_name if operation else "")
+        cmd = command or (operation.command if operation else "")
+        dig = op_digest or operation_digest
+        if not dig and operation:
+            dig = jev_operation_digest(operation.tool_name, operation.command, operation.arguments)
+        e_kind = event_kind or (event.kind.value if event else "tool.after")
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO tool_invocations (
+                    session_id, workspace_id, harness, tool_name, operation_digest,
+                    command, event_kind, exit_code, status, error_summary,
+                    created_at, timestamp
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    sess_id,
+                    ws_id,
+                    event.harness.value if event else "",
+                    t_name,
+                    dig or "",
+                    cmd,
+                    e_kind,
+                    exit_code,
+                    status,
+                    redact(error) if error else "",
+                    now,
+                    now,
+                ),
+            )
+
+    def update_tool_invocation(
+        self,
+        session_id: str,
+        digest: str,
+        status: str,
+        exit_code: int | None = None,
+        error: str = "",
+    ) -> None:
+        self.initialize()
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE tool_invocations
+                SET status = ?, exit_code = ?, error_summary = ?
+                WHERE id = (
+                    SELECT id FROM tool_invocations
+                    WHERE session_id = ? AND operation_digest = ?
+                    ORDER BY id DESC LIMIT 1
+                )
+                """,
+                (status, exit_code, redact(error) if error else "", session_id, digest),
+            )
+
+    def get_consecutive_failures(
+        self, session_id: str, digest: str, *, workspace_id: str | None = None, harness: str | None = None
+    ) -> int:
+        self.initialize()
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                SELECT operation_digest, status, exit_code
+                FROM tool_invocations
+                WHERE session_id = ?
+                  AND (? IS NULL OR workspace_id = ?)
+                  AND (? IS NULL OR harness = ?)
+                ORDER BY id DESC
+                """,
+                (session_id, workspace_id, workspace_id, harness, harness),
+            )
+            count = 0
+            for row in cursor.fetchall():
+                row_digest = row["operation_digest"]
+                status = row["status"]
+                exit_code = row["exit_code"]
+                if row_digest != digest:
+                    break
+                is_failure = (status == "failure") or (exit_code is not None and exit_code != 0)
+                if is_failure:
+                    count += 1
+                else:
+                    break
+            return count
+
+    def get_successful_tool_invocations(self, session_id: str) -> list[dict[str, Any]]:
+        self.initialize()
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                SELECT tool_name, command, exit_code, status, created_at
+                FROM tool_invocations
+                WHERE session_id = ? AND status = 'success'
+                ORDER BY id ASC
+                """,
+                (session_id,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
 
     def record_semantic_lint_decision(self, decision: dict[str, Any]) -> int:
         self.initialize()
@@ -344,9 +505,130 @@ class Storage:
             ).fetchall()
             return {"rules": [dict(row) for row in rows]}
 
+    def audit_log(
+        self,
+        *,
+        workspace_id: str,
+        harness: str = "",
+        outcome: str = "",
+        reason_code: str = "",
+        since: str = "",
+        before_id: int | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """Return a bounded page of redacted event records from the local audit log."""
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+        if before_id is not None and before_id < 1:
+            raise ValueError("before_id must be a positive event id")
+        if harness and harness not in {"codex", "antigravity", "opencode"}:
+            raise ValueError("harness must be codex, antigravity, or opencode")
+        if outcome and outcome not in {"allow", "deny", "needs_confirmation", "abstain"}:
+            raise ValueError("unsupported outcome")
+
+        since_value = ""
+        if since:
+            try:
+                parsed = datetime.fromisoformat(since.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError("since must be an ISO-8601 timestamp with a timezone") from exc
+            if parsed.tzinfo is None:
+                raise ValueError("since must include a timezone")
+            since_value = parsed.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+        clauses: list[str] = ["workspace_id = ?"]
+        params: list[Any] = [workspace_id]
+        for column, value in (
+            ("harness", harness),
+            ("outcome", outcome),
+            ("reason_code", reason_code),
+        ):
+            if value:
+                clauses.append(f"{column} = ?")
+                params.append(value)
+        if since_value:
+            clauses.append("created_at >= ?")
+            params.append(since_value)
+        if before_id is not None:
+            clauses.append("id < ?")
+            params.append(before_id)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+
+        sql = f"""SELECT id, event_id, harness, workspace_id, session_id, agent_id,
+                         turn_id, tool_call_id, feature, feature_version, phase,
+                         outcome, reason_code, source, duration_ms, timed_out,
+                         error, details, created_at
+                  FROM events {where}
+                  ORDER BY id DESC LIMIT ?"""
+        with self.connect_readonly() as connection:
+            rows = connection.execute(sql, (*params, limit + 1)).fetchall()
+
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        events = []
+        for row in rows:
+            item = dict(row)
+            try:
+                item["details"] = json.loads(item["details"] or "{}")
+            except (TypeError, ValueError):
+                item["details"] = redact(str(item["details"] or ""))
+            item["error"] = redact(str(item["error"] or ""))
+            events.append(item)
+        return {
+            "events": events,
+            "has_more": has_more,
+            "next_before_id": events[-1]["id"] if has_more and events else None,
+        }
+
+    def stats(self, harness: str | None = None) -> dict[str, Any]:
+        self.initialize()
+        where = "WHERE harness = ?" if harness else ""
+        params: tuple[Any, ...] = (harness,) if harness else ()
+        with self.connect() as connection:
+            total = connection.execute(
+                f"SELECT COUNT(*), COALESCE(AVG(duration_ms), 0.0) FROM events {where}",
+                params,
+            ).fetchone()
+            total_events = total[0] if total else 0
+            avg_duration = round(float(total[1]), 2) if total else 0.0
+
+            harness_rows = connection.execute(
+                f"SELECT harness, COUNT(*) FROM events {where} GROUP BY harness",
+                params,
+            ).fetchall()
+            harnesses = {row[0]: row[1] for row in harness_rows}
+
+            outcome_rows = connection.execute(
+                f"SELECT outcome, COUNT(*) FROM events {where} GROUP BY outcome",
+                params,
+            ).fetchall()
+            outcomes = {row[0]: row[1] for row in outcome_rows}
+
+            feature_rows = connection.execute(
+                f"SELECT feature, COUNT(*) FROM events {where} GROUP BY feature",
+                params,
+            ).fetchall()
+            features = {row[0]: row[1] for row in feature_rows}
+
+            return {
+                "total_events": total_events,
+                "avg_duration_ms": avg_duration,
+                "harnesses": harnesses,
+                "outcomes": outcomes,
+                "features": features,
+            }
+
     def record_event(self, event: Event, result: Result) -> None:
         self.initialize()
-        details = redact(json.dumps(result.data, sort_keys=True, default=str))
+        audit_data = dict(result.data)
+        if result.reason:
+            audit_data["decision_reason"] = result.reason
+        context_telemetry = audit_data.pop("context_telemetry", None)
+        # Operational fields precede optional context so truncation cannot hide health.
+        details = redact(json.dumps(audit_data, sort_keys=True, default=str), limit=1500)
+        if context_telemetry is not None:
+            audit_data["context_telemetry"] = context_telemetry
+            details = redact(json.dumps(audit_data, default=str), limit=1500)
         with self.connect() as connection:
             connection.execute(
                 """INSERT INTO events(
@@ -403,60 +685,51 @@ class Storage:
                 (harness, workspace_id, tool_name, now, session_id, digest),
             ).fetchall()
             for row in rows:
-                pattern = str(row["pattern"])
-                if pattern == "*" or fnmatch.fnmatch(command.lower(), pattern.lower()):
-                    consumable_id = int(row["id"]) if row["scope"] == "single_use" else None
-                    return str(row["decision"]), str(row["reason"]), consumable_id
+                pattern = row["pattern"]
+                match = (pattern == "*") or fnmatch.fnmatch(command, pattern)
+                if match:
+                    return row["decision"], row["reason"], row["id"]
         return "unknown", "", None
-
-    def consume_rule(self, rule_id: int | None) -> None:
-        if rule_id is None:
-            return
-        with self.connect() as connection:
-            connection.execute(
-                "UPDATE rules SET consumed_at=CURRENT_TIMESTAMP WHERE id=? AND scope='single_use' AND consumed_at IS NULL",
-                (rule_id,),
-            )
 
     def save_rule(
         self,
         *,
         pattern: str,
-        tool_name: str,
-        scope: str,
-        harness: str,
-        workspace_id: str,
-        session_id: str,
-        digest: str,
-        decision: str,
-        provenance: str,
+        tool_name: str = "*",
+        scope: str = "always",
+        harness: str = "*",
+        workspace_id: str = "",
+        session_id: str = "",
+        operation_digest: str = "",
+        digest: str = "",
+        decision: str = "allow",
+        provenance: str = "manual",
         reason: str = "",
         expires_at: str | None = None,
-    ) -> None:
+    ) -> int:
         self.initialize()
-        if provenance not in {"manual_cli", "verified_native_receipt", "legacy_antigravity"}:
-            raise ValueError("Untrusted rule provenance")
+        op_digest = digest or operation_digest
         with self.connect() as connection:
-            connection.execute(
+            cursor = connection.execute(
                 """INSERT OR REPLACE INTO rules(
                     pattern, tool_name, scope, harness, workspace_id, session_id,
                     operation_digest, decision, provenance, reason, expires_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (pattern, tool_name, scope, harness, workspace_id, session_id, digest,
-                 decision, provenance, reason, expires_at),
+                (
+                    pattern, tool_name, scope, harness, workspace_id, session_id,
+                    op_digest, decision, provenance, reason, expires_at,
+                ),
             )
+            return int(cursor.lastrowid or 0)
 
-    def _claim_key(self, event: Event, feature: str, phase: str) -> str:
-        values = (
-            event.harness.value,
-            event.workspace_id,
-            event.session_id,
-            event.agent_id,
-            event.invocation_id or event.event_id,
-            feature,
-            phase,
-        )
-        return hashlib.sha256("\x1f".join(values).encode("utf-8")).hexdigest()
+    def consume_rule(self, rule_id: int) -> bool:
+        self.initialize()
+        with self.connect() as connection:
+            cursor = connection.execute(
+                "UPDATE rules SET consumed_at = CURRENT_TIMESTAMP WHERE id = ? AND consumed_at IS NULL",
+                (rule_id,),
+            )
+            return cursor.rowcount > 0
 
     def claim(
         self,
@@ -465,31 +738,47 @@ class Storage:
         phase: str,
         digest: str,
         policy_version: str,
-        lease_seconds: float = 10.0,
+        lease_seconds: float = 5.0,
     ) -> Claim:
         self.initialize()
-        key = self._claim_key(event, feature, phase)
+        claim_key = f"{event.harness.value}:{event.session_id}:{event.turn_id}:{event.tool_call_id}:{feature}:{phase}:{digest}"
         now = time.time()
+        lease_expires = now + lease_seconds
         with self.connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
-                "SELECT * FROM invocations WHERE claim_key=?", (key,)
+                "SELECT status, lease_expires_at, result_json FROM invocations WHERE claim_key = ?",
+                (claim_key,),
             ).fetchone()
-            if row and row["operation_digest"] == digest and row["policy_version"] == policy_version:
+            if row is not None:
                 if row["status"] == "complete" and row["result_json"]:
-                    return Claim("replay", Result.from_dict(json.loads(row["result_json"])))
-                if float(row["lease_expires_at"]) > now:
-                    return Claim("active")
+                    data = json.loads(row["result_json"])
+                    return Claim(status="replay", result=Result(
+                        outcome=Outcome(data["outcome"]),
+                        reason=data.get("reason", ""),
+                        reason_code=data.get("reason_code", ""),
+                        feature=data.get("feature", feature),
+                        feature_version=data.get("feature_version", policy_version),
+                        source=data.get("source", "replay"),
+                        cached=True,
+                    ))
+                if row["status"] == "active" and row["lease_expires_at"] > now:
+                    return Claim(status="active")
             connection.execute(
-                """INSERT OR REPLACE INTO invocations(
-                    claim_key, harness, workspace_id, session_id, invocation_id, feature,
-                    phase, operation_digest, policy_version, status, lease_expires_at, result_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NULL)""",
-                (key, event.harness.value, event.workspace_id, event.session_id,
-                 event.invocation_id or event.event_id, feature, phase, digest,
-                 policy_version, now + lease_seconds),
+                """INSERT INTO invocations (
+                    claim_key, harness, workspace_id, session_id, invocation_id,
+                    feature, phase, operation_digest, policy_version, status, lease_expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
+                ON CONFLICT(claim_key) DO UPDATE SET
+                    status = 'active',
+                    lease_expires_at = excluded.lease_expires_at,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    claim_key, event.harness.value, event.workspace_id, event.session_id,
+                    event.tool_call_id, feature, phase, digest, policy_version, lease_expires,
+                ),
             )
-            return Claim("acquired")
+            return Claim(status="acquired")
 
     def complete_claim(
         self,
@@ -497,121 +786,38 @@ class Storage:
         feature: str,
         phase: str,
         result: Result,
-        rule_id_to_consume: int | None = None,
+        rule_id: int | None = None,
+        digest: str = "",
     ) -> Result:
-        key = self._claim_key(event, feature, phase)
+        self.initialize()
+        claim_digest = digest or result.data.get("digest", "")
+        claim_key = f"{event.harness.value}:{event.session_id}:{event.turn_id}:{event.tool_call_id}:{feature}:{phase}:{claim_digest}"
+        payload = json.dumps({
+            "outcome": result.outcome.value,
+            "reason": result.reason,
+            "reason_code": result.reason_code,
+            "feature": result.feature,
+            "feature_version": result.feature_version,
+            "source": result.source,
+        })
         with self.connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
-            if rule_id_to_consume is not None:
+            if rule_id is not None:
                 consumed = connection.execute(
-                    "UPDATE rules SET consumed_at=CURRENT_TIMESTAMP WHERE id=? AND scope='single_use' AND consumed_at IS NULL",
-                    (rule_id_to_consume,),
-                ).rowcount
-                if consumed != 1:
-                    result = Result(
+                    "UPDATE rules SET consumed_at = CURRENT_TIMESTAMP WHERE id = ? AND consumed_at IS NULL",
+                    (rule_id,),
+                ).rowcount > 0
+                if not consumed:
+                    return Result(
                         outcome=Outcome.DENY,
-                        reason="The one-use authorization was already consumed; request a new authorization.",
+                        reason="One-use rule was already consumed.",
                         reason_code="authorization_already_consumed",
-                        feature="safety",
+                        feature=feature,
                         feature_version=result.feature_version,
-                        source="rules",
                     )
             connection.execute(
-                """UPDATE invocations SET status='complete', result_json=?,
-                   lease_expires_at=0, updated_at=CURRENT_TIMESTAMP WHERE claim_key=?""",
-                (json.dumps(result.to_dict(), sort_keys=True), key),
+                """UPDATE invocations
+                   SET status = 'complete', result_json = ?, updated_at = CURRENT_TIMESTAMP
+                   WHERE claim_key = ?""",
+                (payload, claim_key),
             )
         return result
-
-    def events(self, harness: str | None = None) -> list[dict[str, Any]]:
-        self.initialize()
-        with self.connect() as connection:
-            if harness:
-                rows = connection.execute(
-                    "SELECT * FROM events WHERE harness=? ORDER BY id", (harness,)
-                ).fetchall()
-            else:
-                rows = connection.execute("SELECT * FROM events ORDER BY id").fetchall()
-            return [dict(row) for row in rows]
-
-    def stats(self, harness: str | None = None) -> dict[str, Any]:
-        """Aggregate high-level telemetry and decision statistics from recorded events."""
-        self.initialize()
-        with self.connect() as connection:
-            params: tuple[Any, ...] = (harness,) if harness else ()
-            where_clause = "WHERE harness=?" if harness else ""
-            total_events = connection.execute(
-                f"SELECT COUNT(*) FROM events {where_clause}", params
-            ).fetchone()[0]
-            outcomes = dict(
-                connection.execute(
-                    f"SELECT outcome, COUNT(*) FROM events {where_clause} GROUP BY outcome",
-                    params,
-                ).fetchall()
-            )
-            features = dict(
-                connection.execute(
-                    f"SELECT feature, COUNT(*) FROM events {where_clause} GROUP BY feature",
-                    params,
-                ).fetchall()
-            )
-            avg_duration = connection.execute(
-                f"SELECT AVG(duration_ms) FROM events {where_clause}", params
-            ).fetchone()[0] or 0.0
-            harness_counts = dict(
-                connection.execute(
-                    f"SELECT harness, COUNT(*) FROM events {where_clause} GROUP BY harness",
-                    params,
-                ).fetchall()
-            )
-            return {
-                "total_events": total_events,
-                "outcomes": outcomes,
-                "features": features,
-                "avg_duration_ms": round(avg_duration, 2),
-                "harnesses": harness_counts,
-            }
-
-    def backup_to(self, target: Path) -> None:
-        self.initialize()
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with self.connect() as source, sqlite3.connect(str(target)) as destination:
-            source.backup(destination)
-
-    @staticmethod
-    def backup_existing(source_path: Path, target: Path) -> None:
-        """Back up an existing SQLite database without initializing or mutating it."""
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with (
-            sqlite3.connect(f"file:{source_path.resolve().as_posix()}?mode=ro", uri=True) as source,
-            sqlite3.connect(str(target)) as destination,
-        ):
-            source.backup(destination)
-
-    def import_legacy(self, legacy_path: Path) -> int:
-        """Import legacy rules as Antigravity-only records without widening scope."""
-        if not legacy_path.exists():
-            return 0
-        self.initialize()
-        imported = 0
-        legacy = sqlite3.connect(str(legacy_path))
-        legacy.row_factory = sqlite3.Row
-        try:
-            rows: Iterable[sqlite3.Row] = legacy.execute("SELECT * FROM rules").fetchall()
-            for row in rows:
-                self.save_rule(
-                    pattern=str(row["pattern"]),
-                    tool_name=str(row["tool_name"]),
-                    scope=str(row["scope"]),
-                    harness="antigravity",
-                    workspace_id=str(row["workspace_path"] or ""),
-                    session_id=str(row["conversation_id"] or ""),
-                    digest="",
-                    decision=str(row["decision"]),
-                    provenance="legacy_antigravity",
-                    reason=str(row["reason"] or ""),
-                )
-                imported += 1
-        finally:
-            legacy.close()
-        return imported

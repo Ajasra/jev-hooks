@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from jev.install.render import capability_manifest
+from jev.core.skills import load_catalog
+from jev.core.knowledge import load_items
 from jev.services.paths import Settings
 
 
@@ -110,6 +112,11 @@ def report(settings: Settings) -> dict[str, Any]:
         "db_path": str(settings.db_path),
         "skill_roots": [str(path) for path in settings.skill_roots],
         "knowledge_roots": [str(path) for path in settings.knowledge_roots],
+        "skill_count": len(load_catalog(settings.skill_roots)),
+        "knowledge_count": len(load_items(settings.knowledge_roots)),
+        "missing_skill_roots": [str(path) for path in settings.skill_roots if not path.is_dir()],
+        "missing_knowledge_roots": [str(path) for path in settings.knowledge_roots if not path.is_dir()],
+        "semantic_timeout_seconds": settings.semantic_timeout_seconds,
         "lint_rule_roots": [str(path) for path in settings.lint_rule_roots],
         "harness_identity": settings.harness_identity,
         "rejected_project_keys": list(settings.rejected_project_keys),

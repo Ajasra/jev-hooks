@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 from jev.contracts import ContextItem, Outcome, Result
-from jev.services.client import DecisionClient
+from jev.services.client import DecisionClient, failure_details
 
 
 def _git_context(cwd: Path) -> str:
@@ -30,6 +30,8 @@ def evaluate(
     timeout: float,
 ) -> Result:
     started = time.monotonic()
+    provider_error = ""
+    provider_data = {"provider_status": "not_configured" if client is None else "not_called"}
     if not prompt:
         return Result(feature="speculative", feature_version="1")
     needs_git = any(term in prompt.lower() for term in ("diff", "change", "commit", "review", "status"))
@@ -62,13 +64,17 @@ def evaluate(
             needs_git = float(answers.get("needs_git", {}).get("noul", 0.0)) >= 0.65
             ambiguity = float(answers.get("ambiguous", {}).get("noul", 0.0))
             continuation = float(answers.get("continuation", {}).get("noul", 0.0)) >= 0.65
-        except Exception:
-            pass
+            provider_data = {"provider_status": "ok"}
+        except Exception as exc:
+            provider_error = type(exc).__name__
+            provider_data = failure_details(exc)
     result = Result(
         outcome=Outcome.ABSTAIN,
+        error=provider_error,
+        timed_out=bool(provider_data.get("timed_out")),
         feature="speculative",
         feature_version="1",
-        data={"needs_git": needs_git, "ambiguity": ambiguity, "continuation": continuation},
+        data={**provider_data, "needs_git": needs_git, "ambiguity": ambiguity, "continuation": continuation},
         duration_ms=(time.monotonic() - started) * 1000,
     )
     if needs_git:

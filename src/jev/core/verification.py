@@ -16,6 +16,7 @@ from jev.services.storage import Storage, redact
 
 VERIFICATION_FEATURE = "verification"
 VERIFICATION_VERSION = "1"
+COMPLETION_SECTIONS = ("WHAT", "WHY", "HOW", "LEARNINGS")
 
 QUESTIONS = {
     "method_supported_by_docs": {
@@ -274,3 +275,100 @@ def evaluate_operation(
         feature_version=VERIFICATION_VERSION,
         duration_ms=duration_ms,
     )
+
+
+def parse_completion_sections(claim_text: str) -> dict[str, str]:
+    """Extract WHAT, WHY, HOW, and LEARNINGS sections from claim_text."""
+    positions: list[tuple[int, int, str]] = []
+    header_re = re.compile(
+        r"(?:^|\n)\s*(?:#+\s*)?(?:(?:\d+[.)]\s*))?(WHAT|WHY|HOW|LEARNINGS(?:\s*&[^\n]*)?|ARCHITECTURAL\s+GOTCHAS)\b[^\n]*",
+        re.IGNORECASE,
+    )
+    for m in header_re.finditer(claim_text):
+        raw_name = m.group(1).upper()
+        if raw_name.startswith("WHAT"):
+            sec = "WHAT"
+        elif raw_name.startswith("WHY"):
+            sec = "WHY"
+        elif raw_name.startswith("HOW"):
+            sec = "HOW"
+        else:
+            sec = "LEARNINGS"
+        positions.append((m.start(), m.end(), sec))
+
+    positions.sort(key=lambda x: x[0])
+    sections: dict[str, str] = {}
+    for i, (_, end, sec) in enumerate(positions):
+        next_start = positions[i + 1][0] if i + 1 < len(positions) else len(claim_text)
+        content = claim_text[end:next_start].strip()
+        sections[sec] = content
+    return sections
+
+
+def verify_completion_claim(
+    claim_text: str,
+    session_id: str,
+    storage: Storage,
+) -> dict[str, Any]:
+    """Validate completion claim against WHAT-WHY-HOW-LEARNINGS schema and tool executions."""
+    sections = parse_completion_sections(claim_text)
+    missing = [sec for sec in COMPLETION_SECTIONS if not sections.get(sec)]
+
+    if missing:
+        return {
+            "valid_schema": False,
+            "missing_sections": missing,
+            "empirical_verified": False,
+            "outcome": Outcome.NEEDS_CONFIRMATION,
+            "reason": f"Completion claim missing required sections: {', '.join(missing)}.",
+            "reason_code": "missing_schema_sections",
+            "context": [
+                ContextItem(
+                    feature=VERIFICATION_FEATURE,
+                    text=f"Completion claim rejected: missing sections {missing}. Schema requires WHAT, WHY, HOW, and LEARNINGS.",
+                    priority=85,
+                )
+            ],
+        }
+
+    how_content = sections.get("HOW", "")
+    test_claim_re = re.compile(
+        r"(?i)\b(?:test[s]?\s+pass(?:ed)?|\d+\s+passed|tests?\s+succeeded|all\s+tests\s+passed|test\s+suite\s+passed|tests?\s+run\s+clean)\b"
+    )
+    claims_tests_passed = bool(test_claim_re.search(how_content))
+
+    if claims_tests_passed:
+        successful_invocations = storage.get_successful_tool_invocations(session_id)
+        test_runner_re = re.compile(
+            r"(?i)\b(?:pytest|py\.test|unittest|vitest|jest|cargo\s+test|go\s+test|npm\s+test|yarn\s+test|pnpm\s+test)\b"
+        )
+        has_successful_test = any(
+            (test_runner_re.search(inv.get("command", "")) or test_runner_re.search(inv.get("tool_name", "")))
+            for inv in successful_invocations
+        )
+        if not has_successful_test:
+            return {
+                "valid_schema": True,
+                "missing_sections": [],
+                "empirical_verified": False,
+                "outcome": Outcome.NEEDS_CONFIRMATION,
+                "reason": "HOW section claims test passes, but no successful test execution was recorded in tool_invocations for this session.",
+                "reason_code": "unverified_claim",
+                "context": [
+                    ContextItem(
+                        feature=VERIFICATION_FEATURE,
+                        text="Empirical verification gate tripped: Claimed tests passed, but no successful test execution was recorded in tool_invocations. Run the test suite before claiming completion.",
+                        priority=90,
+                    )
+                ],
+            }
+
+    return {
+        "valid_schema": True,
+        "missing_sections": [],
+        "empirical_verified": True,
+        "outcome": Outcome.ALLOW,
+        "reason": "Completion claim verified empirically against tool invocations.",
+        "reason_code": "empirical_verification_passed",
+        "context": [],
+    }

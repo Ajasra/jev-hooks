@@ -4,7 +4,7 @@
     "PreInvocation": [
       {
         "type": "command",
-        "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_dispatch.py hook --harness antigravity"
+        "command": "jev hook --harness antigravity"
       }
     ],
     "PreToolUse": [
@@ -13,7 +13,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cmd /c python %USERPROFILE%\\.gemini\\config\\hooks\\jev_dispatch.py hook --harness antigravity"
+            "command": "jev hook --harness antigravity"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "run_command|write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jev hook --harness antigravity"
           }
         ]
       }

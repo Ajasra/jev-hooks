@@ -141,7 +141,7 @@ Based on the Hermes Agent 182-skill benchmark:
 
 ## 6. Live Production Verification & Multi-Workspace Traces
 
-This capability is implemented in [`src/jev/core/skills.py`](../../src/jev/core/skills.py) and registered once in [`src/jev/registry.py`](../../src/jev/registry.py). It powers Antigravity through [`.agents/hooks/jev_dispatch.py`](../../.agents/hooks/jev_dispatch.py) and Codex through [`.codex/hooks.json`](../../.codex/hooks.json). Canonical skills live once under [`.agents/skills/`](../../.agents/skills/).
+This capability is implemented in [`src/jev/core/skills.py`](../../src/jev/core/skills.py) and registered once in [`src/jev/registry.py`](../../src/jev/registry.py). It powers Antigravity through [`.agents/hooks/jev_dispatch.py`](../../.agents/hooks/jev_dispatch.py) and Codex through [`.codex/hooks.template.json`](../../.codex/hooks.template.json), which is installed at user scope. The project [`.codex/hooks.json`](../../.codex/hooks.json) remains empty. Canonical skills live once under [`.agents/skills/`](../../.agents/skills/).
 
 ### 6.1 Multi-Workspace Test Traces (Evaluated against 30+ Skills in `d:\01_GIT\AAA`)
 

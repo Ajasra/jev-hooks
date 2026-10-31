@@ -139,6 +139,25 @@ class Adapter(ABC):
     def encode(self, event: Event, result: Result) -> dict[str, Any]:
         raise NotImplementedError
 
-    def _deadline(self, seconds: float = 0.30) -> float:
+    def _deadline(self, seconds: float = 30.0) -> float:
         return time.monotonic() + seconds
 
+
+def tool_result_payload(raw: Mapping[str, Any]) -> dict[str, Any]:
+    """Translate native result fields without inferring success from missing evidence."""
+    response = raw.get("tool_response", raw.get("toolResult", raw.get("result", {})))
+    response = response if isinstance(response, Mapping) else {}
+    code = raw.get("exit_code", raw.get("returncode"))
+    if code is None:
+        code = response.get("exit_code", response.get("exitCode", response.get("returncode", response.get("exit"))))
+    if isinstance(code, str):
+        try:
+            code = int(code)
+        except ValueError:
+            code = None
+    if not isinstance(code, int) or isinstance(code, bool):
+        code = None
+    error = raw.get("error") or response.get("error") or ""
+    if not error and (response.get("is_error") is True or response.get("isError") is True):
+        error = "Tool reported an error."
+    return {"exit_code": code, "error": str(error)}

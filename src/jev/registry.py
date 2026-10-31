@@ -22,6 +22,7 @@ class FeatureSpec:
 
 FEATURES = (
     FeatureSpec("safety", "safety-v1", frozenset({EventKind.TOOL_BEFORE}), "safety", frozenset({"tool.before"}), 100, 0, "secure"),
+    FeatureSpec("loop_guard", "1", frozenset({EventKind.TOOL_BEFORE, EventKind.TOOL_AFTER}), "loop_guard", frozenset({"tool.before", "tool.after"}), 95, 1000, "secure"),
     FeatureSpec("verification", "1", frozenset({EventKind.TOOL_BEFORE}), "verification", frozenset({"tool.before", "context"}), 80, 2000, "open"),
     FeatureSpec("speculative", "1", frozenset({EventKind.TURN_BEFORE}), "speculative", frozenset({"turn.before", "context"}), 70, 4000, "open"),
     FeatureSpec("skills", "1", frozenset({EventKind.TURN_BEFORE}), "skills", frozenset({"turn.before", "context"}), 60, 6000, "open"),
@@ -42,10 +43,12 @@ class ToolSpec:
 TOOLS = (
     ToolSpec("knowledge_search", "knowledge_search", False, "Search repository knowledge items."),
     ToolSpec("knowledge_learn", "knowledge_learn", True, "Explicitly save a repository knowledge item."),
+    ToolSpec("record_gotcha", "record_gotcha", True, "Save an operational gotcha into repository docs/gotchas/."),
     ToolSpec("skills_list", "skills_list", False, "List skills from the canonical catalog."),
     ToolSpec("diagnostics_status", "diagnostics_status", False, "Report Jev runtime paths and capabilities."),
     ToolSpec("semantic_lint", "semantic_lint", False, "Evaluate a Git diff against repository semantic rules."),
     ToolSpec("semantic_lint_feedback", "semantic_lint_feedback", True, "Record user feedback for a semantic lint decision."),
     ToolSpec("semantic_lint_stats", "semantic_lint_stats", False, "Summarize semantic lint effectiveness by rule and version."),
+    ToolSpec("audit_log", "audit_log", False, "Read recent redacted Jev audit events for the configured workspace."),
     ToolSpec("verify_output", "verify_output", False, "Verify proposed code or citations against reference documentation."),
 )

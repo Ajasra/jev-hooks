@@ -20,6 +20,10 @@ def codex_hooks(command: str = "python -m jev hook --harness codex") -> dict[str
             "UserPromptSubmit": [{"hooks": [{"type": "command", "command_windows": command,
                                               "statusMessage": "Preparing Jev context", "timeout": 5,
                                               "additionalContextLimit": 12000}]}],
+            "PostToolUse": [{"matcher": "Bash|apply_patch|mcp__.*", "hooks": [
+                {"type": "command", "command_windows": command,
+                 "statusMessage": "Recording Jev tool result", "timeout": 5}
+            ]}],
             "PreToolUse": [{"matcher": "Bash|apply_patch|mcp__.*", "hooks": [
                 {"type": "command", "command_windows": command,
                  "statusMessage": "Checking Jev policy", "timeout": 5}
@@ -33,6 +37,8 @@ def antigravity_hooks(command: str = "cmd /c python -m jev hook --harness antigr
         "jev-runtime": {
             "enabled": True,
             "PreInvocation": [{"type": "command", "command": command}],
+            "PostToolUse": [{"matcher": "run_command|write_to_file|replace_file_content|multi_replace_file_content",
+                              "hooks": [{"type": "command", "command": command}]}],
             "PreToolUse": [{"matcher": "run_command|write_to_file|replace_file_content|multi_replace_file_content",
                              "hooks": [{"type": "command", "command": command}]}],
         }

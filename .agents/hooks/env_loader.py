@@ -3,7 +3,8 @@ Zero-dependency environment variable loader for Antigravity Jev hooks.
 Automatically checks:
 1. .agents/.env
 2. .env (project root)
-3. Direct environment variables (supports both TYPESAFE_API_KEY and OPENROUTER_API_KEY)
+3. ~/.config/jev/.env (shared across harnesses)
+4. Direct environment variables (supports both TYPESAFE_API_KEY and OPENROUTER_API_KEY)
 """
 
 import os
@@ -16,6 +17,7 @@ def load_env():
         Path(".env"),
         Path(__file__).resolve().parent.parent / ".env",
         Path(__file__).resolve().parent / ".env",
+        Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "jev" / ".env",
         Path(os.path.expanduser("~/.gemini/config/.env")),
     ]
     for p in candidates:
@@ -26,7 +28,7 @@ def load_env():
                     if line and not line.startswith("#") and "=" in line:
                         k, v = line.split("=", 1)
                         k, v = k.strip(), v.strip().strip("'\"")
-                        if k and k not in os.environ:
+                        if k and v and k not in os.environ:
                             os.environ[k] = v
             except Exception:
                 pass
@@ -39,7 +41,7 @@ def get_client_config():
     """
     Returns (api_key, endpoint, model, headers) with automated detection for:
     - Direct TypeSafe AI API (https://api.typesafe.ai/v1/systemone)
-    - OpenRouter API (https://openrouter.ai/api/v1/systemone with typesafe/jev-latest)
+    - OpenRouter Decisions API (https://openrouter.ai/api/alpha/decisions with typesafe/jev-1.14)
     """
     typesafe_key = os.environ.get("TYPESAFE_API_KEY", "").strip()
     openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
@@ -57,8 +59,8 @@ def get_client_config():
 
     # Determine default endpoint and model
     if is_openrouter:
-        default_endpoint = "https://openrouter.ai/api/v1/systemone"
-        default_model = "typesafe/jev-1.13"
+        default_endpoint = "https://openrouter.ai/api/alpha/decisions"
+        default_model = "typesafe/jev-1.14"
     else:
         default_endpoint = "https://api.typesafe.ai/v1/systemone"
         default_model = "jev-latest"

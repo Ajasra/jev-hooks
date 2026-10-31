@@ -5,15 +5,20 @@ from __future__ import annotations
 import json
 import os
 import urllib.request
+import urllib.error
+import socket
+import ssl
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol
 
 
 def _load_env_defaults() -> None:
+    config_root = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
     candidates = [
         Path(".agents/.env"),
         Path(".env"),
+        config_root / "jev" / ".env",
         Path.home() / ".gemini" / "config" / ".env",
     ]
     for p in candidates:
@@ -24,7 +29,7 @@ def _load_env_defaults() -> None:
                     if line and not line.startswith("#") and "=" in line:
                         k, v = line.split("=", 1)
                         k, v = k.strip(), v.strip().strip("'\"")
-                        if k and k not in os.environ:
+                        if k and v and k not in os.environ:
                             os.environ[k] = v
             except OSError:
                 pass
@@ -52,12 +57,12 @@ class HttpDecisionClient:
         endpoint = os.environ.get("TYPESAFE_ENDPOINT", "").strip()
         if not endpoint:
             endpoint = (
-                "https://openrouter.ai/api/v1/systemone"
+                "https://openrouter.ai/api/alpha/decisions"
                 if is_openrouter
                 else "https://api.typesafe.ai/v1/systemone"
             )
         model = os.environ.get("JEV_MODEL", "").strip() or (
-            "typesafe/jev-1.13" if is_openrouter else "jev-latest"
+            "typesafe/jev-1.14" if is_openrouter else "jev-latest"
         )
         return cls(key, endpoint, model)
 
@@ -74,5 +79,26 @@ class HttpDecisionClient:
         )
         with urllib.request.urlopen(request, timeout=timeout) as response:
             value = json.loads(response.read().decode("utf-8"))
-        return dict(value.get("answers", {}))
+        if not isinstance(value, dict) or not isinstance(value.get("answers"), dict):
+            raise ValueError("Provider response is missing an answers object.")
+        answers = value["answers"]
+        if set(questions) - set(answers):
+            raise ValueError("Provider response omitted requested answers.")
+        return answers
 
+
+
+def failure_details(exc: Exception) -> dict[str, Any]:
+    """Classify provider failures without persisting URLs, headers or response bodies."""
+    reason = getattr(exc, "reason", exc)
+    timed_out = isinstance(reason, (TimeoutError, socket.timeout)) or "timed out" in str(reason).lower()
+    category = (
+        "timeout" if timed_out else
+        "http" if isinstance(exc, urllib.error.HTTPError) else
+        "tls" if isinstance(reason, ssl.SSLError) else
+        "network" if isinstance(exc, urllib.error.URLError) else "invalid_response"
+    )
+    details = {"provider_status": "unavailable", "error_category": category, "timed_out": timed_out}
+    if isinstance(exc, urllib.error.HTTPError):
+        details["http_status"] = exc.code
+    return details
