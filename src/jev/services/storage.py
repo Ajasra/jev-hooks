@@ -49,6 +49,7 @@ class Claim:
 class Storage:
     def __init__(self, path: Path):
         self.path = Path(path)
+        self._initialized = False
 
     def connect(self) -> sqlite3.Connection:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -271,6 +272,7 @@ class Storage:
                 "INSERT OR IGNORE INTO schema_migrations(version, migration_id) VALUES (?, ?)",
                 (SCHEMA_VERSION, "knowledge-lifecycle-v5"),
             )
+        self._initialized = True
 
     def record_tool_invocation(
         self,
@@ -656,6 +658,43 @@ class Storage:
                     redact(result.error),
                     details,
                 ),
+            )
+
+    def load_context_anchors(self, event: Event) -> dict[str, str]:
+        if not event.session_id:
+            return {}
+        self.initialize()
+        with self.connect() as connection:
+            row = connection.execute(
+                """SELECT content FROM session_context WHERE harness=? AND workspace_id=?
+                   AND session_id=? AND agent_id='' AND source='runtime_anchors'""",
+                (event.harness.value, event.workspace_id, event.session_id),
+            ).fetchone()
+        return json.loads(row["content"]) if row else {}
+
+    def delete_context_anchors(self, event: Event) -> None:
+        if not event.session_id:
+            return
+        self.initialize()
+        with self.connect() as connection:
+            connection.execute(
+                "DELETE FROM session_context WHERE harness=? AND workspace_id=? AND session_id=? AND source='runtime_anchors'",
+                (event.harness.value, event.workspace_id, event.session_id),
+            )
+
+    def save_context_anchors(self, event: Event, anchors: dict[str, str]) -> None:
+        if not event.session_id:
+            return
+        limits = {"session_objective": 400, "prior_context": 1000, "active_path": 500, "last_error": 800}
+        content = {key: redact(str(anchors[key]), limit) for key, limit in limits.items() if anchors.get(key)}
+        self.initialize()
+        with self.connect() as connection:
+            connection.execute(
+                """INSERT INTO session_context(harness,workspace_id,session_id,agent_id,source,content)
+                   VALUES (?,?,?,'','runtime_anchors',?)
+                   ON CONFLICT(harness,workspace_id,session_id,agent_id,source)
+                   DO UPDATE SET content=excluded.content, freshness=CURRENT_TIMESTAMP""",
+                (event.harness.value, event.workspace_id, event.session_id, json.dumps(content)),
             )
 
     def find_rule(

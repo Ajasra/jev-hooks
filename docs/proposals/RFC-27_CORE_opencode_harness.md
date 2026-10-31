@@ -1,7 +1,7 @@
 # RFC-27: OpenCode Harness Integration
 
 > **Category**: CORE
-> **Status**: ✅ Implemented
+> **Status**: Implemented; Windows live acceptance partial, Linux revalidation pending
 > **Target Lifecycle**: `turn.before`, `tool.before`, `tool.after`, `context.checkpoint`
 > **Harnesses**: OpenCode (third harness; Antigravity and Codex stay untouched)
 > **Platforms**: Windows and Linux dual-boot — every gate runs on both boots, see §6
@@ -102,10 +102,10 @@ JSON goes to stdout only; diagnostics go to stderr, same as every existing hook.
 ### 5.5 Generated Plugin (`~/.config/opencode/plugins/jev.ts`)
 
 - **Identity**: default export `{ id: "jev", server() { … } }` — OpenCode rejects path plugins that do not export `id` (S0 receipt), and only the `server()` side matters: `tool.execute.before`/`after` fire in the server process, not the TUI.
-- **Startup self-test**: one `python -m jev doctor --cwd <directory>` probe. On failure the plugin publishes a single session error, disables gating for the process, and keeps OpenCode usable — an unsupported capability gets reported, never silently claimed. Native OpenCode permissions remain the floor either way.
+- **Startup self-test**: one `python -m jev doctor --cwd <directory>` probe and a worker readiness handshake. Failure reports degraded inspection and blocks gated calls. Read-only tools and workspace file edits remain available.
 - **Pre-filter**: skip `read`, `glob`, `grep`, `list`, `lsp`, `skill`, `todowrite`, `question`, `webfetch`, `websearch` in JavaScript; only then spawn Python. Everything else (`bash`, `edit`, `write`, `apply_patch`, `task`, `jev_*` and other MCP tools) is inspected.
-- **Spawn**: stdin JSON, stdout JSON, hard timeout 1000ms for `tool.before` and 750ms elsewhere; stderr passes through to the harness log.
-- **Fault policy**: spawn failure, timeout, or unparsable stdout → continue (fail-open) plus one bounded session error per session. A `deny` or `ask` that did arrive always throws — an established denial is never dropped on the floor.
+- **Transport**: one private `python -u -m jev hook-worker --harness opencode` process per plugin instance. UTF-8 JSON lines carry a request ID and payload; responses must match that ID and contain a valid decision. The bounded queue serializes requests. Deadlines include queue time: 1000ms for `tool.before`, 750ms elsewhere, with a separate 3000ms startup handshake. Timeout or crash closes the worker; the next request may restart it. Worker stderr stays separate from the protocol stream.
+- **Fault policy**: transport failure blocks shell and other gated tools; file mutations and advisory hooks fail open. Read-only tools retain the native fast path. A returned `deny` or `ask` always throws.
 - **Load safety**: the module never throws during import; every hook body is wrapped. A broken Jev shim must degrade to a missing gate while the session keeps running.
 - **Telemetry**: identical footer shape to the Antigravity and Codex adapters.
 
@@ -164,12 +164,34 @@ The Linux baseline is already recorded: 36 passed, 11 skipped. S0 records the Wi
 
 ### S0 — Contract spike (½ day)
 
+#### Windows review — 2026-10-02
+
+The Windows Python suite passes: **100 passed, 11 skipped**. Run from the repository root with `cmd /c uv run --no-project --with pytest pytest -q --basetemp=<fresh-temp-directory>`. Choose a fresh directory outside any checkout or ancestor containing `AGENTS.md`; workspace discovery otherwise correctly selects that ancestor. The checkout's `.venv` currently has no Windows Python executable.
+
+The review fixed CRLF preservation during installer round trips and retained ownership records across reinstall, so uninstall still removes the keys originally added by Jev. OpenCode turn payloads now carry bounded prior context and the initial session objective into the shared Context Envelope. Three-harness integration tests cover safe-command allowance, destructive-command denial, and separate audit views. Codex and Antigravity adapter and core files remain unchanged.
+
+Installed Windows OpenCode reports **1.18.32**. Its resolved global configuration has no Jev registration. The live Windows smoke matrix, plugin timing, MCP tool calls, and fresh Codex/Antigravity application sessions remain unverified. The Linux receipts below are historical evidence from 1.18.33; this Windows suite does not revalidate them. Compaction currently has a subscribed transport hook but no registered feature handling `CONTEXT_CHECKPOINT`, so an empty checkpoint response is expected.
+
+#### Windows implementation follow-up — 2026-10-02
+
+The follow-up supersedes the initial review above. The suite now passes **111 tests, with 11 skipped**. The worker, shared-runtime, and deadline checks also pass on the installed Python 3.10 interpreter (**28 passed**). Executable plugin checks run with `cmd /c npm exec --yes --package=tsx -- tsx tests/opencode_plugin_smoke.ts`; they exercise isolated instances, context recency, bounded state, session deletion, denial/approval outcomes, malformed responses, worker timeout/crash recovery, and failed startup probes. Python subprocess tests verify worker framing across all three harnesses and UTF-8 context handling on Windows.
+
+OpenCode is installed globally using the existing Windows Python. The installer preserved the previous plugin, provider, permission, agent, and model values and retained its configuration backup. `opencode mcp list` reports Jev connected. Live sessions in a disposable workspace executed `echo JEV_WINDOWS_SAFE_OK`, edited a file, and called `jev_skills_list`, which returned seven canonical skills. `POST /session/:id/summarize` returned HTTP 200 and produced a `compaction` audit row. That first resumed session had no saved anchors; subsequent shared integration tests verify persistence, non-empty checkpoint delivery, harness/workspace/session isolation, and deletion.
+
+Live validation exposed HTTP connection setup exceeding the socket timeout and intermittent failures from per-event process startup. The HTTP client now enforces elapsed-time limits; the plugin uses an instance-owned stdio worker. Three warm worker checks measured **300, 296, and 296 ms** after avoiding repeated schema initialization. This small sample does not establish P95 latency.
+
+Shared runtime presentation now consumes adapter capabilities. Context anchors persist in the existing shared SQLite table; a registered compaction feature emits bounded source excerpts, and session cleanup removes them. Codex and Antigravity retain their presentation semantics, with regression coverage for both. Fresh Antigravity application acceptance, Linux revalidation of these changes, a larger latency sample, and native transcript replacement remain outstanding. The current Codex hook blocked the destructive-command test prompt before it reached OpenCode; executable plugin and Python integration tests cover denial without claiming a new native OpenCode destructive-command receipt.
+
+#### Windows acceptance — 2026-10-02
+
+Independent acceptance run against the installed Windows OpenCode **1.18.34** at `bca82bb`, driven by `docs/WINDOWS_OPENCODE_ACCEPTANCE.md`. Receipt: [`docs/testing/windows-opencode-acceptance.md`](../testing/windows-opencode-acceptance.md). Suite **111 passed, 11 skipped**, focused seven-file run **90 passed**, executable plugin smoke **passed**; `jev doctor` reports no problems, `opencode mcp list` reports `✓ jev connected`, and the config/plugin SHA-256 are byte-identical before and after — **no code or config change was required**. All eight S5 smoke items are checked off below; two optional receipts (`chat.message` mutation persisting, system-tail append rendering) stay `abstain` because no TypeSafe semantic client is configured on that boot, exactly as on Linux. One API delta for later: `POST /session/:id/summarize` now requires `{"providerID", "modelID"}` in the body on 1.18.34, and `POST /api/session/:id/compact` answers `503 Session compact is not available yet`.
+
 - [x] `.gitattributes` with `* text=auto eol=lf` in place (landed at spec time; it collapsed the 30-file CRLF churn and emptied the phantom 228-line diff on `adapters/antigravity.py`).
-- [ ] Run the suite on both boots; record both baselines side by side. **Linux: 36 passed, 11 skipped at S0 (2026-09-29); 96 passed, 11 skipped after S5 (2026-09-30) — the delta is this RFC's new tests. Windows: pending the Windows boot.**
+- [ ] Run the suite on both boots; record both baselines side by side. **Linux: 36 passed, 11 skipped at S0 (2026-09-29); 96 passed, 11 skipped after S5 (2026-09-30) — the delta is this RFC's new tests. Windows: 111 passed, 11 skipped (2026-10-02, acceptance run — receipt below). Still open: Linux has not re-run the 2026-10-02 Windows follow-up changes, so the two numbers are not yet from one tree.**
 - [x] Drop a temporary `~/.config/opencode/plugins/jev-spike.ts` (same directory on both OSes — verified, no Windows special case) that logs raw hook input and throws on a marked command. Spike source committed at `tests/fixtures/opencode/jev-spike.ts`; **must export `id`** (path plugins without `id` are rejected at load).
-- [ ] Verify the five receipts on each boot's installed harness: throw blocks execution; `chat.message` mutation persists and reaches the model; system-tail append renders; `mcp.jev` discovers; plugin auto-load picks up the file. **Linux: all five ✓ (receipts below). Windows: pending.**
+- [ ] Verify the five receipts on each boot's installed harness: throw blocks execution; `chat.message` mutation persists and reaches the model; system-tail append renders; `mcp.jev` discovers; plugin auto-load picks up the file. **Linux: all five ✓ (receipts below). Windows (2026-10-02): 3 of 5 ✓ — throw blocks execution, `mcp.jev` discovers (`opencode mcp list` → `✓ jev connected`), plugin auto-load picks up the file (`opencode debug config` → `file:///…/plugins/jev.ts` in `plugin_origins`). Not observed: `chat.message` mutation persisted byte-identical because every feature abstained (`semantic_unavailable`, no TypeSafe client on this boot), and the system-tail probe came back `NONE`. Receipt: `docs/testing/windows-opencode-acceptance.md`.**
 - [x] Capture sanitized payloads into `tests/fixtures/opencode/{turn,tool_before,tool_after,checkpoint}.json`.
-- [ ] Record `opencode --version`, Python cold-start time, and end-to-end hook latency per boot. **Linux: recorded below. Windows: pending.**
+- [x] Record `opencode --version`, Python cold-start time, and end-to-end hook latency per boot. **Linux: recorded below. Windows (2026-10-02, n=10): `opencode --version` 1.18.34; interpreter cold start min 60.5 / p50 66.7 / p95 78.6 / max 78.6 ms; `python -m jev hook --harness opencode` safe `tool.execute.before` spawn round trip min 225.8 / p50 241.4 / p95 286.7 / max 286.7 ms (p95 inside the 300 ms budget); `python -m jev doctor` startup probe p50 934.3 ms of which `opencode --version` alone is p50 640.3 ms — inside the 3000 ms probe budget. Live footer latency 250.0–266.0 ms, dominated by the 250 ms semantic timeout. Full table in `docs/testing/windows-opencode-acceptance.md`.**
 
 **Gate**: every receipt written down; payload fixtures committed; if any binding fails, revise §5.2 before touching `src/`. **No binding failed on the Linux boot — §5.2 stands as written.**
 
@@ -241,7 +263,7 @@ The Linux baseline is already recorded: 36 passed, 11 skipped. S0 records the Wi
 - [x] `docs/ARCHITECTURE.md`: lifecycle table and capability matrix gain OpenCode columns.
 - [x] `docs/USER_GUIDE.md`: OpenCode section — install, restart, `jev authorize` recovery flow, uninstall.
 - [x] Root `README.md` stays ≤150 lines; harness badge and quickstart gain the third harness. `AGENTS.md` shared-runtime bullet gains the opencode registration line.
-- [ ] Live smoke matrix on **both boots**: startup context, turn context, harmless `bash` allowed, `rm -rf` denied, file edit allowed, MCP tool discovery, one skill visible to the `skill` tool, compaction hook fires (finding F3: an empty `checkpoint_context` is the expected payload until a feature claims `CONTEXT_CHECKPOINT` in `FEATURES` — assert the hook fires and accepts `output.context`, not a non-empty push). **Linux: all eight receipts below. Windows: pending the Windows boot.**
+- [x] Live smoke matrix on **both boots**: startup context, turn context, harmless `bash` allowed, `rm -rf` denied, file edit allowed, MCP tool discovery, one skill visible to the `skill` tool, compaction hook fires (finding F3: an empty `checkpoint_context` is the expected payload until a feature claims `CONTEXT_CHECKPOINT` in `FEATURES` — assert the hook fires and accepts `output.context`, not a non-empty push). **Linux: all eight receipts below. Windows (2026-10-02, disposable workspace, OpenCode 1.18.34): all eight ✓ — startup probe `jev doctor` exits 0 with no plugin load error and telemetry footers on every tool output; turn context produced four `turn.before` rows, all `abstain` as on Linux, with anchors bounded (≤443 chars) and scoped by workspace/session; `echo JEV_WINDOWS_SAFE_OK` allowed with a `safety/tool.before` audit row; recursive delete denied as `Jev denied: Jev invariant blocked this operation (recursive_delete).` on `rmdir /s /q` — the cmd-shell equivalent of `rm -rf`, sentinel untouched; `hello.txt` written inside the workspace; `jev_skills_list` returned seven skills and the `skill` tool loaded `anti-slop-editor`; `POST /session/:id/summarize` → HTTP 200 with a `compaction` / `context.checkpoint` audit row carrying `{"anchor_count": 2}` and the prior messages left in place (no native replacement claimed). Receipt: `docs/testing/windows-opencode-acceptance.md`.**
 
 #### S5 smoke matrix — Linux boot (2026-09-30)
 
@@ -293,5 +315,5 @@ Repository evidence: [shared runtime](../../src/jev/runtime.py), [registry](../.
 ## 10. Deferred
 
 - Interactive confirmation modal: needs upstream to trigger `permission.ask`, or a cross-process TUI handshake; its roundtrip likely exceeds the dispatch deadline, so it earns its own RFC.
-- Persistent `jev serve` worker to remove per-event Python cold start.
+- Persistent worker implemented on 2026-10-02 as private stdio `jev hook-worker`; a standalone network service remains unnecessary.
 - Native history replacement during compaction: disabled until OpenCode exposes a verified contract; `output.context` injection is the honest ceiling today.

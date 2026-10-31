@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from jev.adapters.base import Adapter, extract_turn_context, stable_event_id, workspace_id, tool_result_payload
-from jev.contracts import Event, EventKind, Harness, Operation, Outcome, Result
+from jev.contracts import Event, EventKind, Harness, HarnessCapabilities, Operation, Outcome, Result
 from jev.core.safety import clean_command
 
 
@@ -16,6 +16,7 @@ TOOL_EVENTS = {"PreToolUse": EventKind.TOOL_BEFORE, "PostToolUse": EventKind.TOO
 
 class AntigravityAdapter(Adapter):
     harness = Harness.ANTIGRAVITY
+    capabilities = HarnessCapabilities(interactive_advisories=True)
 
     def decode(self, raw: Mapping[str, Any]) -> tuple[Event, Operation | None]:
         native_event = str(raw.get("hookEventName") or raw.get("eventName") or raw.get("hook_event_name") or "")
@@ -50,6 +51,7 @@ class AntigravityAdapter(Adapter):
         if kind == EventKind.TOOL_AFTER:
             payload.update(tool_result_payload(raw))
         event = Event(
+            capabilities=self.capabilities,
             kind=kind,
             harness=self.harness,
             event_id=event_id,

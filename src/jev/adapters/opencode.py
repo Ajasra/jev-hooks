@@ -5,11 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
-from jev.adapters.base import Adapter, patch_paths, stable_event_id, workspace_id
-from jev.contracts import Event, EventKind, Harness, Operation, Outcome, Result
+from jev.adapters.base import Adapter, patch_paths, stable_event_id, tool_result_payload, workspace_id
+from jev.contracts import Event, EventKind, Harness, HarnessCapabilities, Operation, Outcome, Result
 
 EVENTS = {
+    "session.start": EventKind.SESSION_START,
+    "session.deleted": EventKind.SESSION_END,
     "chat.message": EventKind.TURN_BEFORE,
+    "turn.before": EventKind.TURN_BEFORE,
     "tool.execute.before": EventKind.TOOL_BEFORE,
     "tool.execute.after": EventKind.TOOL_AFTER,
     "experimental.session.compacting": EventKind.CONTEXT_CHECKPOINT,
@@ -27,9 +30,10 @@ def _telemetry(result: Result, count: int) -> str:
 
 class OpenCodeAdapter(Adapter):
     harness = Harness.OPENCODE
+    capabilities = HarnessCapabilities(native_skills=True)
 
     def decode(self, raw: Mapping[str, Any]) -> tuple[Event, Operation | None]:
-        hook = str(raw.get("hook") or "")
+        hook = str(raw.get("hook") or raw.get("opencode_event") or "")
         if hook not in EVENTS:
             raise ValueError(f"Unsupported OpenCode hook: {hook or '<missing>'}")
         kind = EVENTS[hook]
@@ -38,21 +42,24 @@ class OpenCodeAdapter(Adapter):
         turn_id = str(raw.get("turn_id") or "")
         native = raw.get("native")
         tool = raw.get("tool") if isinstance(raw.get("tool"), Mapping) else {}
-        tool_name = str(tool.get("name") or "")
-        call_id = str(tool.get("call_id") or "")
+        tool_name = str(tool.get("name") or (raw.get("tool") if isinstance(raw.get("tool"), str) else "") or "")
+        call_id = str(tool.get("call_id") or raw.get("call_id") or "")
         payload: dict[str, Any] = {
             "prompt": str(raw.get("prompt") or ""),
-            "prior_context": "",
-            "session_objective": "",
-            "active_path": "",
-            "last_error": "",
+            "prior_context": str(raw.get("prior_context") or "")[:1000],
+            "session_objective": str(raw.get("session_objective") or "")[:400],
+            "active_path": str(raw.get("active_path") or "")[:500],
+            "last_error": str(raw.get("last_error") or "")[:800],
             "transcript_path": "",
             "native": dict(native) if isinstance(native, Mapping) else {},
         }
         if kind == EventKind.TOOL_AFTER:
             result = raw.get("result")
-            payload["result"] = dict(result) if isinstance(result, Mapping) else {}
+            if isinstance(result, Mapping):
+                payload["result"] = dict(result)
+            payload.update(tool_result_payload(raw))
         event = Event(
+            capabilities=self.capabilities,
             kind=kind,
             harness=self.harness,
             event_id=stable_event_id((session_id, turn_id, hook, call_id), raw),
@@ -71,7 +78,7 @@ class OpenCodeAdapter(Adapter):
             return event, None
         if not tool_name:
             raise ValueError("OpenCode tool hook omitted tool.name")
-        args = tool.get("args")
+        args = tool.get("args") if isinstance(tool.get("args"), Mapping) else raw.get("args")
         if not isinstance(args, Mapping):
             raise ValueError(f"OpenCode tool {tool_name} omitted tool.args")
         command = str(args.get("command") or "")

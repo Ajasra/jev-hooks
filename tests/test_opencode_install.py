@@ -56,7 +56,9 @@ def test_install_adds_only_owned_keys(tmp_path: Path):
     assert command[:4] == [report["python"], "-m", "jev", "mcp"]
     assert command[-2:] == ["--harness", "opencode"]
     assert data["mcp"]["jev"]["enabled"] is True
-    assert data["skills"]["paths"] == [str(tmp_path / ".agents" / "skills")]
+    from jev.services.paths import Settings
+
+    assert data["skills"]["paths"] == [str(path) for path in Settings.load(tmp_path).skill_roots]
     assert report["backup_file"] and Path(report["backup_file"]).is_file()
 
 
@@ -88,6 +90,17 @@ def test_install_is_idempotent(tmp_path: Path):
     assert second["plugin_changed"] is False
     assert len(list(root(tmp_path).glob("opencode.json.jev-*.bak"))) == 1
     assert second["manifest_file"] == first["manifest_file"]
+
+
+def test_reinstall_preserves_uninstall_ownership(tmp_path: Path):
+    config = root(tmp_path) / "opencode.json"
+    config.parent.mkdir(parents=True)
+    config.write_text(ORIGINAL, encoding="utf-8")
+    before = config.read_bytes()
+    install(env=home_env(tmp_path), cwd=tmp_path)
+    install(env=home_env(tmp_path), cwd=tmp_path)
+    uninstall(env=home_env(tmp_path))
+    assert config.read_bytes() == before
 
 
 def test_install_refuses_comment_bearing_config(tmp_path: Path):

@@ -1,10 +1,8 @@
 # Jev System One Control Layer: User Guide & Operational Manual
 
-> **Audience**: Developers operating Antigravity, Codex, OpenCode, or Codex-based T3 Code
+> **Audience**: Developers operating Google Antigravity, OpenAI Codex, or OpenCode
 > **Status**: Production Standard (Unified Shared Runtime)
-> **Runtime Platforms**: Windows and Linux, Python 3.10+
->
-> **Installer Coverage**: Codex user setup is cross-platform; full Antigravity/Codex/OpenCode setup is currently PowerShell on Windows
+> **Platform**: Windows verified; [Linux setup and acceptance](LINUX_SETUP.md), Python 3.10+
 > **Foundational Concepts**: [The Philosophy of Jev](PHILOSOPHY.md) | [Architecture Spec](ARCHITECTURE.md)
 
 ---
@@ -15,88 +13,91 @@ Get Jev installed and verified in your environment in three steps.
 
 ### Step 1: Install Package & Core Tools
 From the repository root:
-```sh
-python -m pip install --user -e ".[mcp]"
-jev doctor --cwd .
+```cmd
+cmd /c python -m pip install --user -e ".[mcp]"
+cmd /c python -m jev doctor --cwd .
 ```
 
-The editable install is the development mode: the `jev` command on this device loads this checkout. Each device has its own checkout and user-level harness config; use Git to move source changes between checkouts.
-
-### Step 2: Install and verify the Codex user integration
-From the repository root on each device:
-```sh
-python scripts/codex_hooks.py install
-python scripts/codex_hooks.py check
+### Step 2: Configure Provider API Key in `.env`
+Copy the environment template and set your API key in `.agents/.env` (or project root `.env`):
+```cmd
+cmd /c copy .agents\.env.example .agents\.env
 ```
 
-The installer merges the tracked [Codex hook template](../.codex/hooks.template.json) into that device's user `hooks.json`, preserves unrelated handlers, and ensures the user-level Jev MCP server is present. It stops if the current project already registers Jev locally. Keep Jev hook and MCP registrations out of project scope; Codex loads matching hooks from both scopes. If the template changes, Codex may ask you to review and trust the new hook definition on that device.
-
-On Windows, the all-harness user installer also configures Antigravity and OpenCode:
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/install-user-harnesses.ps1
-```
-
-That script calls the same Codex installer, so Codex hook merging has one implementation.
-
-### Step 3: Configure the machine-wide provider key
-For all workspaces and harnesses, store the provider key in `~/.config/jev/.env`:
-```sh
-mkdir -p ~/.config/jev
-chmod 700 ~/.config/jev
-$EDITOR ~/.config/jev/.env
-chmod 600 ~/.config/jev/.env
-```
-
-Add this line:
+Inside `.agents/.env`:
 ```ini
 OPENROUTER_API_KEY=sk-or-v1-your_openrouter_api_key_here
 ```
-Jev loads this machine-wide file from every workspace. Environment variables already present in the harness process take priority. A project `.agents/.env` or `.env` can override the machine key intentionally.
+*(Or set `TYPESAFE_API_KEY=your_typesafe_key_here` if connecting directly. Environment variables already present in your shell take priority).*
 
-All harnesses write to one local database, `~/.local/share/jev/jev.sqlite3`, unless the trusted machine config changes it. Check paths and log counts with `jev doctor --cwd .` and `jev stats --json`.
-
-### Step 4: Run Self-Diagnostics
-```sh
-jev doctor --cwd .
-jev stats --json
+### Step 3: Run Self-Diagnostics
+```cmd
+cmd /c python -m jev doctor --cwd .
+cmd /c python -m pytest -q
 ```
 
 ---
 
 ## 2. Connecting to Your Agent Harness
 
-Jev uses one editable Python runtime from this checkout (`src/jev/`). Each device installs that checkout into its user Python environment, then its user-level harness registrations invoke the `jev` command. T3 Code sessions use the same Codex registration when running through the Codex hook layer.
+Jev uses a shared Python runtime (`src/jev/`). Connect it to your preferred harness:
 
-### A. Antigravity
+For Linux, follow [Linux global setup](LINUX_SETUP.md). The commands below use Windows launchers and junctions.
 
-The global `~/.gemini/config/hooks`, `hooks.json`, and `skills` paths link to `.agents/` in this checkout.
+For fresh Windows live checks of Antigravity and Codex, follow [Windows Antigravity and Codex acceptance](WINDOWS_ANTIGRAVITY_CODEX_ACCEPTANCE.md). OpenCode's separate Windows receipt is [here](testing/windows-opencode-acceptance.md).
 
-### B. Codex and T3 Code
+### A. Google Antigravity Setup
+Create directory junctions from Jev into your Antigravity user config directory (`%USERPROFILE%\.gemini\config`):
 
-The global `~/.codex/hooks.json` is installed from [`.codex/hooks.template.json`](../.codex/hooks.template.json). The project `.codex/hooks.json` stays empty, and the project `.codex/config.toml` does not register Jev MCP. This keeps both hooks and tools in one scope. Jev skill links under `~/.codex/skills/` point to the canonical skill files in `.agents/skills/`.
-
-T3 Code sessions share these hooks when T3 Code runs the local Codex hook system. If a T3 Code deployment runs in a separate host or does not load Codex hooks, it needs its own native bridge to the same `jev` executable and user data directory.
-
-### C. OpenCode
-
-The global `~/.config/opencode/opencode.json`, plugin, and `skills` paths link to `.agents/opencode/` and `.agents/skills/` in this checkout. The thin JavaScript plugin translates OpenCode prompt and tool events into the shared Jev runtime; policy and feature logic remain in `src/jev/`.
-
-The shared SQLite database is `~/.local/share/jev/jev.sqlite3`; Antigravity, Codex, OpenCode, and T3 Code through Codex write to this same file. `jev stats --json` summarizes the decision records by harness. Runtime records contain outcomes and feature data, not full user prompts or tool commands.
-
-For development, push source commits from one checkout and fast-forward the other device's checkout. The editable package uses the updated source on the next hook call. Rerun the installer when a harness template changes, then restart that harness. Do not copy user `hooks.json`, trust approvals, or the SQLite database between devices: each installer merges the tracked template with that device's own settings, and the database is local state.
-
-```sh
-# On the device where you made the change
-git add -p
-git commit -m "Describe the Jev change"
-git push
-
-# On another development device
-git pull --ff-only
-python -m pip install --user -e ".[mcp]"
-python scripts/codex_hooks.py install
-python scripts/codex_hooks.py check
+```cmd
+cmd /c mklink /J "%USERPROFILE%\.gemini\config\hooks" "%CD%\.agents\hooks"
+cmd /c mklink /J "%USERPROFILE%\.gemini\config\skills" "%CD%\.agents\skills"
+cmd /c mklink /J "%USERPROFILE%\.gemini\config\protocols" "%CD%\.agents\protocols"
+cmd /c mklink "%USERPROFILE%\.gemini\config\hooks.json" "%CD%\.agents\hooks.json"
 ```
+
+Reload Antigravity: Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> $\rightarrow$ **`Developer: Reload Window`**.
+
+Merge a `jev` entry into the existing `mcpServers` object in `%USERPROFILE%\.gemini\antigravity\mcp_config.json`. Use the absolute installed Python executable and `args: ["-m", "jev", "mcp", "--cwd", ".", "--harness", "antigravity"]`. Preserve other servers. The harness argument is required for harness-scoped tool audit records.
+
+### B. OpenAI Codex Setup
+
+Jev has two Codex hook boundaries:
+
+- The repository-local [`.codex/hooks.json`](../.codex/hooks.json) belongs to the Jev checkout. Codex uses it when the active workspace is `D:\01_GIT\Jev`.
+- The user-global `%USERPROFILE%\.codex\hooks.json` serves every other workspace. Its command points to `%USERPROFILE%\.codex\hooks\jev_dispatch.cmd`, which starts the shared runtime from `D:\01_GIT\Jev\src`.
+
+The global dispatcher reads the native hook JSON from standard input. When its `cwd`, after Windows path normalization and case folding, is exactly `D:\01_GIT\Jev`, it writes `{}` and exits without importing or dispatching Jev. A nested directory or any other workspace continues through the shared runtime. This keeps the global registration from double-running the checkout's dedicated local hook.
+
+After changing `%USERPROFILE%\.codex\hooks.json` or either global dispatcher file, open a **new Codex session**. Existing sessions keep the hook registration they started with. For the local Jev checkout, open it as a trusted project and accept the hook review when prompted.
+
+### C. OpenCode Setup
+
+OpenCode has no `hooks.json`; it loads TypeScript plugins and resolves its global configuration from `$XDG_CONFIG_HOME/opencode` — `%USERPROFILE%\.config\opencode` on Windows, `~/.config/opencode` on Linux, the same directory on both systems. Install Jev into that directory:
+
+```cmd
+cmd /c python -m jev install opencode
+```
+
+The installer is idempotent and refuses to touch anything it does not own:
+
+- Merges only `$schema` (when missing), `mcp.jev`, and a `skills.paths` entry into the global config. Your existing `plugin`, `provider`, `agent`, `permission`, and `model` blocks are preserved unchanged.
+- Writes the generated shim to `plugins/jev.ts` (marked `// @jev-owned`) and records what it added in `.jev-install.json`.
+- Backs up the config before the first write and aborts on a comment-bearing config or an unmarked plugin it did not generate.
+
+Restart OpenCode, then confirm the registration:
+
+```cmd
+cmd /c python -m jev doctor --cwd .
+```
+
+`jev doctor` prints an `opencode` section (config dir, plugin ownership, skills path, `mcp.jev`, interpreter, `opencode --version`) and exits non-zero when a registration is missing. Uninstall the same way it was installed:
+
+```cmd
+cmd /c python -m jev uninstall opencode
+```
+
+Uninstall removes exactly the keys the installer added and deletes the generated shim; your own keys come back byte-for-byte.
 
 ---
 
@@ -158,6 +159,24 @@ Review the printed operation digest, then confirm:
 cmd /c python -m jev authorize --harness codex --tool Bash --command "your command" --workspace-id WORKSPACE_ID --confirm-digest DIGEST
 ```
 
+### OpenCode Permissions
+OpenCode 1.18.33 declares a `permission.ask` plugin hook that its runtime never triggers, so an interactive modal is impossible there. Jev answers `ask` with a denial that carries the recovery command:
+
+```text
+Jev requires explicit approval for this operation. Approval is issued outside
+this agent session; see the Jev user guide. Reason: File mutation targets a
+sensitive path or leaves the workspace.
+```
+
+Authorize the operation from your terminal while the refusal is fresh:
+
+```cmd
+cmd /c python -m jev authorize --harness opencode --tool write --command "your operation" --workspace-id WORKSPACE_ID
+cmd /c python -m jev authorize --harness opencode --tool write --command "your operation" --workspace-id WORKSPACE_ID --confirm-digest DIGEST
+```
+
+Run `python -m jev stats --harness opencode` to list the pending denials and their digests.
+
 ---
 
 ## 5. Output Verification & Knowledge Capture
@@ -173,10 +192,7 @@ cmd /c python -m jev verify --code "client.get_token()" --reference "API Referen
 - In **Codex**, warnings appear in `hookSpecificOutput.additionalContext`.
 - Agents can also call the `verify_output` MCP tool before writing complex diffs.
 
-### B. Reading the Audit Log (`audit_log`)
-The read-only `audit_log` MCP tool returns a bounded page of redacted event records for the configured workspace. Filter by `harness`, `outcome`, `reason_code`, or an ISO-8601 `since` timestamp with timezone. Results are ordered newest first; use `next_before_id` as `before_id` to fetch an older page. The maximum page size is 100 events. Feature details include a bounded, redacted `decision_reason` for events recorded after this version is installed. Earlier records may not contain it. Raw tool commands are not stored in the event table.
-
-### C. Capturing Precedents (`knowledge_learn`)
+### B. Capturing Precedents (`knowledge_learn`)
 When you establish a project-specific pattern or resolve a tricky convention, teach it to Jev so future turns auto-mount it:
 
 ```cmd
@@ -235,13 +251,22 @@ cmd /c python .agents\hooks\safety_db.py --review --harness codex
 
 ## 8. Multi-Workspace Codex Configuration
 
-The Codex installer configures hooks and MCP tools once at user scope for all workspaces. Run it after installing Jev on each device:
-```cmd
-python scripts/codex_hooks.py install
-python scripts/codex_hooks.py check
-```
+To expose Jev MCP tools across all Codex workspaces on Windows:
 
-Do not add the same Jev server or hook to a project's `.codex/config.toml` or `.codex/hooks.json`. `check` exits with an error if it finds a project Jev registration, duplicate user hooks, missing user MCP configuration, or a `jev` executable unavailable on `PATH`.
+1. Add this block to `%USERPROFILE%\.codex\config.toml`:
+   ```toml
+   [mcp_servers.jev]
+   command = "python"
+   args = ["-m", "jev", "mcp", "--harness", "codex"]
+   startup_timeout_sec = 10
+   tool_timeout_sec = 30
+   ```
+   Do not hardcode a project as the global `cwd`. Check `diagnostics_status.workspace_root` in a fresh chat: some app launch paths inherit the app directory. Jev resolves relative `--cwd .` from the process working directory. Its package skill catalog remains available outside the Jev checkout, but project knowledge and lint rules require the correct workspace root.
+
+2. Verify registration:
+   ```cmd
+   cmd /c codex mcp list
+   ```
 
 ---
 
@@ -258,31 +283,3 @@ To run live provider integration tests against OpenRouter / TypeSafe:
 cmd /c set JEV_RUN_LIVE_TESTS=1
 cmd /c python -m pytest tests\test_speculative_router.py -q
 ```
-
-
-### Diagnosing missing advice or repeated provider failures
-
-On Linux, run `jev doctor --cwd /path/to/project`. On Windows, run
-`cmd /c python -m jev doctor --cwd C:\path\to\project`. The report includes
-catalog counts, missing catalog directories, and the semantic request timeout.
-An empty project knowledge catalog is valid; it means there are no local items to search.
-
-The default semantic request timeout is 2 seconds. Hook dispatch starts with a
-4-second budget, shortened by any earlier native deadline. The three independent
-turn-enrichment requests run concurrently. Optional features skip
-when that budget expires; deterministic safety checks still run. Set
-`semantic_timeout_seconds` in `jev.json` or the user config to tune the request
-timeout, or override it with `JEV_SEMANTIC_TIMEOUT_SECONDS`.
-
-To share skills across projects, add `skill_roots` to the user config at
-`~/.config/jev/config.json` on Linux (or `%APPDATA%\Jev\config.json` on Windows).
-Relative user roots resolve beside that config. Project skills take precedence
-when a name also exists globally. `JEV_SKILL_ROOTS` replaces both root lists.
-Knowledge remains scoped to the configured knowledge roots and project gotchas.
-
-New audit events distinguish `empty_catalog`, `missing_prompt`, and
-`dispatch_deadline_exceeded`. Their details include provider status, safe error
-categories, and context item/character counts retained after the context budget.
-`abstain` alone does not tell you whether advice was injected. Post-tool events
-record `success`, `failure`, or `unknown`; missing exit status is not success.
-Restart the harness after changing hook registrations or the OpenCode plugin.

@@ -51,6 +51,24 @@ def codex_event(tmp_path: Path, command: str, call_id: str = "call-1") -> dict:
     }
 
 
+@pytest.mark.parametrize("command,decision", [("git status", "allow"), ("git reset --hard HEAD~1", "deny")])
+def test_safety_policy_matches_across_all_harnesses(tmp_path: Path, command: str, decision: str):
+    cfg = make_settings(tmp_path)
+    opencode = {
+        "hook": "tool.execute.before", "cwd": str(tmp_path), "session_id": "same-session",
+        "tool": {"name": "bash", "call_id": "open-1", "args": {"command": command}},
+    }
+    anti = run_hook("antigravity", antigravity_event(tmp_path, command), cfg)
+    codex = run_hook("codex", codex_event(tmp_path, command), cfg)
+    opened = run_hook("opencode", opencode, cfg)
+    assert anti["decision"] == decision
+    assert codex.get("hookSpecificOutput", {}).get("permissionDecision", "allow") == decision
+    assert opened["decision"] == decision
+    with Storage(cfg.db_path).connect() as connection:
+        for harness in ("antigravity", "codex", "opencode"):
+            assert connection.execute(f"SELECT COUNT(*) FROM {harness}_events").fetchone()[0] >= 1
+
+
 def test_equivalent_destructive_operation_is_denied_by_both_adapters(tmp_path: Path):
     cfg = make_settings(tmp_path)
     anti = run_hook("antigravity", antigravity_event(tmp_path, "cmd /c git reset --hard HEAD~1"), cfg)
@@ -125,6 +143,17 @@ def test_unknown_shell_payload_fails_closed(tmp_path: Path):
     assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
+def test_expired_semantic_deadline_cannot_skip_deterministic_safety(tmp_path: Path):
+    from dataclasses import replace
+    import time
+
+    event, operation = CodexAdapter().decode(codex_event(tmp_path, "git reset --hard HEAD~1"))
+    expired = replace(event, deadline_monotonic=time.monotonic() - 1)
+    result = Runtime(make_settings(tmp_path)).dispatch(expired, operation)
+    assert result.outcome == Outcome.DENY
+    assert result.reason_code == "git_hard_reset"
+
+
 def test_patch_without_resolvable_target_fails_closed(tmp_path: Path):
     cfg = make_settings(tmp_path)
     raw = {
@@ -148,12 +177,73 @@ def test_registry_is_shared_extension_surface():
     }
 
 
+def test_default_skill_catalog_is_available_outside_jev_checkout(tmp_path: Path):
+    (tmp_path / ".git").mkdir()
+    cfg = Settings.load(tmp_path)
+    assert tmp_path / ".agents/skills" in cfg.skill_roots
+    assert cfg.package_root / ".agents/skills" in cfg.skill_roots
+    assert skills.load_catalog(cfg.skill_roots)
+
+
 class SkillClient:
     def evaluate(self, state, questions, timeout):
         return {
             "skill": {"choice": "security-review", "confidence": 0.91},
             "requires_skill": {"noul": 0.94},
         }
+
+
+def test_runtime_uses_native_skill_capability_instead_of_harness_identity(tmp_path: Path):
+    from dataclasses import replace
+    from jev.contracts import HarnessCapabilities
+    from jev.adapters.antigravity import AntigravityAdapter
+
+    cfg = make_settings(tmp_path)
+    directory = tmp_path / ".agents/skills/security-review"
+    directory.mkdir(parents=True)
+    body = "---\nname: security-review\ndescription: Review security.\n---\nInspect trust boundaries."
+    (directory / "SKILL.md").write_text(body, encoding="utf-8")
+    event, _ = AntigravityAdapter().decode({"hookEventName": "PreInvocation", "cwd": str(tmp_path), "prompt": "review security"})
+    injected = Runtime(cfg, client=SkillClient()).dispatch(event)
+    native = Runtime(cfg, client=SkillClient()).dispatch(replace(event, capabilities=HarnessCapabilities(native_skills=True)))
+    assert any(item.text == body for item in injected.context)
+    assert not any(item.text == body for item in native.context)
+
+
+def test_shared_compaction_exports_context_anchors_without_changing_source(tmp_path: Path):
+    from jev.adapters.opencode import OpenCodeAdapter
+
+    raw = {"hook": "experimental.session.compacting", "cwd": str(tmp_path), "session_id": "session",
+           "session_objective": "Preserve this request.", "prior_context": "fix it", "last_error": "test failed"}
+    output = run_hook("opencode", raw, make_settings(tmp_path))
+    assert output["checkpoint_context"]
+    anchors = json.loads(output["checkpoint_context"][0].split("\n", 1)[1])
+    assert anchors == {key: raw[key] for key in ("session_objective", "prior_context", "last_error")}
+    assert raw["session_objective"] == "Preserve this request."
+    event, _ = OpenCodeAdapter().decode(raw)
+    assert Runtime(make_settings(tmp_path)).dispatch(event).data["compaction"]["anchor_count"] == 3
+
+
+def test_context_anchors_survive_worker_restart_and_remain_harness_scoped(tmp_path: Path):
+    from dataclasses import replace
+    from jev.adapters.opencode import OpenCodeAdapter
+    from jev.contracts import Harness
+
+    cfg = make_settings(tmp_path)
+    raw = {"hook": "chat.message", "cwd": str(tmp_path), "session_id": "resumed", "turn_id": "one",
+           "prompt": "Repair portable hooks", "last_error": "fixture failed"}
+    run_hook("opencode", raw, cfg)
+    checkpoint = {"hook": "experimental.session.compacting", "cwd": str(tmp_path), "session_id": "resumed"}
+    output = run_hook("opencode", checkpoint, cfg)
+    assert "Repair portable hooks" in output["checkpoint_context"][0]
+    assert "fixture failed" in output["checkpoint_context"][0]
+    event, _ = OpenCodeAdapter().decode(checkpoint)
+    store = Storage(cfg.db_path)
+    assert store.load_context_anchors(replace(event, harness=Harness.CODEX)) == {}
+    assert store.load_context_anchors(replace(event, workspace_id="other")) == {}
+    assert store.load_context_anchors(replace(event, session_id="other")) == {}
+    run_hook("opencode", {"hook": "session.deleted", "cwd": str(tmp_path), "session_id": "resumed"}, cfg)
+    assert store.load_context_anchors(event) == {}
 
 
 def test_canonical_skill_source_is_shared_without_codex_double_injection(tmp_path: Path):
@@ -252,13 +342,13 @@ def test_knowledge_learn_deduplication_updates_existing_ki(tmp_path: Path):
 def test_knowledge_proposer_advises_codex_system_message_and_antigravity():
     client = MockDeduplicationClient("none")
     # Codex: Option B systemMessage guidance
-    codex_res = knowledge.propose_learning("Resolved token invariant issue", "codex", client=client)
+    codex_res = knowledge.propose_learning("Resolved token invariant issue", False, client=client)
     assert len(codex_res.context) == 1
     assert "Ask the user in your response" in codex_res.context[0].text
     assert "knowledge_learn" in codex_res.context[0].text
 
     # Antigravity: interactive prompt guidance
-    anti_res = knowledge.propose_learning("Resolved token invariant issue", "antigravity", client=client)
+    anti_res = knowledge.propose_learning("Resolved token invariant issue", True, client=client)
     assert len(anti_res.context) == 1
     assert "Propose saving it to repository knowledge" in anti_res.context[0].text
 
@@ -289,5 +379,3 @@ def test_storage_logs_knowledge_decisions(tmp_path: Path):
 
     assert len(stats["recent"]) == 1
     assert stats["recent"][0]["target_ki"] == "ki_jwt_rule"
-
-

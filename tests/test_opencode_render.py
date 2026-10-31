@@ -91,8 +91,8 @@ def test_plugin_lifecycle_contract_is_present():
     assert 'id: "jev"' in source
     assert "async server(input: any)" in source
     assert '["-m", "jev", "doctor", "--cwd", directory]' in source
-    assert '["-m", "jev", "hook", "--harness", "opencode"]' in source
-    assert 'input: JSON.stringify(payload)' in source
+    assert '["-u", "-m", "jev", "hook-worker", "--harness", "opencode"]' in source
+    assert 'JSON.stringify({ request_id, payload })' in source
     assert 'const PRE_FILTER = new Set(' in source
     assert 'hook: hook' in source
     assert 'harness_version: HARNESS_VERSION' in source
@@ -111,8 +111,8 @@ def test_plugin_lifecycle_contract_is_present():
     assert "output.output + \"\\n\" + bound(" in source
     assert "target.push(item)" in source
     assert "system.indexOf(tail) >= 0" in source
-    assert "ETIMEDOUT" in source
-    assert "JSON.parse(String(raw.stdout" in source
+    assert "setTimeout(() => stopWorker(), remaining)" in source
+    assert "JSON.parse(line)" in source
     assert "return undefined" in source
     assert not any(line.startswith("throw ") for line in lines)
     assert source.count("try {") >= 6

@@ -28,7 +28,8 @@ def _adapter(name: str):
     raise ValueError(f"Unknown harness: {name}")
 
 
-def run_hook(harness: str, raw: dict[str, Any], settings: Settings | None = None) -> dict[str, Any]:
+def run_hook(harness: str, raw: dict[str, Any], settings: Settings | None = None,
+             storage: Storage | None = None) -> dict[str, Any]:
     adapter = _adapter(harness)
     settings = settings or Settings.load(raw.get("cwd") or None)
     try:
@@ -63,7 +64,7 @@ def run_hook(harness: str, raw: dict[str, Any], settings: Settings | None = None
             return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
                                             "permissionDecisionReason": reason}}
         return {}
-    result = Runtime(settings).dispatch(event, operation)
+    result = Runtime(settings, storage=storage).dispatch(event, operation)
     return adapter.encode(event, result)
 
 
@@ -142,6 +143,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     hook = sub.add_parser("hook")
     hook.add_argument("--harness", choices=("antigravity", "codex", "opencode"), required=True)
+    worker = sub.add_parser("hook-worker")
+    worker.add_argument("--harness", choices=("antigravity", "codex", "opencode"), required=True)
     doctor = sub.add_parser("doctor")
     doctor.add_argument("--cwd", default=".")
     migrate = sub.add_parser("migrate-legacy")
@@ -200,7 +203,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "hook-worker":
+        from jev.transports.worker import serve
+
+        return serve(args.harness)
     if args.command == "hook":
+        sys.stdin.reconfigure(encoding="utf-8")
+        sys.stdout.reconfigure(encoding="utf-8")
         try:
             raw = json.loads(sys.stdin.read() or "{}")
             output = run_hook(args.harness, raw)

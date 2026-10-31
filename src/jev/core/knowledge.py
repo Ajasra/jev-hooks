@@ -257,7 +257,7 @@ def learn(
 
 def propose_learning(
     context_text: str,
-    harness: str,
+    interactive_advisories: bool,
     client: DecisionClient | None = None,
     timeout: float = 0.25,
 ) -> Result:
@@ -294,14 +294,14 @@ def propose_learning(
         domain = str(answers.get("pattern_title", {}).get("choice") or "")
 
         if is_reusable >= 0.75 and domain != "routine":
-            if harness == "codex":
-                # Option B for Codex: Visible systemMessage guiding the model to ask the user
+            if not interactive_advisories:
+                # Native text surfaces present the proposal in the model's response.
                 msg = (
                     "[Jev Knowledge Advisory]: A reusable architectural pattern was established in this step. "
                     "Ask the user in your response: 'Would you like me to save this solution to .agents/knowledge/ using knowledge_learn?'"
                 )
             else:
-                # Antigravity: direct instruction to present an interactive choice
+                # Interactive surfaces can present the proposal as a native choice.
                 msg = (
                     "[Jev Knowledge Advisory]: A reusable architectural pattern was established in this step. "
                     "Propose saving it to repository knowledge using `knowledge_learn` or render an interactive modal."
@@ -322,9 +322,6 @@ def propose_learning(
         feature_version="1",
         duration_ms=(time.monotonic() - started) * 1000,
     )
-
-
-
 def record_gotcha(
     title: str,
     trap: str,

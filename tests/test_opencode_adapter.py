@@ -80,6 +80,21 @@ def test_turn_fixture_carries_prompt_and_agent():
     assert event.turn_id.startswith("msg_")
 
 
+def test_followup_context_reaches_shared_envelope(tmp_path: Path):
+    from jev.core.context import assemble_envelope
+
+    raw = fixture("turn.json")
+    raw.update(prompt="fix it", prior_context="Repair the OpenCode adapter",
+               session_objective="Implement portable hooks", active_path="src/app.py",
+               last_error="test failed")
+    event, _ = OpenCodeAdapter().decode(raw)
+    envelope = assemble_envelope(event, tmp_path)
+    assert envelope.prior_context == "Repair the OpenCode adapter"
+    assert envelope.session_objective == "Implement portable hooks"
+    assert envelope.active_path == "src/app.py"
+    assert envelope.last_error == "test failed"
+
+
 def test_tool_fixtures_translate_to_operations():
     adapter = OpenCodeAdapter()
     before, op = adapter.decode(fixture("tool_before.json"))

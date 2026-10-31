@@ -21,13 +21,15 @@ class FeatureSpec:
 
 
 FEATURES = (
+    FeatureSpec("session_cleanup", "1", frozenset({EventKind.SESSION_END}), "session_cleanup", frozenset(), 0, 0, "open"),
+    FeatureSpec("compaction", "1", frozenset({EventKind.CONTEXT_CHECKPOINT}), "compaction", frozenset({"context"}), 70, 3000, "open"),
     FeatureSpec("safety", "safety-v1", frozenset({EventKind.TOOL_BEFORE}), "safety", frozenset({"tool.before"}), 100, 0, "secure"),
     FeatureSpec("loop_guard", "1", frozenset({EventKind.TOOL_BEFORE, EventKind.TOOL_AFTER}), "loop_guard", frozenset({"tool.before", "tool.after"}), 95, 1000, "secure"),
     FeatureSpec("verification", "1", frozenset({EventKind.TOOL_BEFORE}), "verification", frozenset({"tool.before", "context"}), 80, 2000, "open"),
     FeatureSpec("speculative", "1", frozenset({EventKind.TURN_BEFORE}), "speculative", frozenset({"turn.before", "context"}), 70, 4000, "open"),
     FeatureSpec("skills", "1", frozenset({EventKind.TURN_BEFORE}), "skills", frozenset({"turn.before", "context"}), 60, 6000, "open"),
     FeatureSpec("knowledge", "1", frozenset({EventKind.TURN_BEFORE, EventKind.SESSION_START}), "knowledge", frozenset({"context"}), 50, 6000, "open"),
-    FeatureSpec("knowledge_proposer", "1", frozenset({EventKind.TOOL_AFTER, EventKind.TURN_BEFORE}), "knowledge_proposer", frozenset({"context"}), 45, 1000, "open"),
+    FeatureSpec("knowledge_proposer", "1", frozenset({EventKind.TOOL_AFTER}), "knowledge_proposer", frozenset({"context"}), 45, 1000, "open"),
 )
 
 

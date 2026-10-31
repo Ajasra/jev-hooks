@@ -106,12 +106,15 @@ def harness_version() -> str:
 
 
 def _read(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+    with path.open(encoding="utf-8", newline="") as stream:
+        return stream.read()
 
 
 def _dump(value: dict[str, Any], original: str | None = None) -> str:
     text = json.dumps(value, indent=2, ensure_ascii=False)
-    return text + "\n" if original is None or original.endswith("\n") else text
+    newline = "\r\n" if original and "\r\n" in original else "\n"
+    text = text.replace("\n", newline)
+    return text + newline if original is None or original.endswith("\n") else text
 
 
 def _sha256(text: str) -> str:
@@ -278,8 +281,8 @@ def install(
             str(target): _sha256(rendered_config),
             str(layout.plugin_file): _sha256(rendered_plugin),
         },
-        "owned_keys": merge.added,
-        "created_containers": merge.created,
+        "owned_keys": list(dict.fromkeys([*previous.get("owned_keys", []), *merge.added])),
+        "created_containers": list(dict.fromkeys([*previous.get("created_containers", []), *merge.created])),
         "skills_paths": merge.skills_paths,
         "python": str(interpreter),
     }

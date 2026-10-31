@@ -51,6 +51,14 @@ class Operation:
 
 
 @dataclass(frozen=True)
+class HarnessCapabilities:
+    """Native presentation capabilities supplied by adapters, never project config."""
+
+    native_skills: bool = False
+    interactive_advisories: bool = False
+
+
+@dataclass(frozen=True)
 class Event:
     kind: EventKind
     harness: Harness
@@ -66,6 +74,7 @@ class Event:
     tool_call_id: str = ""
     deadline_monotonic: float | None = None
     schema_version: int = SCHEMA_VERSION
+    capabilities: HarnessCapabilities = field(default_factory=HarnessCapabilities)
 
 
 @dataclass(frozen=True)
@@ -142,4 +151,3 @@ def merge_results(results: list[Result], context_budget: int = 12_000) -> Result
     merged.data = {item.feature: item.data for item in results if item.feature and item.data}
     merged.duration_ms = sum(item.duration_ms for item in results)
     return merged
-

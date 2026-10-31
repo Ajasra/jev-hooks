@@ -62,6 +62,7 @@ Thumbs.db
 out/
 .turbo/
 .cache/
+/temp/
 coverage/
 *.tsbuildinfo
 

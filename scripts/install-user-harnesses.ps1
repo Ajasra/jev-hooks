@@ -7,10 +7,12 @@ function Ensure-Junction([string]$Link, [string]$Target) {
     New-Item -ItemType Directory -Force -Path $parent | Out-Null
     if (Test-Path -LiteralPath $Link) {
         $item = Get-Item -LiteralPath $Link -Force
-        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -and (($item.Target -join '') -eq $Target)) {
+        $currentTarget = ($item.Target -join '')
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -and ($currentTarget -eq $Target -or (Resolve-Path $currentTarget).Path -eq (Resolve-Path $Target).Path)) {
             return
         }
-        throw "Target already exists; left untouched: $Link"
+        Write-Warning "Target already exists; leaving untouched: $Link"
+        return
     }
     New-Item -ItemType Junction -Path $Link -Target $Target | Out-Null
 }

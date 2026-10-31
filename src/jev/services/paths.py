@@ -94,7 +94,7 @@ class Settings:
         data_root = Path(data_root_value).expanduser().resolve() if data_root_value else default_data_root()
         rules_value = os.environ.get("JEV_DB_PATH") or (user.get("rules_db") if not os.environ.get("JEV_DATA_ROOT") else None)
         db_path = Path(rules_value).expanduser().resolve() if rules_value else data_root / "jev.sqlite3"
-        skill_value: object = project.get("skill_roots", [".agents/skills"])
+        skill_value: object = ordinary.get("skill_roots", [".agents/skills", str(package_root / ".agents/skills")])
         if os.environ.get("JEV_SKILL_ROOTS"):
             skill_value = os.environ["JEV_SKILL_ROOTS"].split(os.pathsep)
         knowledge_value: object = ordinary.get("knowledge_roots", [".agents/knowledge", "docs/gotchas"])

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import queue
+import threading
 import urllib.request
 import urllib.error
 import socket
@@ -11,6 +13,9 @@ import ssl
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol
+
+
+_REQUEST_SLOTS = threading.BoundedSemaphore(4)
 
 
 def _load_env_defaults() -> None:
@@ -67,6 +72,35 @@ class HttpDecisionClient:
         return cls(key, endpoint, model)
 
     def evaluate(self, state: Any, questions: Mapping[str, Any], timeout: float) -> dict[str, Any]:
+        """Enforce elapsed time even when DNS or TLS setup ignores socket timeouts."""
+        slots = _REQUEST_SLOTS
+        if timeout <= 0 or not slots.acquire(blocking=False):
+            raise TimeoutError("Jev semantic request budget exhausted")
+        replies: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
+
+        def request() -> None:
+            try:
+                replies.put((True, self._request(state, questions, timeout)))
+            except Exception as exc:
+                replies.put((False, exc))
+            finally:
+                slots.release()
+
+        worker = threading.Thread(target=request, name="jev-semantic-request", daemon=True)
+        try:
+            worker.start()
+        except Exception:
+            slots.release()
+            raise
+        try:
+            succeeded, value = replies.get(timeout=timeout)
+        except queue.Empty as exc:
+            raise TimeoutError("Jev semantic request exceeded its elapsed-time budget") from exc
+        if not succeeded:
+            raise value
+        return value
+
+    def _request(self, state: Any, questions: Mapping[str, Any], timeout: float) -> dict[str, Any]:
         payload = {"model": self.model, "state": state, "questions": questions}
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
         if "openrouter.ai" in self.endpoint:

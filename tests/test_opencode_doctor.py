@@ -25,7 +25,9 @@ def test_fresh_install_reports_every_registration(tmp_path: Path):
     assert section["config_dir"] == str(root(tmp_path))
     assert section["config_file"] == str(root(tmp_path) / "opencode.json")
     assert section["plugin_state"] == "owned"
-    assert section["skills_paths"] == [str(tmp_path / ".agents" / "skills")]
+    from jev.services.paths import Settings
+
+    assert section["skills_paths"] == [str(path) for path in Settings.load(tmp_path).skill_roots]
     assert section["mcp"] == {
         "present": True,
         "enabled": True,

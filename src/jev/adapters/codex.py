@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from jev.adapters.base import Adapter, extract_turn_context, patch_paths, stable_event_id, workspace_id, tool_result_payload
-from jev.contracts import Event, EventKind, Harness, Operation, Outcome, Result
+from jev.contracts import Event, EventKind, Harness, HarnessCapabilities, Operation, Outcome, Result
 
 
 EVENTS = {
@@ -22,6 +22,7 @@ EVENTS = {
 
 class CodexAdapter(Adapter):
     harness = Harness.CODEX
+    capabilities = HarnessCapabilities(native_skills=True)
 
     def decode(self, raw: Mapping[str, Any]) -> tuple[Event, Operation | None]:
         native_event = str(raw.get("hook_event_name") or "")
@@ -55,6 +56,7 @@ class CodexAdapter(Adapter):
         if kind == EventKind.TOOL_AFTER:
             payload.update(tool_result_payload(raw))
         event = Event(
+            capabilities=self.capabilities,
             kind=kind,
             harness=self.harness,
             event_id=event_id,
@@ -114,4 +116,3 @@ class CodexAdapter(Adapter):
         if event.kind == EventKind.TOOL_AFTER:
             return {"systemMessage": context} if context else {}
         return {}
-

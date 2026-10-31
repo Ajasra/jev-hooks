@@ -4,6 +4,28 @@ from __future__ import annotations
 
 from typing import Any
 
+from jev.contracts import ContextItem, Event, Result
+from jev.services.storage import redact
+
+
+def context_anchors(event: Event) -> Result:
+    """Carry bounded source excerpts through native compaction without rewriting history."""
+    limits = {"session_objective": 400, "prior_context": 1000, "active_path": 500, "last_error": 800}
+    anchors = {
+        key: redact(str(event.payload.get(key) or ""), limit)
+        for key, limit in limits.items()
+        if event.payload.get(key)
+    }
+    result = Result(feature="compaction", feature_version="1", data={"anchor_count": len(anchors)})
+    if anchors:
+        import json
+
+        result.context.append(ContextItem(
+            "compaction", "[Jev context anchors; source excerpts, not a complete transcript]\n" +
+            json.dumps(anchors, ensure_ascii=False), priority=70,
+        ))
+    return result
+
 
 def checkpoint(messages: list[dict[str, Any]], preserve_recent: int = 6, head_chars: int = 300) -> list[dict[str, Any]]:
     """Create a sidecar-safe checkpoint without modifying a harness transcript."""
@@ -26,4 +48,3 @@ def checkpoint(messages: list[dict[str, Any]], preserve_recent: int = 6, head_ch
         copied["tool_calls"] = calls
         output.append(copied)
     return output
-

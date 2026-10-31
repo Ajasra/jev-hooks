@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Mapping
 
-from jev.contracts import Event, Harness, Operation, Result
+from jev.contracts import Event, Harness, HarnessCapabilities, Operation, Result
 
 
 def workspace_id(cwd: str) -> str:
@@ -130,6 +130,7 @@ def extract_turn_context(transcript_path: str | Path | None) -> dict[str, str]:
 
 class Adapter(ABC):
     harness: Harness
+    capabilities = HarnessCapabilities()
 
     @abstractmethod
     def decode(self, raw: Mapping[str, Any]) -> tuple[Event, Operation | None]:
@@ -141,8 +142,6 @@ class Adapter(ABC):
 
     def _deadline(self, seconds: float = 30.0) -> float:
         return time.monotonic() + seconds
-
-
 def tool_result_payload(raw: Mapping[str, Any]) -> dict[str, Any]:
     """Translate native result fields without inferring success from missing evidence."""
     response = raw.get("tool_response", raw.get("toolResult", raw.get("result", {})))

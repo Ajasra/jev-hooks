@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from jev.contracts import Event, EventKind, Harness, Operation, Outcome, Result, merge_results
-from jev.core import context, knowledge, loop_guard, safety, skills, speculative, verification
+from jev.core import compaction, context, knowledge, loop_guard, safety, skills, speculative, verification
 from jev.registry import FEATURES
 from jev.services.client import DecisionClient, HttpDecisionClient
 from jev.services.paths import Settings
@@ -33,6 +33,17 @@ class Runtime:
         deadline = started + 4.0
         event = replace(event, deadline_monotonic=min(event.deadline_monotonic, deadline)
                         if event.deadline_monotonic is not None else deadline)
+        anchors: dict[str, str] = {}
+        if event.kind in {EventKind.TURN_BEFORE, EventKind.CONTEXT_CHECKPOINT}:
+            try:
+                anchors = self.storage.load_context_anchors(event)
+                payload = dict(event.payload)
+                for key, value in anchors.items():
+                    if not payload.get(key):
+                        payload[key] = value
+                event = replace(event, payload=payload)
+            except Exception:
+                pass
         results: list[Result] = []
         envelope = None
         if event.kind in {EventKind.TURN_BEFORE, EventKind.SESSION_START}:
@@ -60,6 +71,14 @@ class Runtime:
                         results.append(lg_res)
                 elif event.kind == EventKind.TOOL_AFTER:
                     results.append(loop_guard.record_after(event, operation, self.storage))
+            elif spec.handler_name == "compaction":
+                results.append(compaction.context_anchors(event))
+            elif spec.handler_name == "session_cleanup":
+                try:
+                    self.storage.delete_context_anchors(event)
+                    results.append(Result(feature="session_cleanup", feature_version="1"))
+                except Exception as exc:
+                    results.append(Result(feature="session_cleanup", feature_version="1", error=type(exc).__name__))
             elif spec.handler_name == "verification":
                 v_res = verification.evaluate_operation(
                     operation,
@@ -86,7 +105,7 @@ class Runtime:
                     self.settings.skill_roots,
                     self.client,
                     self._remaining(event),
-                    inject_body=event.harness not in {Harness.CODEX, Harness.OPENCODE},
+                    inject_body=not event.capabilities.native_skills,
                 ))
             elif spec.handler_name == "knowledge":
                 semantic_prompt = envelope.to_semantic_string() if envelope else str(event.payload.get("prompt", ""))
@@ -106,7 +125,7 @@ class Runtime:
                     context_str = str(event.payload.get("prompt", ""))
                 results.append(knowledge.propose_learning(
                     context_str,
-                    event.harness.value,
+                    event.capabilities.interactive_advisories,
                     self.client,
                     self._remaining(event),
                 ))
@@ -129,6 +148,18 @@ class Runtime:
                 self.storage.record_event(event, result)
             except Exception:
                 pass
+        if event.kind == EventKind.TURN_BEFORE:
+            for key in ("session_objective", "active_path", "last_error"):
+                if event.payload.get(key):
+                    anchors[key] = str(event.payload[key])
+            prompt = str(event.payload.get("prompt") or "")
+            if prompt:
+                anchors.setdefault("session_objective", prompt)
+                anchors["prior_context"] = prompt
+            try:
+                self.storage.save_context_anchors(event, anchors)
+            except Exception:
+                pass
         merged.duration_ms = (time.monotonic() - started) * 1000
         return merged
 
@@ -145,7 +176,7 @@ class Runtime:
                 ),
                 "skills": pool.submit(
                     skills.suggest, prompt, self.settings.skill_roots, self.client,
-                    self._remaining(event), inject_body=event.harness != Harness.CODEX,
+                    self._remaining(event), inject_body=not event.capabilities.native_skills,
                 ),
                 "knowledge": pool.submit(
                     knowledge.search, prompt, self.settings.knowledge_roots,
