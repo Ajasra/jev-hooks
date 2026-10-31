@@ -66,6 +66,27 @@ def record_gotcha(
     )
 
 
+def record_gotcha(
+    settings: Settings,
+    title: str,
+    trap: str = "",
+    remediation: str = "",
+    tags: list[str] | str | None = None,
+    slug: str | None = None,
+    **kwargs: Any,
+) -> dict:
+    """Persist an operational gotcha into repository docs/gotchas/."""
+    gotchas_root = settings.workspace_root / "docs" / "gotchas"
+    return knowledge.record_gotcha(
+        title=title,
+        trap=trap or str(kwargs.get("summary", "")),
+        remediation=remediation or str(kwargs.get("details", "")),
+        root=gotchas_root,
+        tags=tags,
+        slug=slug,
+    )
+
+
 def skills_list(settings: Settings) -> list[dict[str, str]]:
     """List skills from the canonical skill catalog."""
     return skills.list_skills(settings.skill_roots)
