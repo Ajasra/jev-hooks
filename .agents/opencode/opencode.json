@@ -5,11 +5,16 @@
     "jev": {
       "type": "local",
       "command": [
+        "/usr/bin/python3",
+        "-m",
         "jev",
         "mcp",
+        "--cwd",
+        ".",
         "--harness",
         "opencode"
-      ]
+      ],
+      "enabled": true
     },
     "aaa-consultant": {
       "type": "local",
@@ -29,5 +34,11 @@
       "mode": "all",
       "prompt": "You are assisted by Jev System One semantic control, shared safety guardrails, and real-time verification."
     }
+  },
+  "skills": {
+    "paths": [
+      "/home/vasily/Projects/work/JEV/.agents/skills",
+      "/home/vasily/.codex/skills"
+    ]
   }
 }

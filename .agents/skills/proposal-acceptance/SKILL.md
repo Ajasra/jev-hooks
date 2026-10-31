@@ -3,6 +3,7 @@ name: proposal-acceptance
 description: >
   Builds and runs a scoped acceptance matrix for an implemented Jev proposal across affected operating systems and agent harnesses.
   Use after proposal implementation when offline, live application, or cross-harness evidence needs to be collected and recorded.
+scope: project
 concerns: [system-one-balance]
 ---
 
